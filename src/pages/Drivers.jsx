@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { api } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { 
     Dialog, 
     DialogContent, 
@@ -40,7 +38,8 @@ export default function Drivers() {
     });
 
     const createMutation = useMutation({
-        mutationFn: (data) => api.entities.Driver.create({ ...data, status: 'active' }),
+        // IMPORTANT: use active boolean (not status string)
+        mutationFn: (data) => api.entities.Driver.create({ ...data, active: true }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['allDrivers'] });
             queryClient.invalidateQueries({ queryKey: ['drivers'] });
@@ -57,6 +56,14 @@ export default function Drivers() {
             setIsOpen(false);
             setEditingDriver(null);
             resetForm();
+        }
+    });
+
+    const toggleActiveMutation = useMutation({
+        mutationFn: ({ id, active }) => api.entities.Driver.update(id, { active }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['allDrivers'] });
+            queryClient.invalidateQueries({ queryKey: ['drivers'] });
         }
     });
 
@@ -113,6 +120,7 @@ export default function Drivers() {
                         </h1>
                         <p className="text-slate-500 mt-1">{drivers.length} drivers registered</p>
                     </div>
+
                     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
                         <DialogTrigger asChild>
                             <Button className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl shadow-lg shadow-emerald-500/25">
@@ -120,6 +128,7 @@ export default function Drivers() {
                                 Add Driver
                             </Button>
                         </DialogTrigger>
+
                         <DialogContent className="rounded-2xl">
                             <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
@@ -127,6 +136,7 @@ export default function Drivers() {
                                     {editingDriver ? 'Edit Driver' : 'Add New Driver'}
                                 </DialogTitle>
                             </DialogHeader>
+
                             <form onSubmit={handleSubmit} className="space-y-4 pt-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="name">Driver Name *</Label>
@@ -134,27 +144,29 @@ export default function Drivers() {
                                         id="name"
                                         placeholder="Enter full name"
                                         value={formData.name}
-                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         className="rounded-xl"
                                         required
                                     />
                                 </div>
+
                                 <div className="space-y-2">
                                     <Label htmlFor="phone">Phone Number</Label>
                                     <Input
                                         id="phone"
                                         placeholder="e.g. (555) 123-4567"
                                         value={formData.phone}
-                                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                         className="rounded-xl"
                                     />
                                 </div>
+
                                 <div className="space-y-2">
                                     <Label>State</Label>
                                     <div className="grid grid-cols-2 gap-3">
                                         <button
                                             type="button"
-                                            onClick={() => setFormData({...formData, state: 'IL'})}
+                                            onClick={() => setFormData({ ...formData, state: 'IL' })}
                                             className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all font-medium ${
                                                 formData.state === 'IL'
                                                     ? 'border-blue-400 bg-blue-50 text-blue-700'
@@ -165,7 +177,7 @@ export default function Drivers() {
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => setFormData({...formData, state: 'PA'})}
+                                            onClick={() => setFormData({ ...formData, state: 'PA' })}
                                             className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all font-medium ${
                                                 formData.state === 'PA'
                                                     ? 'border-green-400 bg-green-50 text-green-700'
@@ -176,13 +188,18 @@ export default function Drivers() {
                                         </button>
                                     </div>
                                 </div>
+
                                 <DialogFooter className="pt-4">
-                                    <Button 
-                                        type="submit" 
+                                    <Button
+                                        type="submit"
                                         disabled={createMutation.isPending || updateMutation.isPending}
                                         className="bg-emerald-600 hover:bg-emerald-700 rounded-xl"
                                     >
-                                        {(createMutation.isPending || updateMutation.isPending) ? 'Saving...' : editingDriver ? 'Update Driver' : 'Add Driver'}
+                                        {(createMutation.isPending || updateMutation.isPending)
+                                            ? 'Saving...'
+                                            : editingDriver
+                                                ? 'Update Driver'
+                                                : 'Add Driver'}
                                     </Button>
                                 </DialogFooter>
                             </form>
@@ -215,16 +232,27 @@ export default function Drivers() {
                                                 )}
                                             </div>
                                         </div>
-                                        <Badge className={`${driver.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'} border-0`}>
-                                            {driver.status}
-                                        </Badge>
+
+                                        {/* TOP-RIGHT ACTIVE TOGGLE (replaces the old gray badge spot) */}
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleActiveMutation.mutate({ id: driver.id, active: !Boolean(driver.active) })}
+                                            className={`px-2.5 py-1 rounded-full text-xs font-semibold border-0 transition ${
+                                                driver.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                                            }`}
+                                            title="Toggle Active"
+                                        >
+                                            {driver.active ? 'Active' : 'Inactive'}
+                                        </button>
                                     </div>
+
                                     {driver.phone && (
                                         <div className="flex items-center gap-2 mt-3 text-sm text-slate-500">
                                             <Phone className="h-4 w-4" />
                                             {driver.phone}
                                         </div>
                                     )}
+
                                     <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
                                         <Button
                                             variant="outline"
@@ -235,6 +263,7 @@ export default function Drivers() {
                                             <Pencil className="h-3.5 w-3.5 mr-1" />
                                             Edit
                                         </Button>
+
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                                 <Button
@@ -245,6 +274,7 @@ export default function Drivers() {
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
                                             </AlertDialogTrigger>
+
                                             <AlertDialogContent className="rounded-2xl">
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Delete Driver</AlertDialogTitle>
@@ -254,7 +284,7 @@ export default function Drivers() {
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction 
+                                                    <AlertDialogAction
                                                         onClick={() => deleteMutation.mutate(driver.id)}
                                                         className="bg-red-600 hover:bg-red-700 rounded-xl"
                                                     >
@@ -273,4 +303,3 @@ export default function Drivers() {
         </div>
     );
 }
-
