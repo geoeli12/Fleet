@@ -13,8 +13,8 @@ export default function Layout({ children, currentPageName }) {
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20 text-foreground">
-            <header className="sticky top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-lg">
+        <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background text-foreground">
+            <header className="sticky top-0 z-50 border-b border-black/10 bg-black/80 backdrop-blur-lg">
                 <div className="max-w-5xl mx-auto px-4">
                     <div className="flex items-center justify-between h-16">
                         <Link to={createPageUrl('DriverLog')} className="flex items-center gap-3">
@@ -47,7 +47,7 @@ export default function Layout({ children, currentPageName }) {
                                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                                             isActive
                                                 ? 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/25'
-                                                : 'text-white/70 hover:bg-black/5 hover:text-white'
+                                                : 'text-white/80 hover:bg-white/10 hover:text-white'
                                         }`}
                                     >
                                         <Icon className="h-4 w-4" />
