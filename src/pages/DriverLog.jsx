@@ -65,14 +65,46 @@ export default function DriverLog() {
     const startShiftMutation = useMutation({
         mutationFn: (data) => {
             const attendanceStatus = computeAttendanceStatus(data.shift_type, data.start_time);
-            return api.entities.Shift.create({ ...data, attendance_status: attendanceStatus });
+
+            // Normalize keys to match server allowed columns
+            const payload = {
+                ...data,
+                shift_date: data.shift_date ?? data.date,
+                start_odometer: data.start_odometer ?? data.starting_odometer,
+                attendance_status: attendanceStatus,
+            };
+            delete payload.date;
+            delete payload.starting_odometer;
+
+            return api.entities.Shift.create(payload);
         },
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['activeShifts'] })
     });
 
     const ptoMutation = useMutation({
-        mutationFn: (data) => api.entities.Shift.create({ ...data, attendance_status: 'pto' }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['activeShifts'] })
+        mutationFn: async (data) => {
+            const driver_name = data.driver_name;
+            const pto_dates = Array.isArray(data.pto_dates) ? data.pto_dates : [];
+
+            // Create one completed PTO shift row per selected date
+            await Promise.all(
+                pto_dates.map((d) =>
+                    api.entities.Shift.create({
+                        shift_date: d,
+                        shift_type: 'pto',
+                        status: 'completed',
+                        attendance_status: 'pto',
+                        driver_name,
+                        start_time: new Date().toISOString(),
+                    })
+                )
+            );
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['activeShifts'] });
+            // PTO is not "active", so reset back to the start state for clarity
+            setSelectedDriver("");
+        }
     });
 
     const cancelShiftMutation = useMutation({
