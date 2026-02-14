@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { api } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -83,9 +82,9 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
 
     return (
         <>
-            <Card className="border-0 shadow-lg bg-white/90 backdrop-blur-sm">
+            <Card className="border-0 shadow-lg bg-black/90 backdrop-blur-sm">
                 <CardHeader className="pb-3">
-                    <CardTitle className="text-lg font-medium text-slate-700 flex items-center gap-2">
+                    <CardTitle className="text-lg font-medium text-white flex items-center gap-2">
                         <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                             <Plus className="h-4 w-4 text-white" />
                         </div>
@@ -95,7 +94,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium text-slate-600">Run Type</Label>
+                            <Label className="text-sm font-medium text-white/70">Run Type</Label>
                             <div className="grid grid-cols-2 gap-3">
                                 <button
                                     type="button"
@@ -103,7 +102,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
                                     className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all ${
                                         formData.run_type === 'delivery' 
                                             ? 'border-blue-400 bg-blue-50 text-blue-700' 
-                                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                            : 'border-slate-200 bg-black text-white/70 hover:border-slate-300'
                                     }`}
                                 >
                                     <TruckIcon className="h-4 w-4" />
@@ -114,8 +113,8 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
                                     onClick={() => setFormData({...formData, run_type: 'pickup'})}
                                     className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all ${
                                         formData.run_type === 'pickup' 
-                                            ? 'border-green-400 bg-green-50 text-green-700' 
-                                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                            ? 'border-amber-400 bg-amber-500/10 text-amber-200' 
+                                            : 'border-slate-200 bg-black text-white/70 hover:border-slate-300'
                                     }`}
                                 >
                                     <PackageCheck className="h-4 w-4" />
@@ -126,7 +125,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
                                     <MapPin className="h-3.5 w-3.5" /> City
                                 </Label>
                                 <Input placeholder="Enter city" value={formData.city}
@@ -134,7 +133,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
                                     className="h-11 border-slate-200 rounded-xl" required />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
                                     <Building2 className="h-3.5 w-3.5" /> Customer Name
                                 </Label>
                                 <Input placeholder="Enter customer" value={formData.customer_name}
@@ -145,7 +144,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
                                     <ArrowRightLeft className="h-3.5 w-3.5" /> Trailer Dropped
                                 </Label>
                                 <Input placeholder="Trailer # dropped" value={formData.trailer_dropped}
@@ -153,7 +152,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
                                     className="h-11 border-slate-200 rounded-xl" />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
                                     <ArrowRightLeft className="h-3.5 w-3.5" /> Trailer Picked Up
                                 </Label>
                                 <Input placeholder="Trailer # picked up" value={formData.trailer_picked_up}
@@ -163,7 +162,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                            <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
                                 <Package className="h-3.5 w-3.5" /> Load Type
                             </Label>
                             <Select value={formData.load_type} onValueChange={handleLoadTypeChange}>
@@ -185,7 +184,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
                                     <Clock className="h-3.5 w-3.5" /> Arrival Time
                                 </Label>
                                 <Input type="datetime-local" value={formData.arrival_time}
@@ -193,7 +192,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
                                     className="h-11 border-slate-200 rounded-xl" />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
                                     <Clock className="h-3.5 w-3.5" /> Departure Time
                                 </Label>
                                 <Input type="datetime-local" value={formData.departure_time}
@@ -203,7 +202,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                            <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
                                 <FileText className="h-3.5 w-3.5" /> Notes
                             </Label>
                             <Textarea placeholder="Add any additional notes..." value={formData.notes}
@@ -255,4 +254,3 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
         </>
     );
 }
-
