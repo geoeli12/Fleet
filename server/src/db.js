@@ -38,10 +38,9 @@ export function tableNameFor(collectionKey) {
 /** Allowed columns per collection (prevents “column does not exist” errors) */
 function allowedColumnsFor(collectionKey) {
   const allow = {
+    // Supabase drivers table uses `active boolean`, UI uses `status string`
     drivers: ["name", "phone", "state", "active"],
 
-    // Your UI sends many more fields than the original minimal schema.
-    // If your runs table doesn't have these yet, add them (or Supabase will reject insert).
     runs: [
       "shift_id",
       "driver_id",
@@ -58,7 +57,6 @@ function allowedColumnsFor(collectionKey) {
       "notes",
     ],
 
-    // Your UI creates a shift with date/start_time/shift_type + other metadata
     shifts: [
       "shift_date",
       "shift_type",
@@ -80,12 +78,11 @@ function allowedColumnsFor(collectionKey) {
 function isoToTime(value) {
   if (!value) return value;
 
-  // If already looks like HH:MM or HH:MM:SS, keep it
+  // already HH:MM or HH:MM:SS
   if (typeof value === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
     return value.length === 5 ? `${value}:00` : value;
   }
 
-  // If ISO date string, convert to HH:MM:SS
   try {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return value;
@@ -100,7 +97,8 @@ function isoToTime(value) {
 
 function isoToDate(value) {
   if (!value) return value;
-  // If already YYYY-MM-DD, keep it
+
+  // already YYYY-MM-DD
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
 
   try {
@@ -115,7 +113,10 @@ function isoToDate(value) {
   }
 }
 
-/** Normalize + map UI keys -> DB keys, then DROP unknown keys */
+/**
+ * Normalize + map UI keys -> DB keys, then drop unknown keys.
+ * IMPORTANT: drivers: UI uses status ("active"/"inactive"), DB uses active (boolean)
+ */
 export function normalizePayload(collectionKey, body) {
   const src = body || {};
   const out = { ...src };
@@ -129,7 +130,7 @@ export function normalizePayload(collectionKey, body) {
     }
   };
 
-  // Common alternate names you might have in the UI
+  // Common aliases
   applyMap({
     createdDate: "created_date",
     createdAt: "created_at",
@@ -149,15 +150,10 @@ export function normalizePayload(collectionKey, body) {
 
     runs: {
       shiftId: "shift_id",
-      shift_id: "shift_id",
       driverId: "driver_id",
-      driver_id: "driver_id",
       driverName: "driver_name",
-      driver_name: "driver_name",
       runDate: "run_date",
-      run_date: "run_date",
       loadType: "load_type",
-      load_type: "load_type",
       runType: "run_type",
       customerName: "customer_name",
       trailerDropped: "trailer_dropped",
@@ -167,16 +163,11 @@ export function normalizePayload(collectionKey, body) {
     },
 
     shifts: {
-      // IMPORTANT: UI sends `date`, your DB column is `shift_date`
       date: "shift_date",
       shiftDate: "shift_date",
-
       shiftType: "shift_type",
-
-      // UI sends ISO strings; your DB columns are `time`
       startTime: "start_time",
       endTime: "end_time",
-
       driverName: "driver_name",
       unitNumber: "unit_number",
       startingOdometer: "starting_odometer",
@@ -200,16 +191,29 @@ export function normalizePayload(collectionKey, body) {
   delete out.created_at;
   delete out.created_date;
 
-  // Type conversions that match your current Supabase schema
+  // ---- SPECIAL FIX: Drivers status <-> active ----
+  if (collectionKey === "drivers") {
+    // If UI sends status, convert to boolean
+    if (out.status !== undefined) {
+      const s = String(out.status).toLowerCase().trim();
+      if (s === "active") out.active = true;
+      else if (s === "inactive") out.active = false;
+      delete out.status;
+    }
+
+    // If active came as string, coerce
+    if (typeof out.active === "string") {
+      const s = out.active.toLowerCase().trim();
+      if (s === "true" || s === "1" || s === "yes") out.active = true;
+      else if (s === "false" || s === "0" || s === "no") out.active = false;
+    }
+  }
+
+  // Type conversions matching Supabase schema
   if (collectionKey === "shifts") {
     if (out.shift_date) out.shift_date = isoToDate(out.shift_date);
     if (out.start_time) out.start_time = isoToTime(out.start_time);
     if (out.end_time) out.end_time = isoToTime(out.end_time);
-
-    // If UI forgot shift_date but did send start_time as ISO, derive date
-    if (!out.shift_date && out.start_time && typeof src.start_time === "string") {
-      out.shift_date = isoToDate(src.start_time);
-    }
   }
 
   if (collectionKey === "runs") {
@@ -218,7 +222,7 @@ export function normalizePayload(collectionKey, body) {
     if (out.departure_time) out.departure_time = isoToTime(out.departure_time);
   }
 
-  // ✅ DROP unknown keys so Supabase doesn’t reject the insert/update
+  // Drop unknown keys so Supabase doesn't reject the insert/update
   const allowed = allowedColumnsFor(collectionKey);
   if (allowed.length) {
     for (const k of Object.keys(out)) {
@@ -229,11 +233,27 @@ export function normalizePayload(collectionKey, body) {
   return out;
 }
 
-/** Back-compat: add created_date if UI expects it */
+/**
+ * API shape for UI compatibility:
+ * - drivers: UI expects `status`, DB has `active`
+ * - also keep created_date if UI uses it
+ */
 export function apiShape(row) {
   if (!row) return row;
+
   const created_date =
     row.created_date ??
     (row.created_at ? new Date(row.created_at).toISOString() : undefined);
-  return { ...row, created_date };
+
+  // drivers: add status back for UI
+  let status = row.status;
+  if (status === undefined && typeof row.active === "boolean") {
+    status = row.active ? "active" : "inactive";
+  }
+
+  return {
+    ...row,
+    status,
+    created_date,
+  };
 }
