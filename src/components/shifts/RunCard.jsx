@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,12 +35,12 @@ export default function RunCard({ run, index, isCurrentRun, onClick }) {
                         </div>
                         <div>
                             <div className="flex items-center gap-2 text-slate-800 font-medium">
-                                <MapPin className="h-4 w-4 text-emerald-500" />
-                                {run.city}
+                                <Building2 className="h-4 w-4 text-emerald-500" />
+                                {run.customer_name}
                             </div>
                             <div className="flex items-center gap-2 text-sm text-slate-500 mt-0.5">
-                                <Building2 className="h-3.5 w-3.5" />
-                                {run.customer_name}
+                                <MapPin className="h-3.5 w-3.5" />
+                                {run.city}
                             </div>
                         </div>
                     </div>
@@ -98,4 +97,3 @@ export default function RunCard({ run, index, isCurrentRun, onClick }) {
         </Card>
     );
 }
-
