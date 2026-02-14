@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
     };
 
     return (
-        <Card className="border-0 shadow-xl bg-black/60 backdrop-blur-sm">
+        <Card className="border-0 shadow-xl bg-white ring-1 ring-black/5 backdrop-blur-sm">
             <CardHeader className="pb-4">
                 <CardTitle className="text-2xl font-light tracking-tight text-white flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500/100 to-amber-600 flex items-center justify-center">
@@ -182,3 +183,4 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
         </Card>
     );
 }
+
