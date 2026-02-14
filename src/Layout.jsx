@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { Truck, History, ClipboardList, Users, CalendarDays } from 'lucide-react';
+import { History, ClipboardList, Users, CalendarDays } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
     const navItems = [
@@ -14,17 +13,27 @@ export default function Layout({ children, currentPageName }) {
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50">
-            <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-slate-100">
+        <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20 text-foreground">
+            <header className="sticky top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-lg">
                 <div className="max-w-5xl mx-auto px-4">
                     <div className="flex items-center justify-between h-16">
                         <Link to={createPageUrl('DriverLog')} className="flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                                <Truck className="h-5 w-5 text-white" />
+                            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 ring-1 ring-white/10 overflow-hidden">
+                                <img
+                                    src="/ash_pallet_logo.svg"
+                                    alt="ASH Pallet Management"
+                                    className="h-8 w-8 object-contain"
+                                    loading="eager"
+                                />
                             </div>
-                            <span className="text-xl font-semibold text-slate-800 tracking-tight">
-                                Driver<span className="text-emerald-600">Log</span>
-                            </span>
+                            <div className="leading-tight">
+                                <div className="text-sm font-semibold tracking-wide text-amber-300">
+                                    ASH Pallet Management
+                                </div>
+                                <div className="text-xs text-white/70">
+                                    DriverLog
+                                </div>
+                            </div>
                         </Link>
 
                         <nav className="flex items-center gap-1">
@@ -37,8 +46,8 @@ export default function Layout({ children, currentPageName }) {
                                         to={createPageUrl(item.name)}
                                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                                             isActive
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                                                ? 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/25'
+                                                : 'text-white/70 hover:bg-black/5 hover:text-white'
                                         }`}
                                     >
                                         <Icon className="h-4 w-4" />
@@ -51,10 +60,9 @@ export default function Layout({ children, currentPageName }) {
                 </div>
             </header>
 
-            <main>
+            <main className="pb-10">
                 {children}
             </main>
         </div>
     );
 }
-
