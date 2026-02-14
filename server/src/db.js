@@ -83,74 +83,82 @@ function pickAllowed(collectionKey, payload) {
   return out;
 }
 
-/**
- * Map collectionKey -> table name
- */
 export function tableNameFor(collectionKey) {
   return requireCollection(collectionKey).table;
 }
 
 /**
- * Normalize incoming payloads from the frontend
- * so your app can keep using the same fields it already uses.
+ * Normalize incoming payloads from the frontend.
+ * IMPORTANT: returns ONLY allowed columns to prevent Supabase insert/update failures.
  */
 export function normalizePayload(collectionKey, payload) {
   if (!payload || typeof payload !== "object") return {};
 
-  // clone
   const p = { ...payload };
 
   // ---- DRIVERS ----
   if (collectionKey === "drivers") {
-    // Some UIs send driverName instead of name
+    // UI variants -> DB column names
     if (p.driverName !== undefined && p.name === undefined) p.name = p.driverName;
+    if (p.phoneNumber !== undefined && p.phone === undefined) p.phone = p.phoneNumber;
+
     delete p.driverName;
+    delete p.phoneNumber;
 
-    // Default active if missing (optional)
-    if (p.active === undefined) {
-      // leave as-is (DB default can handle it)
-    }
+    // Ensure active is always boolean so UI doesn't break filters/badges
+    if (p.active === undefined || p.active === null) p.active = false;
 
-    return p;
+    return pickAllowed(collectionKey, p);
   }
 
   // ---- SHIFTS ----
   if (collectionKey === "shifts") {
-    // frontend sends `date` sometimes; DB column is `shift_date`
-    if (p.date !== undefined && p.shift_date === undefined) {
-      p.shift_date = p.date;
-    }
+    // UI sends `date` sometimes; DB column is `shift_date`
+    if (p.date !== undefined && p.shift_date === undefined) p.shift_date = p.date;
     delete p.date;
 
     // Ensure status default
-    if (p.status === undefined || p.status === null || p.status === "") {
-      p.status = "active";
-    }
+    if (p.status === undefined || p.status === null || p.status === "") p.status = "active";
 
-    // IMPORTANT: allow end_time to be NULL (clock-out later)
-    // leave end_time as undefined/null if not clocked out
-
-    return p;
+    return pickAllowed(collectionKey, p);
   }
 
   // ---- RUNS ----
   if (collectionKey === "runs") {
-    // frontend sends `date`; DB column is `run_date`
-    if (p.date !== undefined && p.run_date === undefined) {
-      p.run_date = p.date;
-    }
+    // UI sends `date`; DB column is `run_date`
+    if (p.date !== undefined && p.run_date === undefined) p.run_date = p.date;
     delete p.date;
-    return p;
+
+    return pickAllowed(collectionKey, p);
   }
 
-  return p;
+  // Default: strip to allowed keys
+  return pickAllowed(collectionKey, p);
 }
 
 /**
- * Shape outgoing row for API response
- * (Keep as passthrough unless you want to transform fields)
+ * Shape outgoing rows so frontend always gets what it expects.
  */
-export function apiShape(row) {
+export function apiShape(collectionKey, row) {
+  if (!row || typeof row !== "object") return row;
+
+  if (collectionKey === "drivers") {
+    const out = { ...row };
+
+    // Always expose a boolean `active` to frontend
+    if (out.active === undefined || out.active === null) out.active = false;
+
+    // Some schemas use is_active; if present, map it
+    if (out.active === false && out.is_active !== undefined && out.is_active !== null) {
+      out.active = Boolean(out.is_active);
+    }
+
+    // Some schemas store phone_number; map it
+    if (!out.phone && out.phone_number) out.phone = out.phone_number;
+
+    return out;
+  }
+
   return row;
 }
 
@@ -166,7 +174,6 @@ export async function initDb() {
     auth: { persistSession: false },
   });
 
-  // quick sanity check
   const { error } = await supabase.from("drivers").select("id").limit(1);
   if (error && error.code !== "PGRST116") {
     console.log("Supabase check error:", error);
@@ -182,7 +189,7 @@ export async function listRecords(collectionKey) {
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  return data || [];
+  return (data || []).map((r) => apiShape(collectionKey, r));
 }
 
 export async function getRecord(collectionKey, id) {
@@ -195,14 +202,13 @@ export async function getRecord(collectionKey, id) {
     .single();
 
   if (error) throw error;
-  return data;
+  return apiShape(collectionKey, data);
 }
 
 export async function createRecord(collectionKey, payload) {
   const c = requireCollection(collectionKey);
 
-  const normalized = normalizePayload(collectionKey, payload);
-  const insertPayload = pickAllowed(collectionKey, normalized);
+  const insertPayload = normalizePayload(collectionKey, payload);
 
   const { data, error } = await supabase
     .from(c.table)
@@ -211,14 +217,13 @@ export async function createRecord(collectionKey, payload) {
     .single();
 
   if (error) throw error;
-  return data;
+  return apiShape(collectionKey, data);
 }
 
 export async function updateRecord(collectionKey, id, payload) {
   const c = requireCollection(collectionKey);
 
-  const normalized = normalizePayload(collectionKey, payload);
-  const updatePayload = pickAllowed(collectionKey, normalized);
+  const updatePayload = normalizePayload(collectionKey, payload);
 
   const { data, error } = await supabase
     .from(c.table)
@@ -228,7 +233,7 @@ export async function updateRecord(collectionKey, id, payload) {
     .single();
 
   if (error) throw error;
-  return data;
+  return apiShape(collectionKey, data);
 }
 
 export async function deleteRecord(collectionKey, id) {
