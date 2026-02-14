@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,10 +42,10 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
     };
 
     return (
-        <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+        <Card className="border-0 shadow-xl bg-black/60 backdrop-blur-sm">
             <CardHeader className="pb-4">
-                <CardTitle className="text-2xl font-light tracking-tight text-slate-800 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                <CardTitle className="text-2xl font-light tracking-tight text-white flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500/100 to-amber-600 flex items-center justify-center">
                         <Truck className="h-5 w-5 text-white" />
                     </div>
                     Start Your Shift
@@ -55,7 +54,7 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
-                        <Label className="text-sm font-medium text-slate-600">
+                        <Label className="text-sm font-medium text-white/70">
                             Shift Type
                         </Label>
                         <div className="grid grid-cols-3 gap-3">
@@ -65,7 +64,7 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
                                 className={`flex items-center justify-center gap-2 h-12 rounded-xl border-2 transition-all ${
                                     formData.shift_type === 'day' && !isPTO
                                         ? 'border-amber-400 bg-amber-50 text-amber-700' 
-                                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                        : 'border-slate-200 bg-black text-white/70 hover:border-slate-300'
                                 }`}
                             >
                                 <Sun className="h-5 w-5" />
@@ -77,7 +76,7 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
                                 className={`flex items-center justify-center gap-2 h-12 rounded-xl border-2 transition-all ${
                                     formData.shift_type === 'night' && !isPTO
                                         ? 'border-indigo-400 bg-indigo-50 text-indigo-700' 
-                                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                        : 'border-slate-200 bg-black text-white/70 hover:border-slate-300'
                                 }`}
                             >
                                 <Moon className="h-5 w-5" />
@@ -89,7 +88,7 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
                                 className={`flex items-center justify-center gap-2 h-12 rounded-xl border-2 transition-all ${
                                     isPTO
                                         ? 'border-violet-400 bg-violet-50 text-violet-700' 
-                                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                        : 'border-slate-200 bg-black text-white/70 hover:border-slate-300'
                                 }`}
                             >
                                 <CalendarDays className="h-5 w-5" />
@@ -100,11 +99,11 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
 
                     {isPTO ? (
                         <div className="space-y-3">
-                            <Label className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                            <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
                                 <CalendarDays className="h-4 w-4" />
                                 Select PTO Date(s)
                             </Label>
-                            <div className="bg-white rounded-xl border border-slate-200 p-3 flex justify-center">
+                            <div className="bg-black rounded-xl border border-slate-200 p-3 flex justify-center">
                                 <Calendar
                                     mode="multiple"
                                     selected={ptoDates}
@@ -125,7 +124,7 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
                     ) : (
                         <>
                             <div className="space-y-2">
-                                <Label htmlFor="unit_number" className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                <Label htmlFor="unit_number" className="text-sm font-medium text-white/70 flex items-center gap-2">
                                     <Truck className="h-4 w-4" />
                                     Unit Number
                                 </Label>
@@ -134,13 +133,13 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
                                     placeholder="e.g. TRK-101"
                                     value={formData.unit_number}
                                     onChange={(e) => setFormData({...formData, unit_number: e.target.value})}
-                                    className="h-12 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl"
+                                    className="h-12 border-slate-200 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl"
                                     required
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="starting_odometer" className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                <Label htmlFor="starting_odometer" className="text-sm font-medium text-white/70 flex items-center gap-2">
                                     <Gauge className="h-4 w-4" />
                                     Starting Odometer (miles)
                                 </Label>
@@ -150,7 +149,7 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
                                     placeholder="e.g. 125000"
                                     value={formData.starting_odometer}
                                     onChange={(e) => setFormData({...formData, starting_odometer: e.target.value})}
-                                    className="h-12 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl"
+                                    className="h-12 border-slate-200 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl"
                                     required
                                 />
                             </div>
@@ -163,7 +162,7 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
                         className={`w-full h-12 font-medium rounded-xl shadow-lg transition-all duration-300 ${
                             isPTO 
                                 ? 'bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white shadow-violet-500/25'
-                                : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/25'
+                                : 'bg-gradient-to-r from-amber-500/100 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white shadow-amber-500/20'
                         }`}
                     >
                         {isPTO ? (
@@ -183,4 +182,3 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
         </Card>
     );
 }
-
