@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { api } from '@/api/apiClient';
 import { useQuery } from '@tanstack/react-query';
@@ -60,13 +59,13 @@ export default function EditRunDialog({ run, open, onClose, onSave, isSaving }) 
                         <div className="grid grid-cols-2 gap-3">
                             <button type="button" onClick={() => setData({...data, run_type: 'delivery'})}
                                 className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all ${
-                                    data.run_type === 'delivery' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600'
+                                    data.run_type === 'delivery' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200 bg-black text-white/70'
                                 }`}>
                                 <TruckIcon className="h-4 w-4" /> Delivery
                             </button>
                             <button type="button" onClick={() => setData({...data, run_type: 'pickup'})}
                                 className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all ${
-                                    data.run_type === 'pickup' ? 'border-green-400 bg-green-50 text-green-700' : 'border-slate-200 bg-white text-slate-600'
+                                    data.run_type === 'pickup' ? 'border-amber-400 bg-amber-500/10 text-amber-200' : 'border-slate-200 bg-black text-white/70'
                                 }`}>
                                 <PackageCheck className="h-4 w-4" /> Pickup
                             </button>
@@ -120,7 +119,7 @@ export default function EditRunDialog({ run, open, onClose, onSave, isSaving }) 
                 </div>
                 <DialogFooter className="pt-4">
                     <Button variant="outline" onClick={() => onClose(false)} className="rounded-xl">Cancel</Button>
-                    <Button onClick={handleSave} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700 rounded-xl">
+                    <Button onClick={handleSave} disabled={isSaving} className="bg-amber-600 hover:bg-amber-700 rounded-xl">
                         {isSaving ? 'Saving...' : 'Save Changes'}
                     </Button>
                 </DialogFooter>
@@ -128,4 +127,3 @@ export default function EditRunDialog({ run, open, onClose, onSave, isSaving }) 
         </Dialog>
     );
 }
-
