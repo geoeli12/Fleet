@@ -226,14 +226,14 @@ export default function ShiftHistory() {
 
     if (shiftsLoading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-amber-300" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20">
+        <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background">
             <div className="max-w-5xl mx-auto px-4 py-8">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                     <div>
@@ -254,7 +254,7 @@ export default function ShiftHistory() {
                     </div>
                 </div>
 
-                <Card className="border-0 shadow-md bg-black/60 backdrop-blur-sm mb-6">
+                <Card className="border-0 shadow-md bg-white ring-1 ring-black/5 backdrop-blur-sm mb-6">
                     <CardContent className="p-4">
                         <div className="flex flex-col sm:flex-row gap-4">
                             <div className="flex-1">
@@ -371,7 +371,7 @@ export default function ShiftHistory() {
                             const isNight = shift.shift_type === 'night';
 
                             return (
-                                <Card key={shift.id} className="border-0 shadow-lg bg-black/60 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
+                                <Card key={shift.id} className="border-0 shadow-lg bg-white ring-1 ring-black/5 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
                                     <CardHeader className="pb-3">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
@@ -439,7 +439,7 @@ export default function ShiftHistory() {
                                         </div>
 
                                         {shiftRuns.length > 0 && (
-                                            <div className="border-t border-white/10 pt-4">
+                                            <div className="border-t border-black/10 pt-4">
                                                 <div className="text-sm font-medium text-white/70 mb-3">Run Details</div>
                                                 <div className="space-y-2">
                                                     {shiftRuns.map((run, idx) => (

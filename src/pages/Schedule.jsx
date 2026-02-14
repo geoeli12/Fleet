@@ -115,7 +115,7 @@ export default function Schedule() {
     const paDayDrivers = drivers.filter(d => d.state === 'PA');
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20">
+        <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background">
             <div className="max-w-7xl mx-auto px-4 py-8">
                 <div className="mb-8">
                     <h1 className="text-3xl font-light tracking-tight text-white">

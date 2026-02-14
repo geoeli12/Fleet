@@ -104,7 +104,7 @@ export default function Drivers() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-amber-300" />
             </div>
         );
@@ -115,15 +115,15 @@ export default function Drivers() {
             <div className="max-w-4xl mx-auto px-4 py-8">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h1 className="text-3xl font-light tracking-tight text-white">
+                        <h1 className="text-3xl font-light tracking-tight text-zinc-900">
                             Manage <span className="font-semibold">Drivers</span>
                         </h1>
-                        <p className="text-white/60 mt-1">{drivers.length} drivers registered</p>
+                        <p className="text-zinc-600 mt-1">{drivers.length} drivers registered</p>
                     </div>
 
                     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
                         <DialogTrigger asChild>
-                            <Button className="bg-gradient-to-r from-amber-500/100 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white rounded-xl shadow-lg shadow-amber-500/20">
+                            <Button className="bg-gradient-to-r from-amber-500/100 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-zinc-900 rounded-xl shadow-lg shadow-amber-500/20">
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add Driver
                             </Button>
@@ -170,7 +170,7 @@ export default function Drivers() {
                                             className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all font-medium ${
                                                 formData.state === 'IL'
                                                     ? 'border-blue-400 bg-blue-50 text-blue-700'
-                                                    : 'border-slate-200 bg-black text-white/70 hover:border-slate-300'
+                                                    : 'border-slate-200 bg-black text-white hover:border-slate-300'
                                             }`}
                                         >
                                             IL
@@ -181,7 +181,7 @@ export default function Drivers() {
                                             className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all font-medium ${
                                                 formData.state === 'PA'
                                                     ? 'border-amber-400 bg-amber-500/10 text-amber-200'
-                                                    : 'border-slate-200 bg-black text-white/70 hover:border-slate-300'
+                                                    : 'border-slate-200 bg-black text-white hover:border-slate-300'
                                             }`}
                                         >
                                             PA
@@ -208,15 +208,15 @@ export default function Drivers() {
                 </div>
 
                 {drivers.length === 0 ? (
-                    <div className="text-center py-16 bg-black/50 rounded-2xl border border-dashed border-slate-200">
+                    <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200">
                         <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                        <p className="text-white/60 font-medium text-lg">No drivers yet</p>
+                        <p className="text-zinc-600 font-medium text-lg">No drivers yet</p>
                         <p className="text-slate-400 mt-1">Add your first driver to get started</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {drivers.map((driver) => (
-                            <Card key={driver.id} className="border-0 shadow-md bg-black/60 backdrop-blur-sm hover:shadow-lg transition-all">
+                            <Card key={driver.id} className="border-0 shadow-md bg-white ring-1 ring-black/5 backdrop-blur-sm hover:shadow-lg transition-all">
                                 <CardContent className="p-4">
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-3">
@@ -224,9 +224,9 @@ export default function Drivers() {
                                                 <User className="h-5 w-5 text-amber-300" />
                                             </div>
                                             <div>
-                                                <div className="font-semibold text-white">{driver.name}</div>
+                                                <div className="font-semibold text-zinc-900">{driver.name}</div>
                                                 {driver.state && (
-                                                    <div className="text-xs text-white/60 font-medium">
+                                                    <div className="text-xs text-zinc-600 font-medium">
                                                         {driver.state}
                                                     </div>
                                                 )}
@@ -238,7 +238,7 @@ export default function Drivers() {
                                             type="button"
                                             onClick={() => toggleActiveMutation.mutate({ id: driver.id, active: !Boolean(driver.active) })}
                                             className={`px-2.5 py-1 rounded-full text-xs font-semibold border-0 transition ${
-                                                driver.active ? 'bg-amber-500/15 text-amber-200' : 'bg-slate-200 text-white/70'
+                                                driver.active ? 'bg-amber-500/15 text-amber-200' : 'bg-slate-200 text-zinc-700'
                                             }`}
                                             title="Toggle Active"
                                         >
@@ -247,7 +247,7 @@ export default function Drivers() {
                                     </div>
 
                                     {driver.phone && (
-                                        <div className="flex items-center gap-2 mt-3 text-sm text-white/60">
+                                        <div className="flex items-center gap-2 mt-3 text-sm text-zinc-600">
                                             <Phone className="h-4 w-4" />
                                             {driver.phone}
                                         </div>

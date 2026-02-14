@@ -310,7 +310,7 @@ export default function Calendar() {
                   className={[
                     "h-[110px] rounded-xl border bg-black p-3 text-left transition",
                     "hover:border-slate-300 hover:shadow-sm",
-                    hasAny ? "border-slate-200" : "border-white/10",
+                    hasAny ? "border-slate-200" : "border-black/10",
                   ].join(" ")}
                   title="Click to view day details"
                 >

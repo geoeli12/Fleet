@@ -60,7 +60,7 @@ export default function Calendar() {
     const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20">
+        <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background">
             <div className="max-w-7xl mx-auto px-4 py-8">
                 <div className="bg-black rounded-2xl shadow-xl p-8">
                     {/* Header */}
