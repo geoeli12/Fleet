@@ -1,6 +1,7 @@
+// server/src/db.js
 import { createClient } from "@supabase/supabase-js";
 
-let supabase = null;
+export let supabase = null;
 
 /**
  * Collections define:
@@ -12,14 +13,7 @@ const COLLECTIONS = {
   drivers: {
     table: "drivers",
     primaryKey: "id",
-    allowed: [
-      "id",
-      "name",
-      "phone",
-      "state",
-      "active",
-      "created_at",
-    ],
+    allowed: ["id", "name", "phone", "state", "active", "created_at"],
   },
 
   shifts: {
@@ -64,22 +58,13 @@ const COLLECTIONS = {
   schedules: {
     table: "schedules",
     primaryKey: "id",
-    allowed: [
-      "id",
-      "schedule_date",
-      "data",
-      "created_at",
-    ],
+    allowed: ["id", "schedule_date", "data", "created_at"],
   },
 
   customLoadTypes: {
     table: "custom_load_types",
     primaryKey: "id",
-    allowed: [
-      "id",
-      "label",
-      "created_at",
-    ],
+    allowed: ["id", "label", "created_at"],
   },
 };
 
@@ -93,21 +78,43 @@ function pickAllowed(collectionKey, payload) {
   const c = requireCollection(collectionKey);
   const out = {};
   for (const k of c.allowed) {
-    if (payload[k] !== undefined) out[k] = payload[k];
+    if (payload && payload[k] !== undefined) out[k] = payload[k];
   }
   return out;
+}
+
+/**
+ * Map collectionKey -> table name
+ */
+export function tableNameFor(collectionKey) {
+  return requireCollection(collectionKey).table;
 }
 
 /**
  * Normalize incoming payloads from the frontend
  * so your app can keep using the same fields it already uses.
  */
-function normalizePayload(collectionKey, payload) {
+export function normalizePayload(collectionKey, payload) {
   if (!payload || typeof payload !== "object") return {};
 
   // clone
   const p = { ...payload };
 
+  // ---- DRIVERS ----
+  if (collectionKey === "drivers") {
+    // Some UIs send driverName instead of name
+    if (p.driverName !== undefined && p.name === undefined) p.name = p.driverName;
+    delete p.driverName;
+
+    // Default active if missing (optional)
+    if (p.active === undefined) {
+      // leave as-is (DB default can handle it)
+    }
+
+    return p;
+  }
+
+  // ---- SHIFTS ----
   if (collectionKey === "shifts") {
     // frontend sends `date` sometimes; DB column is `shift_date`
     if (p.date !== undefined && p.shift_date === undefined) {
@@ -121,14 +128,12 @@ function normalizePayload(collectionKey, payload) {
     }
 
     // IMPORTANT: allow end_time to be NULL (clock-out later)
-    if (p.end_time === undefined) {
-      // do nothing (column can be null)
-    }
+    // leave end_time as undefined/null if not clocked out
 
-    // start_time / end_time are ISO strings from frontend; Supabase will accept them for timestamptz
     return p;
   }
 
+  // ---- RUNS ----
   if (collectionKey === "runs") {
     // frontend sends `date`; DB column is `run_date`
     if (p.date !== undefined && p.run_date === undefined) {
@@ -141,14 +146,20 @@ function normalizePayload(collectionKey, payload) {
   return p;
 }
 
+/**
+ * Shape outgoing row for API response
+ * (Keep as passthrough unless you want to transform fields)
+ */
+export function apiShape(row) {
+  return row;
+}
+
 export async function initDb() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
-    throw new Error(
-      "Missing env vars. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on Render."
-    );
+    throw new Error("Missing env vars. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on Render.");
   }
 
   supabase = createClient(url, key, {
@@ -158,8 +169,6 @@ export async function initDb() {
   // quick sanity check
   const { error } = await supabase.from("drivers").select("id").limit(1);
   if (error && error.code !== "PGRST116") {
-    // PGRST116 can happen if table empty depending on policies; ignore
-    // But other errors should be surfaced
     console.log("Supabase check error:", error);
   }
 }
@@ -225,10 +234,7 @@ export async function updateRecord(collectionKey, id, payload) {
 export async function deleteRecord(collectionKey, id) {
   const c = requireCollection(collectionKey);
 
-  const { error } = await supabase
-    .from(c.table)
-    .delete()
-    .eq(c.primaryKey, id);
+  const { error } = await supabase.from(c.table).delete().eq(c.primaryKey, id);
 
   if (error) throw error;
   return { ok: true };
