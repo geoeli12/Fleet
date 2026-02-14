@@ -405,7 +405,7 @@ export default function ShiftHistory() {
                             // Absent record
                             if (shift.is_absent) {
                                 return (
-                                    <Card key={shift.id} onClick={() => openEditShift(shift)} className="border-0 shadow-md bg-red-50/50 backdrop-blur-sm cursor-pointer hover:shadow-lg transition-shadow">
+                                    <Card key={shift.id} className="border-0 shadow-md bg-red-50/50 backdrop-blur-sm cursor-default ">
                                         <CardContent className="p-4">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
@@ -430,7 +430,7 @@ export default function ShiftHistory() {
                             // PTO record
                             if (shift.is_pto || shift.shift_type === 'pto') {
                                 return (
-                                    <Card key={shift.id} onClick={() => openEditShift(shift)} className="border-0 shadow-md bg-violet-50/50 backdrop-blur-sm cursor-pointer hover:shadow-lg transition-shadow">
+                                    <Card key={shift.id} className="border-0 shadow-md bg-violet-50/50 backdrop-blur-sm cursor-default ">
                                         <CardContent className="p-4">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
