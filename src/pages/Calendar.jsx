@@ -91,7 +91,7 @@ function statusDotClass(s) {
   // These are very standard tailwind utility classes though.
   switch (s) {
     case "present":
-      return "bg-emerald-500";
+      return "bg-amber-500/100";
     case "late":
       return "bg-orange-500";
     case "absent":
@@ -241,7 +241,7 @@ export default function Calendar() {
           <h1 className="text-3xl font-light tracking-tight">
             Attendance <span className="font-semibold">Calendar</span>
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-slate-600">
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-white/70">
             <div className="flex items-center gap-2">
               <span className={`h-2 w-2 rounded-full ${statusDotClass("present")}`} />
               Present
@@ -265,7 +265,7 @@ export default function Calendar() {
           <Button variant="outline" onClick={() => setCurrentMonth((m) => addMonths(m, -1))}>
             ◀
           </Button>
-          <div className="min-w-[160px] text-center text-lg font-medium text-slate-800">
+          <div className="min-w-[160px] text-center text-lg font-medium text-white">
             {monthTitle}
           </div>
           <Button variant="outline" onClick={() => setCurrentMonth((m) => addMonths(m, 1))}>
@@ -276,12 +276,12 @@ export default function Calendar() {
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-slate-700">Month view</CardTitle>
+          <CardTitle className="text-base font-semibold text-white">Month view</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-3">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((w) => (
-              <div key={w} className="px-1 text-xs font-semibold text-slate-500">
+              <div key={w} className="px-1 text-xs font-semibold text-white/60">
                 {w}
               </div>
             ))}
@@ -308,14 +308,14 @@ export default function Calendar() {
                   key={cell.key}
                   onClick={() => openDay(cell.key)}
                   className={[
-                    "h-[110px] rounded-xl border bg-white p-3 text-left transition",
+                    "h-[110px] rounded-xl border bg-black p-3 text-left transition",
                     "hover:border-slate-300 hover:shadow-sm",
-                    hasAny ? "border-slate-200" : "border-slate-100",
+                    hasAny ? "border-slate-200" : "border-white/10",
                   ].join(" ")}
                   title="Click to view day details"
                 >
                   <div className="flex items-start justify-between">
-                    <div className="text-sm font-semibold text-slate-800">{cell.day}</div>
+                    <div className="text-sm font-semibold text-white">{cell.day}</div>
                     {hasAny ? (
                       <Badge variant="secondary" className="text-[10px]">
                         {dotOrder.reduce((sum, s) => sum + (dayData?.[s]?.length || 0), 0)}
@@ -330,7 +330,7 @@ export default function Calendar() {
                   </div>
 
                   {hasAny ? (
-                    <div className="mt-2 text-xs text-slate-500">
+                    <div className="mt-2 text-xs text-white/60">
                       {dayData.present.length ? `${dayData.present.length} present` : null}
                       {dayData.late.length ? `${dayData.present.length ? " • " : ""}${dayData.late.length} late` : null}
                       {dayData.absent.length ? `${(dayData.present.length || dayData.late.length) ? " • " : ""}${dayData.absent.length} absent` : null}
@@ -351,12 +351,12 @@ export default function Calendar() {
           <DialogHeader>
             <DialogTitle className="text-lg">
               Day details{" "}
-              <span className="ml-2 text-sm font-normal text-slate-500">{selectedDate || ""}</span>
+              <span className="ml-2 text-sm font-normal text-white/60">{selectedDate || ""}</span>
             </DialogTitle>
           </DialogHeader>
 
           {!selectedDate ? (
-            <div className="py-6 text-sm text-slate-600">Select a day.</div>
+            <div className="py-6 text-sm text-white/70">Select a day.</div>
           ) : (
             <Tabs defaultValue="present" className="w-full">
               <TabsList className="grid w-full grid-cols-4">
@@ -371,14 +371,14 @@ export default function Calendar() {
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className={`h-2.5 w-2.5 rounded-full ${statusDotClass(s)}`} />
-                      <div className="text-sm font-semibold text-slate-800">{statusLabel(s)}</div>
+                      <div className="text-sm font-semibold text-white">{statusLabel(s)}</div>
                     </div>
                     <Badge variant="secondary">{(selectedSummary?.[s] || []).length}</Badge>
                   </div>
 
                   <div className="max-h-[320px] overflow-auto rounded-xl border bg-slate-50 p-3">
                     {(selectedSummary?.[s] || []).length === 0 ? (
-                      <div className="py-10 text-center text-sm text-slate-500">No drivers</div>
+                      <div className="py-10 text-center text-sm text-white/60">No drivers</div>
                     ) : (
                       <ul className="space-y-2">
                         {(selectedSummary?.[s] || []).map((d, idx) => {
@@ -388,12 +388,12 @@ export default function Calendar() {
                           return (
                             <li
                               key={`${s}-${idx}`}
-                              className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm"
+                              className="flex items-center justify-between rounded-lg bg-black px-3 py-2 shadow-sm"
                             >
                               <div className="min-w-0">
-                                <div className="truncate text-sm font-medium text-slate-800">{name}</div>
+                                <div className="truncate text-sm font-medium text-white">{name}</div>
                                 {(phone || state) ? (
-                                  <div className="mt-0.5 text-xs text-slate-500">
+                                  <div className="mt-0.5 text-xs text-white/60">
                                     {phone ? phone : null}
                                     {phone && state ? " • " : null}
                                     {state ? state : null}

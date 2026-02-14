@@ -115,20 +115,20 @@ export default function Schedule() {
     const paDayDrivers = drivers.filter(d => d.state === 'PA');
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50">
+        <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20">
             <div className="max-w-7xl mx-auto px-4 py-8">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-light tracking-tight text-slate-800">
+                    <h1 className="text-3xl font-light tracking-tight text-white">
                         Schedule <span className="font-semibold">Planning</span>
                     </h1>
-                    <p className="text-slate-500 mt-1">Plan driver shifts and runs</p>
+                    <p className="text-white/60 mt-1">Plan driver shifts and runs</p>
                 </div>
 
                 {/* Date Selector */}
                 <Card className="mb-6 border-0 shadow-lg">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <Calendar className="h-5 w-5 text-emerald-600" />
+                            <Calendar className="h-5 w-5 text-amber-300" />
                             Schedule Date
                         </CardTitle>
                     </CardHeader>
@@ -158,7 +158,7 @@ export default function Schedule() {
                                 <Card className="border-0 shadow-lg">
                                     <CardHeader>
                                         <CardTitle className="text-lg flex items-center gap-2">
-                                            <Plus className="h-5 w-5 text-emerald-600" />
+                                            <Plus className="h-5 w-5 text-amber-300" />
                                             Add Driver
                                         </CardTitle>
                                     </CardHeader>
@@ -220,7 +220,7 @@ export default function Schedule() {
 
                                         <Button
                                             onClick={handleAddDriver}
-                                            className="w-full bg-emerald-600 hover:bg-emerald-700"
+                                            className="w-full bg-amber-600 hover:bg-amber-700"
                                             disabled={createScheduleMutation.isPending}
                                         >
                                             <Plus className="h-4 w-4 mr-2" />
@@ -247,7 +247,7 @@ export default function Schedule() {
                                     </CardHeader>
                                     <CardContent>
                                         {filteredSchedules.length === 0 ? (
-                                            <div className="text-center py-12 text-slate-500">
+                                            <div className="text-center py-12 text-white/60">
                                                 <Calendar className="h-12 w-12 mx-auto mb-4 text-slate-300" />
                                                 <p>No drivers scheduled yet</p>
                                             </div>
@@ -256,19 +256,19 @@ export default function Schedule() {
                                                 {filteredSchedules.map(schedule => (
                                                     <div
                                                         key={schedule.id}
-                                                        className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100"
+                                                        className="bg-gradient-to-r from-amber-500/10 to-amber-600/10 rounded-xl p-4 border border-amber-400/20"
                                                     >
                                                         <div className="flex items-start justify-between">
                                                             <div className="flex-1">
-                                                                <div className="font-semibold text-slate-800 mb-2">
+                                                                <div className="font-semibold text-white mb-2">
                                                                     {schedule.driver_name}
                                                                     {schedule.unit_number && (
-                                                                        <span className="text-sm text-slate-500 ml-2">
+                                                                        <span className="text-sm text-white/60 ml-2">
                                                                             Unit {schedule.unit_number}
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                <div className="text-sm text-slate-600 space-y-1">
+                                                                <div className="text-sm text-white/70 space-y-1">
                                                                     {schedule.planned_city && (
                                                                         <div>📍 {schedule.planned_city}</div>
                                                                     )}

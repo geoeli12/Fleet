@@ -115,26 +115,26 @@ export default function DriverLog() {
 
     if (shiftsLoading || driversLoading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+            <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-amber-300" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50">
+        <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20">
             <div className="max-w-2xl mx-auto px-4 py-8">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-light tracking-tight text-slate-800">
+                    <h1 className="text-3xl font-light tracking-tight text-white">
                         Driver's <span className="font-semibold">Log</span>
                     </h1>
-                    <p className="text-slate-500 mt-1">Track your shifts and runs</p>
+                    <p className="text-white/60 mt-1">Track your shifts and runs</p>
                 </div>
 
                 {/* Driver Selection */}
-                <Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm mb-6">
+                <Card className="border-0 shadow-md bg-black/60 backdrop-blur-sm mb-6">
                     <CardContent className="p-4">
-                        <Label className="text-sm font-medium text-slate-600 mb-2 block flex items-center gap-2">
+                        <Label className="text-sm font-medium text-white/70 mb-2 block flex items-center gap-2">
                             <User className="h-4 w-4" /> Select Driver
                         </Label>
                         <Select value={selectedDriver} onValueChange={setSelectedDriver}>
@@ -146,7 +146,7 @@ export default function DriverLog() {
                                     <SelectItem key={driver.id} value={driver.name}>
                                         {driver.name}
                                         {allActiveShifts.find(s => s.driver_name === driver.name) && (
-                                            <span className="ml-2 text-xs text-emerald-600">● Active</span>
+                                            <span className="ml-2 text-xs text-amber-300">● Active</span>
                                         )}
                                     </SelectItem>
                                 ))}
@@ -157,15 +157,15 @@ export default function DriverLog() {
 
                 {!selectedDriver ? (
                     <>
-                        <div className="text-center py-12 px-6 bg-white/50 rounded-2xl border border-dashed border-slate-200 mb-6">
+                        <div className="text-center py-12 px-6 bg-black/50 rounded-2xl border border-dashed border-slate-200 mb-6">
                             <User className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                            <p className="text-slate-500 font-medium">Select your name to get started</p>
+                            <p className="text-white/60 font-medium">Select your name to get started</p>
                         </div>
 
                         {allActiveShifts.length > 0 && (
                             <div className="space-y-4">
-                                <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2">
-                                    <Truck className="h-5 w-5 text-emerald-500" />
+                                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                                    <Truck className="h-5 w-5 text-amber-300" />
                                     Active Shifts
                                     <span className="text-sm font-normal text-slate-400">({allActiveShifts.length})</span>
                                 </h2>
@@ -174,21 +174,21 @@ export default function DriverLog() {
                                         const isNight = shift.shift_type === 'night';
                                         return (
                                             <Card key={shift.id} className={`border-0 shadow-md cursor-pointer transition-all hover:shadow-lg ${
-                                                isNight ? 'bg-gradient-to-br from-indigo-50 to-purple-50' : 'bg-gradient-to-br from-emerald-50 to-teal-50'
+                                                isNight ? 'bg-gradient-to-br from-indigo-50 to-purple-50' : 'bg-gradient-to-br from-amber-500/10 to-amber-600/10'
                                             }`}>
                                                 <CardContent className="p-4">
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-3 flex-1" onClick={() => setSelectedDriver(shift.driver_name)}>
                                                             <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                                                                isNight ? 'bg-gradient-to-br from-indigo-100 to-purple-100' : 'bg-gradient-to-br from-emerald-100 to-teal-100'
+                                                                isNight ? 'bg-gradient-to-br from-indigo-100 to-purple-100' : 'bg-gradient-to-br from-amber-500/15 to-amber-600/15'
                                                             }`}>
-                                                                <User className={`h-5 w-5 ${isNight ? 'text-indigo-600' : 'text-emerald-600'}`} />
+                                                                <User className={`h-5 w-5 ${isNight ? 'text-indigo-600' : 'text-amber-300'}`} />
                                                             </div>
                                                             <div>
-                                                                <div className="font-semibold text-slate-800">{shift.driver_name}</div>
-                                                                <div className="text-sm text-slate-500">Unit {shift.unit_number} • Started {format(new Date(shift.start_time), 'h:mm a')}</div>
+                                                                <div className="font-semibold text-white">{shift.driver_name}</div>
+                                                                <div className="text-sm text-white/60">Unit {shift.unit_number} • Started {format(new Date(shift.start_time), 'h:mm a')}</div>
                                                             </div>
-                                                            <Badge className={`ml-auto ${isNight ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'} border-0`}>
+                                                            <Badge className={`ml-auto ${isNight ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-500/15 text-amber-200'} border-0`}>
                                                                 {isNight ? 'Night' : 'Day'}
                                                             </Badge>
                                                         </div>
@@ -249,7 +249,7 @@ export default function DriverLog() {
 
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                                        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                                             <Route className="h-5 w-5 text-blue-500" />
                                             Today's Runs
                                             <span className="text-sm font-normal text-slate-400">({runs.length})</span>
@@ -281,9 +281,9 @@ export default function DriverLog() {
                                             <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                                         </div>
                                     ) : runs.length === 0 ? (
-                                        <div className="text-center py-12 px-6 bg-white/50 rounded-2xl border border-dashed border-slate-200">
+                                        <div className="text-center py-12 px-6 bg-black/50 rounded-2xl border border-dashed border-slate-200">
                                             <Route className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                                            <p className="text-slate-500 font-medium">No runs logged yet</p>
+                                            <p className="text-white/60 font-medium">No runs logged yet</p>
                                             <p className="text-slate-400 text-sm mt-1">Add your first run to get started</p>
                                         </div>
                                     ) : (

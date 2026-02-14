@@ -60,22 +60,22 @@ export default function Calendar() {
     const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50">
+        <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20">
             <div className="max-w-7xl mx-auto px-4 py-8">
-                <div className="bg-white rounded-2xl shadow-xl p-8">
+                <div className="bg-black rounded-2xl shadow-xl p-8">
                     {/* Header */}
                     <div className="flex items-center justify-between mb-8">
-                        <h1 className="text-3xl font-light tracking-tight text-slate-800">
+                        <h1 className="text-3xl font-light tracking-tight text-white">
                             Attendance <span className="font-semibold">Calendar</span>
                         </h1>
                         <div className="flex items-center gap-4">
-                            <button onClick={handlePrevMonth} className="p-2 hover:bg-slate-100 rounded-lg">
+                            <button onClick={handlePrevMonth} className="p-2 hover:bg-black/5 rounded-lg">
                                 <ChevronLeft className="h-5 w-5" />
                             </button>
-                            <div className="text-xl font-semibold text-slate-700 min-w-[200px] text-center">
+                            <div className="text-xl font-semibold text-white min-w-[200px] text-center">
                                 {format(currentMonth, 'MMMM yyyy')}
                             </div>
-                            <button onClick={handleNextMonth} className="p-2 hover:bg-slate-100 rounded-lg">
+                            <button onClick={handleNextMonth} className="p-2 hover:bg-black/5 rounded-lg">
                                 <ChevronRight className="h-5 w-5" />
                             </button>
                         </div>
@@ -84,20 +84,20 @@ export default function Calendar() {
                     {/* Legend */}
                     <div className="flex items-center gap-6 mb-6">
                         <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                            <span className="text-sm text-slate-600">Present</span>
+                            <div className="w-3 h-3 rounded-full bg-amber-500/100"></div>
+                            <span className="text-sm text-white/70">Present</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                            <span className="text-sm text-slate-600">Late</span>
+                            <span className="text-sm text-white/70">Late</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                            <span className="text-sm text-slate-600">Absent</span>
+                            <span className="text-sm text-white/70">Absent</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                            <span className="text-sm text-slate-600">PTO</span>
+                            <span className="text-sm text-white/70">PTO</span>
                         </div>
                     </div>
 
@@ -105,7 +105,7 @@ export default function Calendar() {
                     <div className="grid grid-cols-7 gap-2">
                         {/* Day Headers */}
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                            <div key={day} className="text-center text-sm font-semibold text-slate-600 py-3">
+                            <div key={day} className="text-center text-sm font-semibold text-white/70 py-3">
                                 {day}
                             </div>
                         ))}
@@ -128,13 +128,13 @@ export default function Calendar() {
                                         isToday ? 'border-slate-800 border-2 bg-slate-50' : 'border-slate-200 bg-slate-50/30'
                                     }`}
                                 >
-                                    <div className="text-lg font-semibold text-slate-700 mb-2">
+                                    <div className="text-lg font-semibold text-white mb-2">
                                         {format(day, 'd')}
                                     </div>
                                     {data && (
                                         <div className="flex flex-wrap gap-1.5 mt-auto">
                                             {data.present > 0 && (
-                                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                                <div className="w-2 h-2 rounded-full bg-amber-500/100"></div>
                                             )}
                                             {data.late > 0 && (
                                                 <div className="w-2 h-2 rounded-full bg-orange-500"></div>
