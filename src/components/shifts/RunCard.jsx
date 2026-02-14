@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,9 +37,6 @@ export default function RunCard({ run, index, isCurrentRun, onClick }) {
                             <div className="flex items-center gap-2 text-slate-800 font-medium">
                                 <MapPin className="h-4 w-4 text-emerald-500" />
                                 {run.city}
-                                {isCurrentRun && (
-                                    <Badge className="bg-amber-200 text-amber-800 border-0 text-xs">Current</Badge>
-                                )}
                             </div>
                             <div className="flex items-center gap-2 text-sm text-slate-500 mt-0.5">
                                 <Building2 className="h-3.5 w-3.5" />
@@ -48,12 +44,14 @@ export default function RunCard({ run, index, isCurrentRun, onClick }) {
                             </div>
                         </div>
                     </div>
+                    {isCurrentRun && (
                     {run.load_type && (
+                        <Badge className="bg-amber-200 text-amber-800 border-0 text-xs">Current</Badge>
+                    )}
                         <Badge className={`${loadTypeColor} border font-medium`}>
                             <Package className="h-3 w-3 mr-1" />
                             {run.load_type.toUpperCase()}
                         </Badge>
-                    )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -62,13 +60,11 @@ export default function RunCard({ run, index, isCurrentRun, onClick }) {
                             <ArrowDown className="h-4 w-4 text-red-500" />
                             <span className="text-slate-600">Dropped: <span className="font-medium text-slate-800">{run.trailer_dropped}</span></span>
                         </div>
-                    )}
                     {run.trailer_picked_up && (
                         <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
                             <ArrowUp className="h-4 w-4 text-green-500" />
                             <span className="text-slate-600">Picked: <span className="font-medium text-slate-800">{run.trailer_picked_up}</span></span>
                         </div>
-                    )}
                 </div>
 
                 {(run.arrival_time || run.departure_time) && (
@@ -76,12 +72,9 @@ export default function RunCard({ run, index, isCurrentRun, onClick }) {
                         <Clock className="h-4 w-4" />
                         {run.arrival_time && (
                             <span>In: <span className="font-medium text-slate-700">{format(new Date(run.arrival_time), 'h:mm a')}</span></span>
-                        )}
                         {run.departure_time && (
                             <span>Out: <span className="font-medium text-slate-700">{format(new Date(run.departure_time), 'h:mm a')}</span></span>
-                        )}
                     </div>
-                )}
 
                 {run.notes && (
                     <div className="mt-3 pt-3 border-t border-slate-100">
@@ -90,9 +83,7 @@ export default function RunCard({ run, index, isCurrentRun, onClick }) {
                             <span className="italic">{run.notes}</span>
                         </div>
                     </div>
-                )}
             </CardContent>
         </Card>
     );
 }
-
