@@ -101,6 +101,27 @@ export function normalizePayload(collectionKey, body) {
 
   applyMap(per[collectionKey]);
 
+  // ----------------------------
+  // ✅ BACK-COMPAT FIXES
+  // ----------------------------
+
+  // 1) Drivers: support legacy "status" field (active/inactive) used by the UI
+  if (collectionKey === "drivers" && out.status !== undefined) {
+    const s = String(out.status).trim().toLowerCase();
+    if (s === "active") out.active = true;
+    else if (s === "inactive") out.active = false;
+    else if (s === "true") out.active = true;
+    else if (s === "false") out.active = false;
+    delete out.status;
+  }
+
+  // 2) Drivers: if active comes in as a string, convert to boolean
+  if (collectionKey === "drivers" && typeof out.active === "string") {
+    const a = out.active.trim().toLowerCase();
+    if (a === "true") out.active = true;
+    if (a === "false") out.active = false;
+  }
+
   // Never allow client to force server-managed columns
   delete out.id;
   delete out.created_at;
@@ -117,11 +138,18 @@ export function normalizePayload(collectionKey, body) {
   return out;
 }
 
-/** Back-compat: add created_date if UI expects it */
+/** Back-compat: add created_date + status if UI expects it */
 export function apiShape(row) {
   if (!row) return row;
+
   const created_date =
     row.created_date ??
     (row.created_at ? new Date(row.created_at).toISOString() : undefined);
-  return { ...row, created_date };
+
+  // ✅ Drivers: provide legacy "status" field for UI (based on active boolean)
+  const status =
+    row.status ??
+    (row.active === false ? "inactive" : "active");
+
+  return { ...row, created_date, status };
 }
