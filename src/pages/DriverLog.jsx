@@ -173,22 +173,22 @@ export default function DriverLog() {
                                     {allActiveShifts.map((shift) => {
                                         const isNight = shift.shift_type === 'night';
                                         return (
-                                            <Card key={shift.id} className={`border border-amber-200/60 shadow-sm cursor-pointer transition-all hover:shadow-md ${
-                                                isNight ? 'bg-gradient-to-br from-indigo-50 to-purple-50' : 'bg-gradient-to-br from-amber-50 to-amber-100/60'
+                                            <Card key={shift.id} className={`border shadow-sm cursor-pointer transition-all hover:shadow-md ${
+                                                isNight ? 'bg-gradient-to-br from-rose-50 to-rose-100/60 border-rose-200/60' : 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200/60'
                                             }`}>
                                                 <CardContent className="p-4">
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-3 flex-1" onClick={() => setSelectedDriver(shift.driver_name)}>
                                                             <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                                                                isNight ? 'bg-gradient-to-br from-indigo-100 to-purple-100' : 'bg-gradient-to-br from-amber-500/15 to-amber-600/15'
+                                                                isNight ? 'bg-gradient-to-br from-rose-100 to-rose-200/70' : 'bg-gradient-to-br from-indigo-100 to-purple-100'
                                                             }`}>
-                                                                <User className={`h-5 w-5 ${isNight ? 'text-indigo-600' : 'text-amber-700'}`} />
+                                                                <User className={`h-5 w-5 ${isNight ? 'text-rose-600' : 'text-indigo-600'}`} />
                                                             </div>
                                                             <div>
                                                                 <div className="font-semibold text-zinc-900">{shift.driver_name}</div>
                                                                 <div className="text-sm text-zinc-600">Unit {shift.unit_number} • Started {format(new Date(shift.start_time), 'h:mm a')}</div>
                                                             </div>
-                                                            <Badge className={`ml-auto ${isNight ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-500/15 text-amber-200'} border-0`}>
+                                                            <Badge className={`ml-auto ${isNight ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'} border-0`}>
                                                                 {isNight ? 'Night' : 'Day'}
                                                             </Badge>
                                                         </div>
