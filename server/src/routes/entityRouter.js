@@ -18,6 +18,7 @@ export function makeEntityRouter({ collectionKey }) {
       for (const [k, v] of Object.entries(q)) {
         if (v === undefined) continue;
 
+        // normalize single-field filters too
         const normalized = normalizePayload(collectionKey, { [k]: v });
         const col = Object.keys(normalized)[0] || k;
         const val = normalized[col];
@@ -36,7 +37,7 @@ export function makeEntityRouter({ collectionKey }) {
       const { data, error } = await query;
       if (error) return res.status(500).json({ error: error.message });
 
-      res.json((data || []).map(apiShape));
+      res.json((data || []).map((row) => apiShape(collectionKey, row)));
     } catch (e) {
       res.status(500).json({ error: e?.message || "Server error" });
     }
@@ -47,14 +48,12 @@ export function makeEntityRouter({ collectionKey }) {
       const payload = normalizePayload(collectionKey, req.body);
 
       if (collectionKey === "drivers" && !payload.name) {
-        return res.status(400).json({
-          error: "Missing required field: name.",
-        });
+        return res.status(400).json({ error: "Missing required field: name" });
       }
 
       const { data, error } = await supabase
         .from(table)
-        .insert([payload])
+        .insert(payload)
         .select("*")
         .single();
 
@@ -63,7 +62,7 @@ export function makeEntityRouter({ collectionKey }) {
         return res.status(400).json({ error: error.message });
       }
 
-      res.json(apiShape(data));
+      res.json(apiShape(collectionKey, data));
     } catch (e) {
       console.error("POST exception:", table, e);
       res.status(500).json({ error: e?.message || "Server error" });
@@ -87,7 +86,7 @@ export function makeEntityRouter({ collectionKey }) {
         return res.status(400).json({ error: error.message });
       }
 
-      res.json(apiShape(data));
+      res.json(apiShape(collectionKey, data));
     } catch (e) {
       console.error("PUT exception:", table, e);
       res.status(500).json({ error: e?.message || "Server error" });
