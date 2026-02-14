@@ -44,7 +44,7 @@ export default function DriverLog() {
 
     const { data: drivers = [], isLoading: driversLoading } = useQuery({
         queryKey: ['drivers'],
-        queryFn: () => api.entities.Driver.filter({ status: 'active' }, 'name')
+        queryFn: () => api.entities.Driver.filter({ active: true }, 'name')
     });
 
     const { data: allActiveShifts = [], isLoading: shiftsLoading } = useQuery({
@@ -166,7 +166,7 @@ export default function DriverLog() {
                             <div className="space-y-4">
                                 <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2">
                                     <Truck className="h-5 w-5 text-emerald-500" />
-                                    Active Drivers
+                                    Active Shifts
                                     <span className="text-sm font-normal text-slate-400">({allActiveShifts.length})</span>
                                 </h2>
                                 <div className="grid gap-3">
