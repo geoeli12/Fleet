@@ -15,7 +15,6 @@ export const supabase = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 export async function initDb() {
-  // quick connectivity check
   const { error } = await supabase.from("drivers").select("id").limit(1);
   if (error) {
     console.error("Supabase DB check failed:", error.message);
@@ -24,19 +23,31 @@ export async function initDb() {
   console.log("Supabase connected OK");
 }
 
-/** Map your existing API collection names -> actual Supabase table names */
+/** API collection key -> Supabase table */
 export function tableNameFor(collectionKey) {
   const map = {
     drivers: "drivers",
     runs: "runs",
     shifts: "shifts",
     schedules: "schedules",
-    customLoadTypes: "custom_load_types", // IMPORTANT
+    customLoadTypes: "custom_load_types",
   };
   return map[collectionKey] || collectionKey;
 }
 
-/** Normalize payload keys (camelCase -> snake_case) per-table */
+/** Allowed columns per collection (prevents “column does not exist” errors) */
+function allowedColumnsFor(collectionKey) {
+  const allow = {
+    drivers: ["name", "phone", "state", "active"],
+    runs: ["driver_id", "run_date", "load_type", "notes"],
+    shifts: ["shift_date", "shift_type", "start_time", "end_time"],
+    schedules: ["schedule_date", "data"],
+    customLoadTypes: ["label"],
+  };
+  return allow[collectionKey] || [];
+}
+
+/** Normalize + map UI keys -> DB keys, then DROP unknown keys */
 export function normalizePayload(collectionKey, body) {
   const src = body || {};
   const out = { ...src };
@@ -50,14 +61,23 @@ export function normalizePayload(collectionKey, body) {
     }
   };
 
-  // Common
+  // Common alternate names you might have in the UI
   applyMap({
     createdDate: "created_date",
     createdAt: "created_at",
   });
 
-  // Per table maps
+  // Table-specific mappings (UI -> DB)
   const per = {
+    drivers: {
+      driverName: "name",
+      DriverName: "name",
+      driver_name: "name",
+      phoneNumber: "phone",
+      phone_number: "phone",
+      selectedState: "state",
+      isActive: "active",
+    },
     runs: {
       driverId: "driver_id",
       runDate: "run_date",
@@ -71,20 +91,11 @@ export function normalizePayload(collectionKey, body) {
     },
     schedules: {
       scheduleDate: "schedule_date",
-      // data should already be "data" (jsonb); leave as-is
     },
     customLoadTypes: {
-      // Supabase table is custom_load_types(label)
-      // UI might send label, or loadTypeLabel, etc.
       loadTypeLabel: "label",
       name: "label",
-    },
-    drivers: {
-      // ✅ FIX: your UI likely sends driverName / phoneNumber, but DB expects name / phone
-      driverName: "name",
-      phoneNumber: "phone",
-      phone_number: "phone",
-      isActive: "active",
+      value: "label",
     },
   };
 
@@ -95,19 +106,22 @@ export function normalizePayload(collectionKey, body) {
   delete out.created_at;
   delete out.created_date;
 
+  // ✅ DROP unknown keys so Supabase doesn’t reject the insert/update
+  const allowed = allowedColumnsFor(collectionKey);
+  if (allowed.length) {
+    for (const k of Object.keys(out)) {
+      if (!allowed.includes(k)) delete out[k];
+    }
+  }
+
   return out;
 }
 
-/**
- * Keep compatibility with your old API which returned created_date.
- * Supabase uses created_at; we add created_date = ISO string
- */
+/** Back-compat: add created_date if UI expects it */
 export function apiShape(row) {
   if (!row) return row;
-
   const created_date =
     row.created_date ??
     (row.created_at ? new Date(row.created_at).toISOString() : undefined);
-
   return { ...row, created_date };
 }
