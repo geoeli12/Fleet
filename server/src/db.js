@@ -56,7 +56,7 @@ export function normalizePayload(collectionKey, body) {
     createdAt: "created_at",
   });
 
-  // Per table
+  // Per table maps
   const per = {
     runs: {
       driverId: "driver_id",
@@ -71,15 +71,21 @@ export function normalizePayload(collectionKey, body) {
     },
     schedules: {
       scheduleDate: "schedule_date",
-      // data already "data" (json) in your UI; keep as-is
+      // data should already be "data" (jsonb); leave as-is
     },
     customLoadTypes: {
       // Supabase table is custom_load_types(label)
-      // UI might send label, or loadTypeLabel, etc. We accept a few common ones:
+      // UI might send label, or loadTypeLabel, etc.
       loadTypeLabel: "label",
       name: "label",
     },
-    drivers: {},
+    drivers: {
+      // ✅ FIX: your UI likely sends driverName / phoneNumber, but DB expects name / phone
+      driverName: "name",
+      phoneNumber: "phone",
+      phone_number: "phone",
+      isActive: "active",
+    },
   };
 
   applyMap(per[collectionKey]);
@@ -98,6 +104,7 @@ export function normalizePayload(collectionKey, body) {
  */
 export function apiShape(row) {
   if (!row) return row;
+
   const created_date =
     row.created_date ??
     (row.created_at ? new Date(row.created_at).toISOString() : undefined);
