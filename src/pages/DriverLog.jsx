@@ -29,7 +29,7 @@ export default function DriverLog() {
     // ✅ FIX: use active boolean (not status string)
     const { data: drivers = [], isLoading: driversLoading } = useQuery({
         queryKey: ['drivers'],
-        queryFn: () => api.entities.Driver.filter({ active: true }, 'name')
+        queryFn: () => api.entities.Driver.list('name')
     });
 
     const { data: allActiveShifts = [], isLoading: activeShiftsLoading } = useQuery({
