@@ -17,10 +17,10 @@ export default function ActiveShiftCard({ shift, onCancel, onDriverClick }) {
     const isNight = shift.shift_type === 'night';
 
     return (
-        <Card className={`border border-amber-200/60 shadow-sm overflow-hidden relative ${
+        <Card className={`shadow-sm overflow-hidden relative ${
             isNight
-                ? 'bg-indigo-50/80'
-                : 'bg-amber-50/80'
+                ? 'border border-rose-200/70 bg-rose-50/80'
+                : 'border border-indigo-200/70 bg-indigo-50/80'
         }`}>
 <div className="absolute top-0 right-0 w-32 h-32 bg-black/10 rounded-full -translate-y-16 translate-x-16" />
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full translate-y-12 -translate-x-12" />
@@ -101,4 +101,3 @@ export default function ActiveShiftCard({ shift, onCancel, onDriverClick }) {
         </Card>
     );
 }
-
