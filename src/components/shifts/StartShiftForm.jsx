@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Truck, Clock, Gauge, Sun, Moon, CalendarDays } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 
-export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [] }) {
+export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [], initialIsPTO = false, initialPtoDates = [] }) {
     const [formData, setFormData] = useState({
         unit_number: '',
         starting_odometer: '',
@@ -17,6 +17,19 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
     });
     const [isPTO, setIsPTO] = useState(false);
     const [ptoDates, setPtoDates] = useState([]);
+
+    useEffect(() => {
+        if (initialIsPTO) {
+            setIsPTO(true);
+            const parsed = (initialPtoDates || [])
+                .filter(Boolean)
+                .map(d => {
+                    try { return parseISO(d); } catch { return null; }
+                })
+                .filter(Boolean);
+            if (parsed.length) setPtoDates(parsed);
+        }
+    }, [initialIsPTO, initialPtoDates]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
