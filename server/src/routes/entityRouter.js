@@ -1,69 +1,106 @@
+// server/src/routes/entityRouter.js
 import { Router } from "express";
-import { db, makeId, nowIso, applyFilters, sortItems } from "../db.js";
+import { supabase, normalizePayload, apiShape, tableNameFor } from "../db.js";
 
 /**
- * Generic CRUD router for a collection in lowdb.
- * - GET /           -> list (supports query filters + ?sort=name or ?sort=-created_date)
+ * Generic CRUD router for a Supabase table.
+ * - GET /           -> list (supports query filters + ?sort=name or ?sort=-created_at)
  * - POST /          -> create
  * - PUT /:id        -> update (partial)
  * - DELETE /:id     -> delete
  */
-export function makeEntityRouter({ collectionKey, idPrefix }) {
+export function makeEntityRouter({ collectionKey }) {
   const r = Router();
+  const table = tableNameFor(collectionKey);
 
   r.get("/", async (req, res) => {
-    await db.read();
-    const items = db.data?.[collectionKey] || [];
-    const filtered = applyFilters(items, req.query || {});
-    const sorted = sortItems(filtered, req.query?.sort);
-    res.json(sorted);
+    try {
+      const q = { ...(req.query || {}) };
+      const sort = q.sort;
+      delete q.sort;
+
+      let query = supabase.from(table).select("*");
+
+      // equality filters
+      for (const [k, v] of Object.entries(q)) {
+        if (v === undefined) continue;
+
+        // allow camelCase params by normalizing a single-key object
+        const normalized = normalizePayload(collectionKey, { [k]: v });
+        const col = Object.keys(normalized)[0] || k;
+        const val = normalized[col];
+
+        // allow old "created_date" filter to map to created_at (rare, but safe)
+        const realCol = col === "created_date" ? "created_at" : col;
+
+        query = query.eq(realCol, val);
+      }
+
+      // sorting
+      if (sort) {
+        const desc = String(sort).startsWith("-");
+        const key = desc ? String(sort).slice(1) : String(sort);
+        const realKey = key === "created_date" ? "created_at" : key;
+
+        query = query.order(realKey, { ascending: !desc, nullsFirst: false });
+      }
+
+      const { data, error } = await query;
+      if (error) return res.status(500).json({ error: error.message });
+
+      res.json((data || []).map(apiShape));
+    } catch (e) {
+      res.status(500).json({ error: e?.message || "Server error" });
+    }
   });
 
   r.post("/", async (req, res) => {
-    await db.read();
-    const items = db.data?.[collectionKey] || [];
-    const body = req.body || {};
+    try {
+      const payload = normalizePayload(collectionKey, req.body);
 
-    const id = makeId(idPrefix);
-    const created_date = nowIso();
-    const row = { id, created_date, ...body };
+      const { data, error } = await supabase
+        .from(table)
+        .insert([payload])
+        .select("*")
+        .single();
 
-    items.push(row);
-    db.data[collectionKey] = items;
-    await db.write();
-
-    res.json(row);
+      if (error) return res.status(500).json({ error: error.message });
+      res.json(apiShape(data));
+    } catch (e) {
+      res.status(500).json({ error: e?.message || "Server error" });
+    }
   });
 
   r.put("/:id", async (req, res) => {
-    await db.read();
-    const items = db.data?.[collectionKey] || [];
-    const { id } = req.params;
-    const body = req.body || {};
+    try {
+      const { id } = req.params;
+      const payload = normalizePayload(collectionKey, req.body);
 
-    const idx = items.findIndex((x) => x.id === id);
-    if (idx === -1) return res.status(404).json({ error: "Not found" });
+      const { data, error } = await supabase
+        .from(table)
+        .update(payload)
+        .eq("id", id)
+        .select("*")
+        .single();
 
-    items[idx] = { ...items[idx], ...body };
-    db.data[collectionKey] = items;
-    await db.write();
-
-    res.json(items[idx]);
+      if (error) return res.status(500).json({ error: error.message });
+      res.json(apiShape(data));
+    } catch (e) {
+      res.status(500).json({ error: e?.message || "Server error" });
+    }
   });
 
   r.delete("/:id", async (req, res) => {
-    await db.read();
-    const items = db.data?.[collectionKey] || [];
-    const { id } = req.params;
+    try {
+      const { id } = req.params;
 
-    const idx = items.findIndex((x) => x.id === id);
-    if (idx === -1) return res.status(404).json({ error: "Not found" });
+      const { error } = await supabase.from(table).delete().eq("id", id);
 
-    items.splice(idx, 1);
-    db.data[collectionKey] = items;
-    await db.write();
-
-    res.json({ ok: true });
+      if (error) return res.status(500).json({ error: error.message });
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: e?.message || "Server error" });
+    }
   });
 
   return r;
