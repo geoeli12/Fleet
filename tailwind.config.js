@@ -1,4 +1,3 @@
-
 /** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ["class"],
@@ -11,6 +10,12 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+			ash: {
+				black: '#0B0B0B',
+				gold: '#D4AF37',
+				gold2: '#B8860B',
+				ink: '#111111',
+			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -88,4 +93,3 @@ module.exports = {
   },
   plugins: [require("tailwindcss-animate")],
 }
-
