@@ -31,18 +31,18 @@ const defaultLoadTypeColors = {
     scrap: "bg-amber-100 text-amber-800 border-amber-200",
     occ: "bg-blue-100 text-blue-800 border-blue-200",
     mix: "bg-purple-100 text-purple-800 border-purple-200",
-    empty: "bg-slate-100 text-slate-600 border-slate-200"
+    empty: "bg-slate-100 text-white/70 border-slate-200"
 };
 
 export default function RunCard({ run, index, isCurrentRun, onClick }) {
-    const loadTypeColor = defaultLoadTypeColors[run.load_type] || "bg-teal-100 text-teal-800 border-teal-200";
+    const loadTypeColor = defaultLoadTypeColors[run.load_type] || "bg-amber-100 text-amber-800 border-amber-200";
 
     return (
         <Card 
             className={`border-0 shadow-md backdrop-blur-sm hover:shadow-lg transition-all duration-300 cursor-pointer ${
                 isCurrentRun 
                     ? 'bg-gradient-to-br from-amber-50 to-orange-50 ring-2 ring-amber-400/50' 
-                    : 'bg-white/80'
+                    : 'bg-black/60'
             }`}
             onClick={onClick}
         >
@@ -51,17 +51,17 @@ export default function RunCard({ run, index, isCurrentRun, onClick }) {
                     <div className="flex items-center gap-3">
                         <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                             run.run_type === 'pickup' 
-                                ? 'bg-gradient-to-br from-green-100 to-emerald-100 text-green-700'
+                                ? 'bg-gradient-to-br from-amber-100 to-amber-100 text-amber-200'
                                 : 'bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700'
                         }`}>
                             {run.run_type === 'pickup' ? <PackageCheck className="h-4 w-4" /> : <TruckIcon className="h-4 w-4" />}
                         </div>
                         <div>
-                            <div className="flex items-center gap-2 text-slate-800 font-medium">
-                                <Building2 className="h-4 w-4 text-emerald-500" />
+                            <div className="flex items-center gap-2 text-white font-medium">
+                                <Building2 className="h-4 w-4 text-amber-300" />
                                 {run.customer_name}
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-500 mt-0.5">
+                            <div className="flex items-center gap-2 text-sm text-white/60 mt-0.5">
                                 <MapPin className="h-3.5 w-3.5" />
                                 {run.city}
                             </div>
@@ -85,38 +85,38 @@ export default function RunCard({ run, index, isCurrentRun, onClick }) {
                     {run.trailer_dropped && (
                         <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
                             <ArrowDown className="h-4 w-4 text-red-500" />
-                            <span className="text-slate-600">Dropped: <span className="font-medium text-slate-800">{run.trailer_dropped}</span></span>
+                            <span className="text-white/70">Dropped: <span className="font-medium text-white">{run.trailer_dropped}</span></span>
                         </div>
                     )}
                     {run.trailer_picked_up && (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
-                            <ArrowUp className="h-4 w-4 text-green-500" />
-                            <span className="text-slate-600">Picked: <span className="font-medium text-slate-800">{run.trailer_picked_up}</span></span>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 rounded-lg">
+                            <ArrowUp className="h-4 w-4 text-amber-300" />
+                            <span className="text-white/70">Picked: <span className="font-medium text-white">{run.trailer_picked_up}</span></span>
                         </div>
                     )}
                 </div>
 
                 {(run.arrival_time || run.departure_time) && (
-                    <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100 text-sm text-slate-500">
+                    <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/10 text-sm text-white/60">
                         <Clock className="h-4 w-4" />
                         {run.arrival_time && (
-                            <span>In: <span className="font-medium text-slate-700">{format(new Date(run.arrival_time), 'h:mm a')}</span></span>
+                            <span>In: <span className="font-medium text-white">{format(new Date(run.arrival_time), 'h:mm a')}</span></span>
                         )}
                         {run.departure_time && (
-                            <span>Out: <span className="font-medium text-slate-700">{format(new Date(run.departure_time), 'h:mm a')}</span></span>
+                            <span>Out: <span className="font-medium text-white">{format(new Date(run.departure_time), 'h:mm a')}</span></span>
                         )}
                     
                         {formatTotalTime(run.arrival_time, run.departure_time) && (
-                            <span className="ml-auto text-slate-500">
-                                Total: <span className="font-medium text-slate-700">{formatTotalTime(run.arrival_time, run.departure_time)}</span>
+                            <span className="ml-auto text-white/60">
+                                Total: <span className="font-medium text-white">{formatTotalTime(run.arrival_time, run.departure_time)}</span>
                             </span>
                         )}
                     </div>
                 )}
 
                 {run.notes && (
-                    <div className="mt-3 pt-3 border-t border-slate-100">
-                        <div className="flex items-start gap-2 text-sm text-slate-600">
+                    <div className="mt-3 pt-3 border-t border-white/10">
+                        <div className="flex items-start gap-2 text-sm text-white/70">
                             <FileText className="h-4 w-4 mt-0.5 text-slate-400" />
                             <span className="italic">{run.notes}</span>
                         </div>
