@@ -4,6 +4,29 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, Building2, Clock, Package, ArrowDown, ArrowUp, TruckIcon, PackageCheck, FileText } from "lucide-react";
 import { format } from "date-fns";
 
+function formatTotalTime(arrival, departure) {
+    if (!arrival || !departure) return null;
+
+    const a = new Date(arrival);
+    const d = new Date(departure);
+    if (isNaN(a.getTime()) || isNaN(d.getTime())) return null;
+
+    let diffMs = d.getTime() - a.getTime();
+    // If user accidentally enters times that cross midnight without a date change, treat as next day.
+    if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+
+    const totalMinutes = Math.round(diffMs / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    const hrLabel = hours === 1 ? "hr" : "hrs";
+
+    if (hours > 0 && minutes === 0) return `${hours}${hrLabel}`;
+    if (hours > 0) return `${hours}${hrLabel} ${minutes}min`;
+    return `${minutes}min`;
+}
+
+
 const defaultLoadTypeColors = {
     scrap: "bg-amber-100 text-amber-800 border-amber-200",
     occ: "bg-blue-100 text-blue-800 border-blue-200",
@@ -81,6 +104,12 @@ export default function RunCard({ run, index, isCurrentRun, onClick }) {
                         )}
                         {run.departure_time && (
                             <span>Out: <span className="font-medium text-slate-700">{format(new Date(run.departure_time), 'h:mm a')}</span></span>
+                        )}
+                    
+                        {formatTotalTime(run.arrival_time, run.departure_time) && (
+                            <span className="ml-auto text-slate-500">
+                                Total: <span className="font-medium text-slate-700">{formatTotalTime(run.arrival_time, run.departure_time)}</span>
+                            </span>
                         )}
                     </div>
                 )}
