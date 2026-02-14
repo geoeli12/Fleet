@@ -2,13 +2,6 @@
 import { Router } from "express";
 import { supabase, normalizePayload, apiShape, tableNameFor } from "../db.js";
 
-/**
- * Generic CRUD router for a Supabase table.
- * - GET /           -> list (supports query filters + ?sort=name or ?sort=-created_at)
- * - POST /          -> create
- * - PUT /:id        -> update (partial)
- * - DELETE /:id     -> delete
- */
 export function makeEntityRouter({ collectionKey }) {
   const r = Router();
   const table = tableNameFor(collectionKey);
@@ -25,23 +18,18 @@ export function makeEntityRouter({ collectionKey }) {
       for (const [k, v] of Object.entries(q)) {
         if (v === undefined) continue;
 
-        // allow camelCase params by normalizing a single-key object
         const normalized = normalizePayload(collectionKey, { [k]: v });
         const col = Object.keys(normalized)[0] || k;
         const val = normalized[col];
 
-        // allow old "created_date" filter to map to created_at (rare, but safe)
         const realCol = col === "created_date" ? "created_at" : col;
-
         query = query.eq(realCol, val);
       }
 
-      // sorting
       if (sort) {
         const desc = String(sort).startsWith("-");
         const key = desc ? String(sort).slice(1) : String(sort);
         const realKey = key === "created_date" ? "created_at" : key;
-
         query = query.order(realKey, { ascending: !desc, nullsFirst: false });
       }
 
@@ -58,15 +46,28 @@ export function makeEntityRouter({ collectionKey }) {
     try {
       const payload = normalizePayload(collectionKey, req.body);
 
+      // Helpful validation for drivers (prevents “modal hangs”)
+      if (collectionKey === "drivers" && !payload.name) {
+        return res.status(400).json({
+          error:
+            "Missing required field: name. (Your UI is probably sending driverName; mapping should handle it. If not, tell me the exact field name.)",
+        });
+      }
+
       const { data, error } = await supabase
         .from(table)
         .insert([payload])
         .select("*")
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) {
+        console.error("INSERT error:", table, error.message, payload);
+        return res.status(400).json({ error: error.message });
+      }
+
       res.json(apiShape(data));
     } catch (e) {
+      console.error("POST exception:", table, e);
       res.status(500).json({ error: e?.message || "Server error" });
     }
   });
@@ -83,9 +84,14 @@ export function makeEntityRouter({ collectionKey }) {
         .select("*")
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) {
+        console.error("UPDATE error:", table, error.message, payload);
+        return res.status(400).json({ error: error.message });
+      }
+
       res.json(apiShape(data));
     } catch (e) {
+      console.error("PUT exception:", table, e);
       res.status(500).json({ error: e?.message || "Server error" });
     }
   });
@@ -95,8 +101,8 @@ export function makeEntityRouter({ collectionKey }) {
       const { id } = req.params;
 
       const { error } = await supabase.from(table).delete().eq("id", id);
+      if (error) return res.status(400).json({ error: error.message });
 
-      if (error) return res.status(500).json({ error: error.message });
       res.json({ ok: true });
     } catch (e) {
       res.status(500).json({ error: e?.message || "Server error" });
