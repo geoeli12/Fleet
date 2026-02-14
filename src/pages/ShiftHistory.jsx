@@ -136,8 +136,9 @@ export default function ShiftHistory() {
         return allShiftsWithAbsent.filter(shift => {
             if (driverFilter !== 'all' && shift.driver_name !== driverFilter) return false;
             if (timeFilter === 'all') return true;
-            if (!shift.date) return false;
-            const shiftDate = parseISO(shift.date);
+            const _dateStr = shift.shift_date || shift.date || shift.shiftDate || shift.shift_dt;
+            if (!_dateStr) return false;
+            const shiftDate = parseISO(_dateStr);
             const now = new Date();
             if (timeFilter === 'week') {
                 return isWithinInterval(shiftDate, { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) });
@@ -150,6 +151,99 @@ export default function ShiftHistory() {
     }, [allShiftsWithAbsent, timeFilter, driverFilter]);
 
     const uniqueDrivers = [...new Set(allShiftsWithAbsent.map(s => s.driver_name))].sort();
+    const getShiftDateStr = (s) => s.shift_date || s.date || s.shiftDate || s.shift_dt || null;
+
+    const formatPtoRange = (dateStrs) => {
+        const dates = (dateStrs || [])
+            .filter(Boolean)
+            .map(d => {
+                try { return parseISO(d); } catch { return null; }
+            })
+            .filter(Boolean)
+            .sort((a,b) => a - b);
+
+        if (dates.length === 0) return '';
+
+        const fmt = (dt) => format(dt, 'EEE, M/d/yy');
+
+        // Build contiguous ranges
+        const ranges = [];
+        let start = dates[0];
+        let prev = dates[0];
+
+        const isNextDay = (a,b) => {
+            // a,b are Date objects, check if b is exactly 1 day after a (date-fns doesn't allow direct add in this file)
+            const oneDayMs = 24 * 60 * 60 * 1000;
+            const da = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+            const db = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+            return (db - da) === oneDayMs;
+        };
+
+        for (let i = 1; i < dates.length; i++) {
+            const cur = dates[i];
+            if (isNextDay(prev, cur)) {
+                prev = cur;
+                continue;
+            }
+            ranges.push([start, prev]);
+            start = cur;
+            prev = cur;
+        }
+        ranges.push([start, prev]);
+
+        // If multiple non-contiguous blocks, show the first and last block only to keep it clean
+        // (still indicates there were multiple days selected)
+        if (ranges.length === 1) {
+            const [a,b] = ranges[0];
+            return a.getTime() === b.getTime() ? fmt(a) : `${fmt(a)} – ${fmt(b)}`;
+        }
+
+        const [firstA, firstB] = ranges[0];
+        const [lastA, lastB] = ranges[ranges.length - 1];
+
+        const firstTxt = firstA.getTime() === firstB.getTime() ? fmt(firstA) : `${fmt(firstA)} – ${fmt(firstB)}`;
+        const lastTxt  = lastA.getTime() === lastB.getTime() ? fmt(lastA) : `${fmt(lastA)} – ${fmt(lastB)}`;
+
+        return `${firstTxt} … ${lastTxt}`;
+    };
+
+    const displayShifts = useMemo(() => {
+        const nonPto = [];
+        const ptoByDriver = new Map();
+
+        filteredShifts.forEach(s => {
+            const isPto = s.is_pto || s.shift_type === 'pto' || s.attendance_status === 'pto';
+            if (!isPto) { nonPto.push(s); return; }
+
+            const key = s.driver_name || 'Unknown';
+            const dateStr = getShiftDateStr(s);
+            if (!ptoByDriver.has(key)) ptoByDriver.set(key, { driver_name: key, dates: [], ids: [] });
+            const entry = ptoByDriver.get(key);
+            if (dateStr) entry.dates.push(dateStr);
+            if (s.id) entry.ids.push(s.id);
+        });
+
+        const ptoGroups = Array.from(ptoByDriver.values()).map(g => ({
+            id: `pto-${g.driver_name}-${g.dates.sort()[0] || 'na'}`,
+            driver_name: g.driver_name,
+            attendance_status: 'pto',
+            shift_type: 'pto',
+            is_pto: true,
+            pto_dates: g.dates,
+            pto_ids: g.ids
+        }));
+
+        // Keep a stable, date-desc sort overall: PTO groups sorted by first date desc, then nonPto by date desc
+        const sortKey = (s) => {
+            const d = getShiftDateStr(s) || (s.pto_dates && s.pto_dates[0]) || '';
+            return d || '';
+        };
+
+        const merged = [...ptoGroups, ...nonPto];
+        merged.sort((a,b) => (sortKey(b) || '').localeCompare(sortKey(a) || ''));
+        return merged;
+    }, [filteredShifts]);
+
 
     const getAttendanceBadge = (shift) => {
         if (shift.is_absent || shift.attendance_status === 'absent') {
@@ -169,12 +263,12 @@ export default function ShiftHistory() {
         const rows = [];
         filteredShifts.forEach(shift => {
             if (shift.is_absent) {
-                rows.push([shift.date, shift.driver_name, 'Absent', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+                rows.push([(shift.shift_date || shift.date || ''), shift.driver_name, 'Absent', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
                 return;
             }
             if (shift.is_pto || shift.shift_type === 'pto') {
                 const ptoDatesStr = (shift.pto_dates || []).join(', ');
-                rows.push([shift.date, shift.driver_name, 'PTO', 'PTO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ptoDatesStr]);
+                rows.push([(shift.shift_date || shift.date || ''), shift.driver_name, 'PTO', 'PTO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ptoDatesStr]);
                 return;
             }
             const shiftRuns = runsByShift[shift.id] || [];
@@ -186,7 +280,7 @@ export default function ShiftHistory() {
             if (shiftRuns.length > 0) {
                 shiftRuns.forEach(run => {
                     rows.push([
-                        shift.date, shift.driver_name, attendance, shift.shift_type || 'day', shift.unit_number,
+                        (shift.shift_date || shift.date || ''), shift.driver_name, attendance, shift.shift_type || 'day', shift.unit_number,
                         startTime ? format(startTime, 'h:mm a') : '', endTime ? format(endTime, 'h:mm a') : '',
                         shift.starting_odometer, shift.ending_odometer || '', totalMiles,
                         run.city, run.customer_name, run.run_type || '', run.load_type || '',
@@ -198,7 +292,7 @@ export default function ShiftHistory() {
                 });
             } else {
                 rows.push([
-                    shift.date, shift.driver_name, attendance, shift.shift_type || 'day', shift.unit_number,
+                    (shift.shift_date || shift.date || ''), shift.driver_name, attendance, shift.shift_type || 'day', shift.unit_number,
                     startTime ? format(startTime, 'h:mm a') : '', endTime ? format(endTime, 'h:mm a') : '',
                     shift.starting_odometer, shift.ending_odometer || '', totalMiles,
                     '', '', '', '', '', '', '', '', ''
@@ -331,9 +425,7 @@ export default function ShiftHistory() {
                                                     <div>
                                                         <div className="font-semibold text-zinc-900">{shift.driver_name}</div>
                                                         <div className="text-sm text-zinc-500">
-                                                            PTO: {(shift.pto_dates || [shift.date]).map(d => {
-                                                                try { return format(parseISO(d), 'MMM d'); } catch { return d; }
-                                                            }).join(', ')}
+                                                            PTO: {formatPtoRange(shift.pto_dates || [getShiftDateStr(shift)])}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -341,7 +433,7 @@ export default function ShiftHistory() {
                                                     {getAttendanceBadge(shift)}
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50">
+                                                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50">
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </AlertDialogTrigger>
@@ -352,7 +444,15 @@ export default function ShiftHistory() {
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
                                                                 <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => deleteShiftMutation.mutate(shift.id)} className="bg-red-600 hover:bg-red-700 rounded-xl">Delete</AlertDialogAction>
+                                                                <AlertDialogAction onClick={async () => {
+                                                                    if (shift.pto_ids && shift.pto_ids.length) {
+                                                                        for (const id of shift.pto_ids) {
+                                                                            await deleteShiftMutation.mutateAsync(id);
+                                                                        }
+                                                                    } else {
+                                                                        await deleteShiftMutation.mutateAsync(shift.id);
+                                                                    }
+                                                                }} className="bg-red-600 hover:bg-red-700 rounded-xl">Delete</AlertDialogAction>
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
@@ -371,7 +471,7 @@ export default function ShiftHistory() {
                             const isNight = shift.shift_type === 'night';
 
                             return (
-                                <Card key={shift.id} className="border-0 shadow-lg bg-white ring-1 ring-black/5 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
+                                <Card key={shift.id} onClick={() => handleEditShift(shift)} className="border-0 shadow-lg bg-white ring-1 ring-black/5 backdrop-blur-sm hover:shadow-xl transition-all duration-300 cursor-pointer">
                                     <CardHeader className="pb-3">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
@@ -395,12 +495,12 @@ export default function ShiftHistory() {
                                                 <Badge className={`border-0 ${isNight ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'}`}>
                                                     {isNight ? 'Night' : 'Day'}
                                                 </Badge>
-                                                <Button variant="ghost" size="icon" onClick={() => handleEditShift(shift)} className="h-8 w-8">
+                                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditShift(shift); }} className="h-8 w-8">
                                                     <Pencil className="h-4 w-4 text-slate-400" />
                                                 </Button>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50">
+                                                        <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50">
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     </AlertDialogTrigger>
@@ -411,7 +511,15 @@ export default function ShiftHistory() {
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
                                                             <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => deleteShiftMutation.mutate(shift.id)} className="bg-red-600 hover:bg-red-700 rounded-xl">Delete</AlertDialogAction>
+                                                            <AlertDialogAction onClick={async () => {
+                                                                    if (shift.pto_ids && shift.pto_ids.length) {
+                                                                        for (const id of shift.pto_ids) {
+                                                                            await deleteShiftMutation.mutateAsync(id);
+                                                                        }
+                                                                    } else {
+                                                                        await deleteShiftMutation.mutateAsync(shift.id);
+                                                                    }
+                                                                }} className="bg-red-600 hover:bg-red-700 rounded-xl">Delete</AlertDialogAction>
                                                         </AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
