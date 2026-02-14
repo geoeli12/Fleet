@@ -38,85 +38,52 @@ export function tableNameFor(collectionKey) {
 /** Allowed columns per collection (prevents “column does not exist” errors) */
 function allowedColumnsFor(collectionKey) {
   const allow = {
-    // Supabase drivers table uses `active boolean`, UI uses `status string`
     drivers: ["name", "phone", "state", "active"],
-
-    runs: [
-      "shift_id",
-      "driver_id",
-      "driver_name",
-      "run_date",
-      "run_type",
-      "city",
-      "customer_name",
-      "trailer_dropped",
-      "trailer_picked_up",
-      "load_type",
-      "arrival_time",
-      "departure_time",
-      "notes",
-    ],
-
-    shifts: [
-      "shift_date",
-      "shift_type",
-      "start_time",
-      "end_time",
-      "driver_name",
-      "status",
-      "unit_number",
-      "starting_odometer",
-    ],
-
+    runs: ["driver_id", "run_date", "load_type", "notes"],
+    // NOTE: your current Supabase schema requires end_time NOT NULL
+    shifts: ["shift_date", "shift_type", "start_time", "end_time"],
     schedules: ["schedule_date", "data"],
     customLoadTypes: ["label"],
   };
-
   return allow[collectionKey] || [];
 }
 
-function isoToTime(value) {
-  if (!value) return value;
+function isoToTimeString(val) {
+  if (val === undefined || val === null || val === "") return undefined;
 
-  // already HH:MM or HH:MM:SS
-  if (typeof value === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
-    return value.length === 5 ? `${value}:00` : value;
+  // Already HH:MM or HH:MM:SS
+  if (typeof val === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(val.trim())) {
+    const s = val.trim();
+    return s.length === 5 ? `${s}:00` : s;
   }
 
-  try {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    const ss = String(d.getSeconds()).padStart(2, "0");
-    return `${hh}:${mm}:${ss}`;
-  } catch {
-    return value;
+  // ISO string like 2026-02-13T23:15:22.123Z
+  if (typeof val === "string" && val.includes("T")) {
+    const t = val.split("T")[1] || "";
+    const hhmmss = t.replace("Z", "").split(".")[0];
+    if (/^\d{2}:\d{2}:\d{2}$/.test(hhmmss)) return hhmmss;
+    if (/^\d{2}:\d{2}$/.test(hhmmss)) return `${hhmmss}:00`;
   }
+
+  return undefined;
 }
 
-function isoToDate(value) {
-  if (!value) return value;
+function addHoursToTime(timeStr, hoursToAdd) {
+  if (!timeStr) return undefined;
+  const parts = timeStr.split(":").map((x) => parseInt(x, 10));
+  if (parts.length < 2) return undefined;
+  const h = parts[0] || 0;
+  const m = parts[1] || 0;
+  const s = parts[2] || 0;
 
-  // already YYYY-MM-DD
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-
-  try {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  } catch {
-    return value;
-  }
+  const total = (h * 3600 + m * 60 + s + hoursToAdd * 3600) % (24 * 3600);
+  const hh = String(Math.floor(total / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const ss = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
 }
 
-/**
- * Normalize + map UI keys -> DB keys, then drop unknown keys.
- * IMPORTANT: drivers: UI uses status ("active"/"inactive"), DB uses active (boolean)
- */
+/** Normalize + map UI keys -> DB keys, then DROP unknown keys */
 export function normalizePayload(collectionKey, body) {
   const src = body || {};
   const out = { ...src };
@@ -130,7 +97,7 @@ export function normalizePayload(collectionKey, body) {
     }
   };
 
-  // Common aliases
+  // Common alternate names
   applyMap({
     createdDate: "created_date",
     createdAt: "created_at",
@@ -146,37 +113,27 @@ export function normalizePayload(collectionKey, body) {
       phone_number: "phone",
       selectedState: "state",
       isActive: "active",
-    },
 
+      // IMPORTANT: UI uses status=active/inactive
+      status: "active",
+    },
     runs: {
-      shiftId: "shift_id",
       driverId: "driver_id",
-      driverName: "driver_name",
       runDate: "run_date",
       loadType: "load_type",
-      runType: "run_type",
-      customerName: "customer_name",
-      trailerDropped: "trailer_dropped",
-      trailerPickedUp: "trailer_picked_up",
-      arrivalTime: "arrival_time",
-      departureTime: "departure_time",
     },
-
     shifts: {
-      date: "shift_date",
       shiftDate: "shift_date",
       shiftType: "shift_type",
       startTime: "start_time",
       endTime: "end_time",
-      driverName: "driver_name",
-      unitNumber: "unit_number",
-      startingOdometer: "starting_odometer",
-    },
 
+      // IMPORTANT: UI sends date + start_time
+      date: "shift_date",
+    },
     schedules: {
       scheduleDate: "schedule_date",
     },
-
     customLoadTypes: {
       loadTypeLabel: "label",
       name: "label",
@@ -191,38 +148,34 @@ export function normalizePayload(collectionKey, body) {
   delete out.created_at;
   delete out.created_date;
 
-  // ---- SPECIAL FIX: Drivers status <-> active ----
-  if (collectionKey === "drivers") {
-    // If UI sends status, convert to boolean
-    if (out.status !== undefined) {
-      const s = String(out.status).toLowerCase().trim();
+  // Special normalization (drivers): status -> active boolean
+  if (collectionKey === "drivers" && out.active !== undefined) {
+    if (typeof out.active === "string") {
+      const s = out.active.trim().toLowerCase();
       if (s === "active") out.active = true;
       else if (s === "inactive") out.active = false;
-      delete out.status;
-    }
-
-    // If active came as string, coerce
-    if (typeof out.active === "string") {
-      const s = out.active.toLowerCase().trim();
-      if (s === "true" || s === "1" || s === "yes") out.active = true;
-      else if (s === "false" || s === "0" || s === "no") out.active = false;
     }
   }
 
-  // Type conversions matching Supabase schema
+  // Special normalization (shifts)
   if (collectionKey === "shifts") {
-    if (out.shift_date) out.shift_date = isoToDate(out.shift_date);
-    if (out.start_time) out.start_time = isoToTime(out.start_time);
-    if (out.end_time) out.end_time = isoToTime(out.end_time);
+    // Convert ISO -> HH:MM:SS for Supabase "time" columns
+    const st = isoToTimeString(out.start_time);
+    if (st) out.start_time = st;
+
+    const et = isoToTimeString(out.end_time);
+    if (et) out.end_time = et;
+
+    // Your schema has end_time NOT NULL, but UI doesn't send it on "start shift".
+    // Default: 12h shift unless PTO
+    if (!out.end_time && out.start_time) {
+      const t = String(out.shift_type || "").toLowerCase();
+      if (t === "pto") out.end_time = out.start_time;
+      else out.end_time = addHoursToTime(out.start_time, 12);
+    }
   }
 
-  if (collectionKey === "runs") {
-    if (out.run_date) out.run_date = isoToDate(out.run_date);
-    if (out.arrival_time) out.arrival_time = isoToTime(out.arrival_time);
-    if (out.departure_time) out.departure_time = isoToTime(out.departure_time);
-  }
-
-  // Drop unknown keys so Supabase doesn't reject the insert/update
+  // ✅ DROP unknown keys so Supabase doesn’t reject the insert/update
   const allowed = allowedColumnsFor(collectionKey);
   if (allowed.length) {
     for (const k of Object.keys(out)) {
@@ -233,11 +186,7 @@ export function normalizePayload(collectionKey, body) {
   return out;
 }
 
-/**
- * API shape for UI compatibility:
- * - drivers: UI expects `status`, DB has `active`
- * - also keep created_date if UI uses it
- */
+/** Back-compat: add created_date + status if UI expects it */
 export function apiShape(row) {
   if (!row) return row;
 
@@ -245,15 +194,9 @@ export function apiShape(row) {
     row.created_date ??
     (row.created_at ? new Date(row.created_at).toISOString() : undefined);
 
-  // drivers: add status back for UI
-  let status = row.status;
-  if (status === undefined && typeof row.active === "boolean") {
-    status = row.active ? "active" : "inactive";
-  }
+  // IMPORTANT: UI expects drivers.status
+  let status;
+  if (row.active !== undefined) status = row.active ? "active" : "inactive";
 
-  return {
-    ...row,
-    status,
-    created_date,
-  };
+  return { ...row, created_date, ...(status ? { status } : {}) };
 }
