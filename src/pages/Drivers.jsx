@@ -105,13 +105,13 @@ export default function Drivers() {
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-amber-300" />
+                <Loader2 className="h-8 w-8 animate-spin text-amber-700" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-amber-950/20">
+        <div className="min-h-screen bg-gradient-to-b from-amber-50 via-background to-background">
             <div className="max-w-4xl mx-auto px-4 py-8">
                 <div className="flex items-center justify-between mb-8">
                     <div>
@@ -132,7 +132,7 @@ export default function Drivers() {
                         <DialogContent className="rounded-2xl">
                             <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
-                                    <Users className="h-5 w-5 text-amber-300" />
+                                    <Users className="h-5 w-5 text-amber-700" />
                                     {editingDriver ? 'Edit Driver' : 'Add New Driver'}
                                 </DialogTitle>
                             </DialogHeader>
@@ -221,7 +221,7 @@ export default function Drivers() {
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-3">
                                             <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-500/15 to-amber-600/15 flex items-center justify-center">
-                                                <User className="h-5 w-5 text-amber-300" />
+                                                <User className="h-5 w-5 text-amber-700" />
                                             </div>
                                             <div>
                                                 <div className="font-semibold text-zinc-900">{driver.name}</div>
@@ -238,7 +238,7 @@ export default function Drivers() {
                                             type="button"
                                             onClick={() => toggleActiveMutation.mutate({ id: driver.id, active: !Boolean(driver.active) })}
                                             className={`px-2.5 py-1 rounded-full text-xs font-semibold border-0 transition ${
-                                                driver.active ? 'bg-amber-500/15 text-amber-200' : 'bg-slate-200 text-zinc-700'
+                                                driver.active ? 'bg-amber-200 text-amber-900 ring-1 ring-amber-300' : 'bg-zinc-200 text-zinc-800 ring-1 ring-zinc-300'
                                             }`}
                                             title="Toggle Active"
                                         >
