@@ -22,7 +22,7 @@ import {
     CalendarDays, AlertCircle
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO, eachDayOfInterval, isSameDay } from "date-fns";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import EditRunDialog from '@/components/shifts/EditRunDialog';
 
@@ -33,6 +33,7 @@ export default function ShiftHistory() {
     const [editingRun, setEditingRun] = useState(null);
     const [editShiftData, setEditShiftData] = useState({});
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
     const { data: shifts = [], isLoading: shiftsLoading } = useQuery({
         queryKey: ['allShifts'],
@@ -319,10 +320,11 @@ export default function ShiftHistory() {
     };
 
     const openEditShift = (shift) => {
-        // PTO groups are synthetic; edit the first underlying PTO shift record
-        if (shift?.pto_ids?.length) {
-            const real = shifts.find(s => s.id === shift.pto_ids[0]);
-            if (real) { handleEditShift(real); return; }
+        const isPto = shift?.is_pto || shift?.shift_type === 'pto' || shift?.attendance_status === 'pto';
+        if (isPto) {
+            const dates = (shift.pto_dates || []).join(',');
+            navigate(`/DriverLog?driver=${encodeURIComponent(shift.driver_name || '')}&mode=pto&dates=${encodeURIComponent(dates)}`);
+            return;
         }
         if (shift?.id) { handleEditShift(shift); }
     };

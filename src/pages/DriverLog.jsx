@@ -40,7 +40,28 @@ export default function DriverLog() {
     const [showAddRun, setShowAddRun] = useState(false);
     const [selectedDriver, setSelectedDriver] = useState('');
     const [editingRun, setEditingRun] = useState(null);
+    const [initialPtoOpen, setInitialPtoOpen] = useState(false);
+    const [initialPtoDates, setInitialPtoDates] = useState([]);
+
     const queryClient = useQueryClient();
+    const location = useLocation();
+
+
+    useEffect(() => {
+        const sp = new URLSearchParams(location.search);
+        const driver = sp.get('driver');
+        const mode = sp.get('mode');
+        const dates = sp.get('dates');
+        if (driver) setSelectedDriver(driver);
+        if (mode === 'pto') {
+            setInitialPtoOpen(true);
+            const arr = (dates || '').split(',').map(s => s.trim()).filter(Boolean);
+            setInitialPtoDates(arr);
+        } else {
+            setInitialPtoOpen(false);
+            setInitialPtoDates([]);
+        }
+    }, [location.search]);
 
     const { data: drivers = [], isLoading: driversLoading } = useQuery({
         queryKey: ['drivers'],
@@ -269,6 +290,8 @@ export default function DriverLog() {
                                     onPTO={(data) => ptoMutation.mutate({...data, driver_name: selectedDriver})}
                                     isLoading={startShiftMutation.isPending || ptoMutation.isPending}
                                     drivers={drivers}
+                                    initialIsPTO={initialPtoOpen}
+                                    initialPtoDates={initialPtoDates}
                                 />
                             </motion.div>
                         ) : (
