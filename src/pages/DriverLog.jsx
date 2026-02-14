@@ -18,7 +18,7 @@ import AddRunForm from '@/components/shifts/AddRunForm';
 import RunCard from '@/components/shifts/RunCard';
 import EndShiftForm from '@/components/shifts/EndShiftForm';
 import ActiveShiftCard from '@/components/shifts/ActiveShiftCard';
-import EditRunDialog from '@/components/EDIT_RUN_DIALOG_PATH_FIX_ME_IF_NEEDED';
+import EditRunDialog from '@/components/shifts/EditRunDialog';
 
 export default function DriverLog() {
     const queryClient = useQueryClient();
