@@ -24,19 +24,16 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
             if (ptoDates.length === 0) return;
             onPTO({
                 pto_dates: ptoDates.map(d => format(d, 'yyyy-MM-dd')),
-                is_pto: true,
                 shift_type: 'pto',
-                status: 'completed',
-                date: format(ptoDates[0], 'yyyy-MM-dd'),
-                start_time: new Date().toISOString()
+                status: 'completed'
             });
         } else {
             const now = new Date();
             onSubmit({
                 ...formData,
-                starting_odometer: parseFloat(formData.starting_odometer),
+                start_odometer: parseFloat(formData.starting_odometer),
                 start_time: now.toISOString(),
-                date: now.toISOString().split('T')[0],
+                shift_date: now.toISOString().split('T')[0],
                 status: 'active'
             });
         }
@@ -100,16 +97,22 @@ export default function StartShiftForm({ onSubmit, onPTO, isLoading, drivers = [
 
                     {isPTO ? (
                         <div className="space-y-3">
-                            <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
+                            <Label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
                                 <CalendarDays className="h-4 w-4" />
                                 Select PTO Date(s)
                             </Label>
-                            <div className="bg-black rounded-xl border border-slate-200 p-3 flex justify-center">
+                            <div className="bg-white rounded-xl border border-slate-200 p-3 flex justify-center">
                                 <Calendar
                                     mode="multiple"
                                     selected={ptoDates}
                                     onSelect={setPtoDates}
                                     className="rounded-md"
+                                    classNames={{
+                                        // Make "today" clearly different from selected days
+                                        day_today: "bg-amber-100 text-amber-900 ring-2 ring-amber-400",
+                                        // Selected PTO days (multi-select)
+                                        day_selected: "bg-violet-600 text-white hover:bg-violet-600 hover:text-white focus:bg-violet-600 focus:text-white",
+                                    }}
                                 />
                             </div>
                             {ptoDates.length > 0 && (
