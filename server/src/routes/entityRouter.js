@@ -46,11 +46,9 @@ export function makeEntityRouter({ collectionKey }) {
     try {
       const payload = normalizePayload(collectionKey, req.body);
 
-      // Helpful validation for drivers (prevents “modal hangs”)
       if (collectionKey === "drivers" && !payload.name) {
         return res.status(400).json({
-          error:
-            "Missing required field: name. (Your UI is probably sending driverName; mapping should handle it. If not, tell me the exact field name.)",
+          error: "Missing required field: name.",
         });
       }
 
