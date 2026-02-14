@@ -318,6 +318,16 @@ export default function ShiftHistory() {
         setEditingShift(shift);
     };
 
+    const openEditShift = (shift) => {
+        // PTO groups are synthetic; edit the first underlying PTO shift record
+        if (shift?.pto_ids?.length) {
+            const real = shifts.find(s => s.id === shift.pto_ids[0]);
+            if (real) { handleEditShift(real); return; }
+        }
+        if (shift?.id) { handleEditShift(shift); }
+    };
+
+
     if (shiftsLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background flex items-center justify-center">
@@ -393,7 +403,7 @@ export default function ShiftHistory() {
                             // Absent record
                             if (shift.is_absent) {
                                 return (
-                                    <Card key={shift.id} className="border-0 shadow-md bg-red-50/50 backdrop-blur-sm">
+                                    <Card key={shift.id} onClick={() => openEditShift(shift)} className="border-0 shadow-md bg-red-50/50 backdrop-blur-sm cursor-pointer hover:shadow-lg transition-shadow">
                                         <CardContent className="p-4">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
@@ -406,6 +416,9 @@ export default function ShiftHistory() {
                                                     </div>
                                                 </div>
                                                 {getAttendanceBadge(shift)}
+                                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditShift(shift); }} className="h-8 w-8">
+                                                    <Pencil className="h-4 w-4 text-slate-400" />
+                                                </Button>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -415,7 +428,7 @@ export default function ShiftHistory() {
                             // PTO record
                             if (shift.is_pto || shift.shift_type === 'pto') {
                                 return (
-                                    <Card key={shift.id} className="border-0 shadow-md bg-violet-50/50 backdrop-blur-sm">
+                                    <Card key={shift.id} onClick={() => openEditShift(shift)} className="border-0 shadow-md bg-violet-50/50 backdrop-blur-sm cursor-pointer hover:shadow-lg transition-shadow">
                                         <CardContent className="p-4">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
@@ -431,6 +444,9 @@ export default function ShiftHistory() {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     {getAttendanceBadge(shift)}
+                                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditShift(shift); }} className="h-8 w-8">
+                                                        <Pencil className="h-4 w-4 text-slate-400" />
+                                                    </Button>
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
                                                             <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50">
@@ -492,6 +508,9 @@ export default function ShiftHistory() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {getAttendanceBadge(shift)}
+                                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditShift(shift); }} className="h-8 w-8">
+                                                        <Pencil className="h-4 w-4 text-slate-400" />
+                                                    </Button>
                                                 <Badge className={`border-0 ${isNight ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'}`}>
                                                     {isNight ? 'Night' : 'Day'}
                                                 </Badge>
