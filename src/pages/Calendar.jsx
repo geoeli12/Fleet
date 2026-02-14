@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,20 +9,21 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/api/apiClient";
 
 /**
  * Calendar page
  * - Click a day to open a detail dialog
  * - Shows Present / Late / Absent / PTO driver lists for that day
  *
- * Data loading strategy (so this works even if your API is not wired yet):
- * 1) Try server endpoints:
- *    - GET /api/drivers               -> [{ id, name, phone?, state? }, ...]
- *    - GET /api/attendance?month=YYYY-MM
- *        -> [{ date:'YYYY-MM-DD', driverId, status:'present|late|absent|pto', ... }, ...]
- * 2) Fallback to localStorage:
- *    - localStorage.drivers          -> array
- *    - localStorage.attendance       -> array
+ * FIX:
+ * The previous Calendar implementation was a stub that looked for
+ *   /api/attendance and/or localStorage.attendance.
+ * Your app actually records attendance via the Shift entity (see ShiftHistory).
+ * So the calendar always said "No records".
+ *
+ * This version computes attendance directly from completed Shift records.
  */
 
 function pad2(n) {
@@ -53,23 +54,7 @@ function weekdayIndexSun0(d) {
   return d.getDay(); // 0=Sun
 }
 
-function safeJsonParse(v, fallback) {
-  try {
-    return JSON.parse(v);
-  } catch {
-    return fallback;
-  }
-}
-
-async function tryFetchJson(url) {
-  try {
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
+// (legacy helpers removed)
 
 function statusLabel(s) {
   switch (s) {
@@ -118,81 +103,75 @@ function makeEmptyDay() {
 
 export default function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
-  const [drivers, setDrivers] = useState([]);
-  const [attendance, setAttendance] = useState([]);
 
   const [selectedDate, setSelectedDate] = useState(null); // ISO string YYYY-MM-DD
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Load drivers
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const fromApi = await tryFetchJson("/api/drivers");
-      const fromLs = safeJsonParse(localStorage.getItem("drivers"), []);
-      const list = Array.isArray(fromApi) ? fromApi : fromLs;
-      if (!alive) return;
-      setDrivers(Array.isArray(list) ? list : []);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const { data: drivers = [] } = useQuery({
+    queryKey: ["drivers"],
+    queryFn: () => api.entities.Driver.filter({ status: "active" }, "name"),
+  });
 
-  // Load attendance for the visible month
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const mk = monthKey(currentMonth);
-      const fromApi = await tryFetchJson(`/api/attendance?month=${encodeURIComponent(mk)}`);
-      const fromLs = safeJsonParse(localStorage.getItem("attendance"), []);
-      const list = Array.isArray(fromApi) ? fromApi : fromLs;
-      if (!alive) return;
+  const { data: shifts = [] } = useQuery({
+    queryKey: ["allShifts"],
+    queryFn: () => api.entities.Shift.list("-created_date"),
+  });
 
-      // Keep only the current month in view (helps performance)
-      const filtered = (Array.isArray(list) ? list : []).filter((r) => {
-        const d = String(r?.date || "");
-        return d.startsWith(mk);
-      });
-      setAttendance(filtered);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [currentMonth]);
+  const driverNames = useMemo(
+    () => (Array.isArray(drivers) ? drivers.map((d) => d?.name).filter(Boolean) : []),
+    [drivers]
+  );
 
-  const driversById = useMemo(() => {
-    const m = new Map();
-    for (const d of drivers) {
-      const id = d?.id ?? d?._id ?? d?.driverId ?? d?.name; // tolerate different shapes
-      if (id != null) m.set(String(id), d);
-    }
-    return m;
-  }, [drivers]);
+  function getShiftDateStr(s) {
+    const v = s?.shift_date || s?.date || s?.shiftDate || s?.shift_dt;
+    if (!v) return "";
+    return String(v).slice(0, 10);
+  }
+
+  function getShiftDates(s) {
+    const isPto = !!(s?.is_pto || s?.shift_type === "pto" || s?.attendance_status === "pto");
+    const ptoDates = Array.isArray(s?.pto_dates) ? s.pto_dates : [];
+    if (isPto && ptoDates.length) return ptoDates.map((d) => String(d).slice(0, 10)).filter(Boolean);
+    const one = getShiftDateStr(s);
+    return one ? [one] : [];
+  }
 
   const attendanceByDate = useMemo(() => {
-    const map = new Map(); // dateKey -> {present,late,absent,pto} arrays of driver objects or strings
-    for (const rec of attendance || []) {
-      const date = String(rec?.date || "").slice(0, 10);
-      if (!date) continue;
+    const mk = monthKey(currentMonth);
+    const completed = (Array.isArray(shifts) ? shifts : []).filter((s) => s?.status === "completed");
 
-      const status = normalizeStatus(rec?.status);
-      if (!map.has(date)) map.set(date, makeEmptyDay());
-      const day = map.get(date);
+    const tmp = new Map();
+    const haveByDate = new Map(); // date -> Set(driverName)
 
-      const driverId = rec?.driverId ?? rec?.driver?.id ?? rec?.driver ?? rec?.id;
-      const driverObj = driverId != null ? driversById.get(String(driverId)) : null;
-      const display =
-        driverObj ||
-        rec?.driverName ||
-        rec?.name ||
-        (driverId != null ? String(driverId) : "Unknown");
+    for (const s of completed) {
+      const dates = getShiftDates(s);
+      if (!dates.length) continue;
 
-      if (!day[status]) day[status] = [];
-      day[status].push(display);
+      const driver = s?.driver_name || s?.driver || s?.name;
+      if (!driver) continue;
+
+      const isPto = !!(s?.is_pto || s?.shift_type === "pto" || s?.attendance_status === "pto");
+      const status = isPto ? "pto" : normalizeStatus(s?.attendance_status || "present");
+
+      for (const date of dates) {
+        if (!date.startsWith(mk)) continue;
+        if (!tmp.has(date)) tmp.set(date, makeEmptyDay());
+        if (!haveByDate.has(date)) haveByDate.set(date, new Set());
+
+        haveByDate.get(date).add(String(driver));
+        tmp.get(date)[status].push(String(driver));
+      }
     }
-    return map;
-  }, [attendance, driversById]);
+
+    // Add absent drivers for dates that have at least one record (same strategy as ShiftHistory)
+    for (const [date, day] of tmp.entries()) {
+      const have = haveByDate.get(date) || new Set();
+      const absentDrivers = driverNames.filter((n) => !have.has(n));
+      day.absent.push(...absentDrivers);
+    }
+
+    return tmp;
+  }, [shifts, driverNames, currentMonth]);
 
   const monthGrid = useMemo(() => {
     const start = startOfMonth(currentMonth);
@@ -330,7 +309,7 @@ export default function Calendar() {
                   </div>
 
                   {hasAny ? (
-                    <div className="mt-2 text-xs text-white/70">
+                    <div className="mt-2 text-xs text-white/60">
                       {dayData.present.length ? `${dayData.present.length} present` : null}
                       {dayData.late.length ? `${dayData.present.length ? " • " : ""}${dayData.late.length} late` : null}
                       {dayData.absent.length ? `${(dayData.present.length || dayData.late.length) ? " • " : ""}${dayData.absent.length} absent` : null}
@@ -371,12 +350,12 @@ export default function Calendar() {
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className={`h-2.5 w-2.5 rounded-full ${statusDotClass(s)}`} />
-                      <div className="text-sm font-semibold text-white">{statusLabel(s)}</div>
+                      <div className="text-sm font-semibold text-foreground">{statusLabel(s)}</div>
                     </div>
                     <Badge variant="secondary">{(selectedSummary?.[s] || []).length}</Badge>
                   </div>
 
-                  <div className="max-h-[320px] overflow-auto rounded-xl border bg-slate-50 p-3">
+                  <div className="max-h-[320px] overflow-auto rounded-xl border bg-background p-3">
                     {(selectedSummary?.[s] || []).length === 0 ? (
                       <div className="py-10 text-center text-sm text-muted-foreground">No drivers</div>
                     ) : (
@@ -388,7 +367,7 @@ export default function Calendar() {
                           return (
                             <li
                               key={`${s}-${idx}`}
-                              className="flex items-center justify-between rounded-lg border bg-background px-3 py-2"
+                              className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 shadow-sm"
                             >
                               <div className="min-w-0">
                                 <div className="truncate text-sm font-medium text-foreground">{name}</div>
