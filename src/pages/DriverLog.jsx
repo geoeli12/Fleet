@@ -134,7 +134,7 @@ export default function DriverLog() {
                 {/* Driver Selection */}
                 <Card className="border-0 shadow-md bg-black/60 backdrop-blur-sm mb-6">
                     <CardContent className="p-4">
-                        <Label className="text-sm font-medium text-zinc-700 mb-2 block flex items-center gap-2">
+                        <Label className="text-sm font-medium text-white/90 mb-2 block flex items-center gap-2">
                             <User className="h-4 w-4" /> Select Driver
                         </Label>
                         <Select value={selectedDriver} onValueChange={setSelectedDriver}>
