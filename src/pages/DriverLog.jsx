@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
 import { Plus, Route, Loader2, User, Truck, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
+import { useLocation } from "react-router-dom";
 import StartShiftForm from '@/components/shifts/StartShiftForm';
 import AddRunForm from '@/components/shifts/AddRunForm';
 import RunCard from '@/components/shifts/RunCard';
