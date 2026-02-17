@@ -30,6 +30,7 @@ export default function Drivers() {
     const [isOpen, setIsOpen] = useState(false);
     const [editingDriver, setEditingDriver] = useState(null);
     const [formData, setFormData] = useState({ name: '', phone: '', state: 'IL' });
+    const [saveError, setSaveError] = useState('');
     const queryClient = useQueryClient();
 
     const { data: drivers = [], isLoading } = useQuery({
@@ -40,9 +41,13 @@ export default function Drivers() {
     const createMutation = useMutation({
         // IMPORTANT: use active boolean (not status string)
         mutationFn: (data) => api.entities.Driver.create({ ...data, active: true }),
+        onError: (err) => {
+            setSaveError(getErrorMessage(err));
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['allDrivers'] });
             queryClient.invalidateQueries({ queryKey: ['drivers'] });
+            setSaveError('');
             setIsOpen(false);
             resetForm();
         }
@@ -50,9 +55,13 @@ export default function Drivers() {
 
     const updateMutation = useMutation({
         mutationFn: ({ id, data }) => api.entities.Driver.update(id, data),
+        onError: (err) => {
+            setSaveError(getErrorMessage(err));
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['allDrivers'] });
             queryClient.invalidateQueries({ queryKey: ['drivers'] });
+            setSaveError('');
             setIsOpen(false);
             setEditingDriver(null);
             resetForm();
@@ -79,28 +88,44 @@ export default function Drivers() {
         setFormData({ name: '', phone: '', state: 'IL' });
     };
 
+    const getDriverId = (d) => d?.id ?? d?._id ?? d?.objectId ?? d?.uuid;
+
+    const getErrorMessage = (err) => {
+        if (!err) return 'Save failed.';
+        return (
+            err?.response?.data?.message ||
+            err?.data?.message ||
+            err?.message ||
+            'Save failed.'
+        );
+    };
+
     const handleEdit = (driver) => {
-        setEditingDriver(driver);
-        setFormData({ name: driver.name, phone: driver.phone || '', state: driver.state || 'IL' });
+        const id = getDriverId(driver);
+        setSaveError('');
+        setEditingDriver({ ...driver, __id: id });
+        setFormData({
+            name: driver.name,
+            phone: driver.phone || '',
+            state: String(driver.state || 'IL').trim().toUpperCase()
+        });
         setIsOpen(true);
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const payload = {
-            ...formData,
-            state: String(formData.state || 'IL').trim().toUpperCase()
-        };
+        setSaveError('');
         if (editingDriver) {
-            updateMutation.mutate({ id: editingDriver.id, data: payload });
+            updateMutation.mutate({ id: editingDriver.id, data: formData });
         } else {
-            createMutation.mutate(payload);
+            createMutation.mutate(formData);
         }
     };
 
     const handleOpenChange = (open) => {
         setIsOpen(open);
         if (!open) {
+            setSaveError('');
             setEditingDriver(null);
             resetForm();
         }
@@ -193,6 +218,12 @@ export default function Drivers() {
                                     </div>
                                 </div>
 
+                                {saveError && (
+                                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                        {saveError}
+                                    </div>
+                                )}
+
                                 <DialogFooter className="pt-4">
                                     <Button
                                         type="submit"
@@ -220,7 +251,7 @@ export default function Drivers() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {drivers.map((driver) => (
-                            <Card key={driver.id} className="border-0 shadow-md bg-white ring-1 ring-black/5 backdrop-blur-sm hover:shadow-lg transition-all">
+                            <Card key={getDriverId(driver) ?? driver.name} className="border-0 shadow-md bg-white ring-1 ring-black/5 backdrop-blur-sm hover:shadow-lg transition-all">
                                 <CardContent className="p-4">
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-3">
@@ -240,7 +271,7 @@ export default function Drivers() {
                                         {/* TOP-RIGHT ACTIVE TOGGLE (replaces the old gray badge spot) */}
                                         <button
                                             type="button"
-                                            onClick={() => toggleActiveMutation.mutate({ id: driver.id, active: !Boolean(driver.active) })}
+                                            onClick={() => toggleActiveMutation.mutate({ id: getDriverId(driver), active: !Boolean(driver.active) })}
                                             className={`px-2.5 py-1 rounded-full text-xs font-semibold border-0 transition ${
                                                 driver.active ? 'bg-amber-200 text-amber-900 ring-1 ring-amber-300' : 'bg-zinc-200 text-zinc-800 ring-1 ring-zinc-300'
                                             }`}
@@ -289,7 +320,7 @@ export default function Drivers() {
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
                                                     <AlertDialogAction
-                                                        onClick={() => deleteMutation.mutate(driver.id)}
+                                                        onClick={() => deleteMutation.mutate(getDriverId(driver))}
                                                         className="bg-red-600 hover:bg-red-700 rounded-xl"
                                                     >
                                                         Delete
