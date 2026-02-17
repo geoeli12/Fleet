@@ -1,11 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { History, ClipboardList, Users, CalendarDays } from 'lucide-react';
+import { History, ClipboardList, Users, CalendarDays, Fuel, Droplets } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
     const navItems = [
         { name: 'DriverLog', label: 'Log', icon: ClipboardList },
+        { name: 'FuelDashboard', label: 'Fuel', icon: Fuel },
+        { name: 'FuelHistory', label: 'Fuel History', icon: Droplets },
         { name: 'ShiftHistory', label: 'History', icon: History },
         { name: 'Calendar', label: 'Calendar', icon: CalendarDays },
         { name: 'Schedule', label: 'Schedule', icon: ClipboardList },

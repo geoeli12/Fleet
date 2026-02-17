@@ -29,7 +29,11 @@
  *
  *   import Home from './pages/Home';
  *   import Settings from './pages/Settings';
- *   import __Layout from './Layout.jsx';
+ *   import FuelDashboard from './pages/FuelDashboard';
+import FuelHistory from './pages/FuelHistory';
+import AddReading from './pages/AddReading';
+import AddRefill from './pages/AddRefill';
+import __Layout from './Layout.jsx';
  *
  *   export const PAGES = {
  *       "Home": Home,
@@ -62,6 +66,10 @@ export const PAGES = {
     "ShiftHistory": ShiftHistory,
     "Calendar": Calendar,
     "Schedule": Schedule,
+    "FuelDashboard": FuelDashboard,
+    "FuelHistory": FuelHistory,
+    "AddReading": AddReading,
+    "AddRefill": AddRefill,
 }
 
 export const pagesConfig = {
