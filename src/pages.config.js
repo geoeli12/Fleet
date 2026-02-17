@@ -57,6 +57,10 @@ import Drivers from './pages/Drivers';
 import ShiftHistory from './pages/ShiftHistory';
 import Calendar from './pages/Calendar';
 import Schedule from './pages/Schedule';
+import FuelDashboard from './pages/FuelDashboard';
+import FuelHistory from './pages/FuelHistory';
+import AddReading from './pages/AddReading';
+import AddRefill from './pages/AddRefill';
 import __Layout from './Layout.jsx';
 
 
@@ -77,4 +81,3 @@ export const pagesConfig = {
     Pages: PAGES,
     Layout: __Layout,
 };
-
