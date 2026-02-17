@@ -87,10 +87,14 @@ export default function Drivers() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        const payload = {
+            ...formData,
+            state: String(formData.state || 'IL').trim().toUpperCase()
+        };
         if (editingDriver) {
-            updateMutation.mutate({ id: editingDriver.id, data: formData });
+            updateMutation.mutate({ id: editingDriver.id, data: payload });
         } else {
-            createMutation.mutate(formData);
+            createMutation.mutate(payload);
         }
     };
 
