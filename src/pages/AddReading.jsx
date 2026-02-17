@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/select";
 import ImageUpload from "@/components/fuel/ImageUpload";
 
-const isPA = (d) => String(d?.state ?? '').toUpperCase() === 'PA';
 export default function AddReading() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -38,7 +37,7 @@ export default function AddReading() {
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
-    queryFn: () => api.entities.Driver.filter({ status: 'active' })
+    queryFn: () => api.entities.Driver.filter({ status: 'active', state: 'PA' })
   });
 
 
@@ -110,7 +109,7 @@ export default function AddReading() {
             <Label>Driver</Label>
             {drivers.length === 0 ? (
               <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl">
-                <p className="text-slate-500 mb-3">No PA drivers added yet</p>
+                <p className="text-slate-500 mb-3">No drivers added yet</p>
                 <Link to={createPageUrl("Drivers")}>
                   <Button variant="outline" size="sm">
                     <UserPlus className="w-4 h-4 mr-2" />

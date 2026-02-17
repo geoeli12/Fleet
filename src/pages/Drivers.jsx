@@ -103,44 +103,10 @@ export default function Drivers() {
     };
 
     if (isLoading) {
-        
-  const setDriverStateMutation = useMutation({
-    mutationFn: async ({ id, state }) => {
-      return api.entities.Driver.update(id, { state });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['drivers'] });
-    }
-  });
-
-  const handleSetState = (driver, state) => {
-    if (!driver?.id) return;
-    setDriverStateMutation.mutate({ id: driver.id, state });
-  };
-
-return (
+        return (
             <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-amber-700" />
             </div>
-
-              <div className="flex items-center gap-2 mt-2">
-                <Button
-                  type="button"
-                  variant={driver.state === 'IL' ? 'default' : 'outline'}
-                  className="h-8 px-4 rounded-xl"
-                  onClick={() => handleSetState(driver, 'IL')}
-                >
-                  IL
-                </Button>
-                <Button
-                  type="button"
-                  variant={driver.state === 'PA' ? 'default' : 'outline'}
-                  className="h-8 px-4 rounded-xl"
-                  onClick={() => handleSetState(driver, 'PA')}
-                >
-                  PA
-                </Button>
-              </div>
         );
     }
 
@@ -259,11 +225,28 @@ return (
                                             </div>
                                             <div>
                                                 <div className="font-semibold text-zinc-900">{driver.name}</div>
-                                                {driver.state && (
-                                                    <div className="text-xs text-zinc-600 font-medium">
-                                                        {driver.state}
-                                                    </div>
-                                                )}
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className={driver.state === 'IL'
+                                                            ? 'h-8 px-4 rounded-lg bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800'
+                                                            : 'h-8 px-4 rounded-lg bg-transparent text-zinc-700 border-zinc-300 hover:bg-zinc-100'}
+                                                        onClick={() => updateDriverMutation.mutate({ id: driver.id, data: { state: 'IL' } })}
+                                                    >
+                                                        IL
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className={driver.state === 'PA'
+                                                            ? 'h-8 px-4 rounded-lg bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800'
+                                                            : 'h-8 px-4 rounded-lg bg-transparent text-zinc-700 border-zinc-300 hover:bg-zinc-100'}
+                                                        onClick={() => updateDriverMutation.mutate({ id: driver.id, data: { state: 'PA' } })}
+                                                    >
+                                                        PA
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
 
