@@ -19,7 +19,8 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
     gallons_added: refill.gallons_added || "",
     date: refill.date ? format(new Date(refill.date), "yyyy-MM-dd") : "",
     cost: refill.cost || "",
-    notes: refill.notes || ""
+    invoice_number: refill.invoice_number || "",
+    notes: refill.notes || "",
   });
 
   const handleSubmit = async (e) => {
@@ -28,7 +29,10 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
       gallons_added: parseFloat(formData.gallons_added),
       date: formData.date + "T12:00:00",
       cost: formData.cost ? parseFloat(formData.cost) : null,
-      notes: formData.notes
+      invoice_number: formData.invoice_number
+        ? String(formData.invoice_number).trim()
+        : null,
+      notes: formData.notes,
     });
     setOpen(false);
   };
@@ -36,7 +40,11 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-emerald-500">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-slate-400 hover:text-emerald-500"
+        >
           <Pencil className="w-4 h-4" />
         </Button>
       </DialogTrigger>
@@ -50,44 +58,73 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
             <Input
               type="date"
               value={formData.date}
-              onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, date: e.target.value }))
+              }
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label>Gallons Added</Label>
             <Input
               type="number"
               step="0.1"
               value={formData.gallons_added}
-              onChange={(e) => setFormData(prev => ({ ...prev, gallons_added: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, gallons_added: e.target.value }))
+              }
             />
           </div>
 
           <div className="space-y-2">
             <Label>Cost (optional)</Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                $
+              </span>
               <Input
                 type="number"
                 step="0.01"
                 value={formData.cost}
-                onChange={(e) => setFormData(prev => ({ ...prev, cost: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, cost: e.target.value }))
+                }
                 className="pl-7"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label>Invoice # (optional)</Label>
+            <Input
+              type="text"
+              placeholder="e.g., INV-10483"
+              value={formData.invoice_number}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  invoice_number: e.target.value,
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Notes (optional)</Label>
             <Textarea
               value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, notes: e.target.value }))
+              }
               rows={2}
             />
           </div>
 
-          <Button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-600" disabled={isSaving}>
+          <Button
+            type="submit"
+            className="w-full bg-emerald-500 hover:bg-emerald-600"
+            disabled={isSaving}
+          >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
           </Button>
         </form>
