@@ -29,7 +29,7 @@ import { Plus, User, Phone, Loader2, Pencil, Trash2, Users } from "lucide-react"
 export default function Drivers() {
     const [isOpen, setIsOpen] = useState(false);
     const [editingDriver, setEditingDriver] = useState(null);
-    const [formData, setFormData] = useState({ name: '', phone: '', state: 'IL', status: 'active' });
+    const [formData, setFormData] = useState({ name: '', phone: '', state: 'IL' });
     const queryClient = useQueryClient();
 
     const { data: drivers = [], isLoading } = useQuery({
@@ -38,8 +38,8 @@ export default function Drivers() {
     });
 
     const createMutation = useMutation({
-        // IMPORTANT: drivers use status = 'active' | 'inactive'
-        mutationFn: (data) => api.entities.Driver.create({ ...data, status: 'active' }),
+        // IMPORTANT: use active boolean (not status string)
+        mutationFn: (data) => api.entities.Driver.create({ ...data, active: true }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['allDrivers'] });
             queryClient.invalidateQueries({ queryKey: ['drivers'] });
@@ -59,27 +59,15 @@ export default function Drivers() {
         }
     });
 
-    const toggleStatusMutation = useMutation({
-        mutationFn: (driver) => api.entities.Driver.update(driver.id, { status: driver.status === 'active' ? 'inactive' : 'active' }),
+    const toggleActiveMutation = useMutation({
+        mutationFn: ({ id, active }) => api.entities.Driver.update(id, { active }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['allDrivers'] });
             queryClient.invalidateQueries({ queryKey: ['drivers'] });
-        },
-        onError: (error) => {
-            toast({ title: 'Error', description: error?.message || 'Failed to update status', variant: 'destructive' });
         }
     });
 
-queryClient.invalidateQueries({ queryKey: ['drivers'] });
-        }
-    });
-    },
-    onError: (error) => {
-      toast({ title: 'Error', description: error?.message || 'Failed to update driver', variant: 'destructive' });
-    },
-  });
-
-const deleteMutation = useMutation({
+    const deleteMutation = useMutation({
         mutationFn: (id) => api.entities.Driver.delete(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['allDrivers'] });
@@ -88,7 +76,7 @@ const deleteMutation = useMutation({
     });
 
     const resetForm = () => {
-        setFormData({ name: '', phone: '', state: 'IL', status: 'active' });
+        setFormData({ name: '', phone: '', state: 'IL' });
     };
 
     const handleEdit = (driver) => {
@@ -173,42 +161,36 @@ const deleteMutation = useMutation({
                                     />
                                 </div>
 
-                                
-                              {editingDriver ? (
                                 <div className="space-y-2">
-                                  <Label>State</Label>
-                                  <Input value={formData.state || ''} disabled />
+                                    <Label>State</Label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, state: 'IL' })}
+                                            className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all font-medium ${
+                                                formData.state === 'IL'
+                                                    ? 'border-blue-400 bg-blue-50 text-blue-700'
+                                                    : 'border-slate-200 bg-black text-white hover:border-slate-300'
+                                            }`}
+                                        >
+                                            IL
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, state: 'PA' })}
+                                            className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all font-medium ${
+                                                formData.state === 'PA'
+                                                    ? 'border-amber-400 bg-amber-500/10 text-amber-200'
+                                                    : 'border-slate-200 bg-black text-white hover:border-slate-300'
+                                            }`}
+                                        >
+                                            PA
+                                        </button>
+                                    </div>
                                 </div>
-                              ) : (
-                                <div className="space-y-2">
-                                  <Label>State</Label>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => setFormData((prev) => ({ ...prev, state: 'IL' }))}
-                                      className={`p-3 rounded-lg border-2 font-medium transition-colors ${
-                                        formData.state === 'IL'
-                                          ? 'bg-black text-white border-black'
-                                          : 'bg-transparent text-gray-600 border-gray-200 hover:border-gray-300'
-                                      }`}
-                                    >
-                                      IL
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setFormData((prev) => ({ ...prev, state: 'PA' }))}
-                                      className={`p-3 rounded-lg border-2 font-medium transition-colors ${
-                                        formData.state === 'PA'
-                                          ? 'bg-black text-white border-black'
-                                          : 'bg-transparent text-gray-600 border-gray-200 hover:border-gray-300'
-                                      }`}
-                                    >
-                                      PA
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-<Button
+
+                                <DialogFooter className="pt-4">
+                                    <Button
                                         type="submit"
                                         disabled={createMutation.isPending || updateMutation.isPending}
                                         className="bg-amber-600 hover:bg-amber-700 rounded-xl"
@@ -243,41 +225,24 @@ const deleteMutation = useMutation({
                                             </div>
                                             <div>
                                                 <div className="font-semibold text-zinc-900">{driver.name}</div>
-                                                <div className="flex items-center gap-2 mt-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        className={driver.state === 'IL'
-                                                            ? 'h-8 px-4 rounded-lg bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800'
-                                                            : 'h-8 px-4 rounded-lg bg-transparent text-zinc-700 border-zinc-300 hover:bg-zinc-100'}
-                                                        onClick={() => updateMutation.mutate({ id: driver.id, data: { state: 'IL' } })}
-                                                    >
-                                                        IL
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        className={driver.state === 'PA'
-                                                            ? 'h-8 px-4 rounded-lg bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800'
-                                                            : 'h-8 px-4 rounded-lg bg-transparent text-zinc-700 border-zinc-300 hover:bg-zinc-100'}
-                                                        onClick={() => updateMutation.mutate({ id: driver.id, data: { state: 'PA' } })}
-                                                    >
-                                                        PA
-                                                    </Button>
-                                                </div>
+                                                {driver.state && (
+                                                    <div className="text-xs text-zinc-600 font-medium">
+                                                        {driver.state}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
                                         {/* TOP-RIGHT ACTIVE TOGGLE (replaces the old gray badge spot) */}
                                         <button
                                             type="button"
-                                            onClick={() => toggleStatusMutation.mutate(driver)}
+                                            onClick={() => toggleActiveMutation.mutate({ id: driver.id, active: !Boolean(driver.active) })}
                                             className={`px-2.5 py-1 rounded-full text-xs font-semibold border-0 transition ${
-                                                driver.status === 'active' ? 'bg-amber-200 text-amber-900 ring-1 ring-amber-300' : 'bg-zinc-200 text-zinc-800 ring-1 ring-zinc-300'
+                                                driver.active ? 'bg-amber-200 text-amber-900 ring-1 ring-amber-300' : 'bg-zinc-200 text-zinc-800 ring-1 ring-zinc-300'
                                             }`}
                                             title="Toggle Active"
                                         >
-                                            {driver.status === 'active' ? 'Active' : 'Inactive'}
+                                            {driver.active ? 'Active' : 'Inactive'}
                                         </button>
                                     </div>
 
