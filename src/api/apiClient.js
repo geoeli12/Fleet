@@ -47,5 +47,8 @@ export const api = {
     Run: makeEntity("runs"),
     Schedule: makeEntity("schedules"),
     CustomLoadType: makeEntity("custom-load-types"),
+    FuelReading: makeEntity("fuel-readings"),
+    FuelRefill: makeEntity("fuel-refills"),
+    FuelTank: makeEntity("fuel-tank"),
   },
 };
