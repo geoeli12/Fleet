@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
-import { ArrowLeft, Plus, Save, Loader2, Fuel } from "lucide-react";
+import { ArrowLeft, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/fuel-ui/button";
 import { Input } from "@/components/fuel-ui/input";
 import { Label } from "@/components/fuel-ui/label";
@@ -20,22 +20,24 @@ export default function AddRefill() {
     gallons_added: "",
     date: format(new Date(), "yyyy-MM-dd"),
     cost: "",
+    invoice_number: "",
     notes: ""
   });
 
   const { data: readings = [] } = useQuery({
-    queryKey: ['readings'],
+    queryKey: ["readings"],
     queryFn: () => api.entities.FuelReading.list()
   });
 
   const { data: refills = [] } = useQuery({
-    queryKey: ['refills'],
+    queryKey: ["refills"],
     queryFn: () => api.entities.FuelRefill.list()
   });
 
   // Calculate current tank level from refills minus usage
-  const currentGallons = refills.reduce((sum, r) => sum + (r.gallons_added || 0), 0) 
-    - readings.reduce((sum, r) => sum + (r.gallons_used || 0), 0);
+  const currentGallons =
+    refills.reduce((sum, r) => sum + (r.gallons_added || 0), 0) -
+    readings.reduce((sum, r) => sum + (r.gallons_used || 0), 0);
 
   const createRefillMutation = useMutation({
     mutationFn: async (data) => {
@@ -46,16 +48,17 @@ export default function AddRefill() {
         gallons_added: gallonsAdded,
         date: data.date + "T12:00:00",
         cost: data.cost ? parseFloat(data.cost) : null,
+        invoice_number: data.invoice_number ? String(data.invoice_number).trim() : null,
         notes: data.notes
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['refills'] });
+      queryClient.invalidateQueries({ queryKey: ["refills"] });
       navigate(createPageUrl("FuelDashboard"));
     }
   });
 
-  const projectedTotal = formData.gallons_added 
+  const projectedTotal = formData.gallons_added
     ? currentGallons + parseFloat(formData.gallons_added || 0)
     : currentGallons;
 
@@ -96,7 +99,9 @@ export default function AddRefill() {
                 step="0.1"
                 placeholder="e.g., 840"
                 value={formData.gallons_added}
-                onChange={(e) => setFormData(prev => ({ ...prev, gallons_added: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, gallons_added: e.target.value }))
+                }
                 className="text-xl h-14"
               />
             </div>
@@ -107,7 +112,7 @@ export default function AddRefill() {
               <Input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
               />
             </div>
 
@@ -121,10 +126,23 @@ export default function AddRefill() {
                   step="0.01"
                   placeholder="0.00"
                   value={formData.cost}
-                  onChange={(e) => setFormData(prev => ({ ...prev, cost: e.target.value }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, cost: e.target.value }))}
                   className="pl-7"
                 />
               </div>
+            </div>
+
+            {/* Invoice # */}
+            <div className="space-y-2">
+              <Label>Invoice # (optional)</Label>
+              <Input
+                type="text"
+                placeholder="e.g., INV-10483"
+                value={formData.invoice_number}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, invoice_number: e.target.value }))
+                }
+              />
             </div>
 
             {/* Notes */}
@@ -133,7 +151,7 @@ export default function AddRefill() {
               <Textarea
                 placeholder="Any additional notes..."
                 value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
                 rows={3}
               />
             </div>
@@ -143,18 +161,24 @@ export default function AddRefill() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-emerald-700">Current Level</span>
-                  <span className="font-medium text-emerald-800">{currentGallons.toLocaleString()} gal</span>
+                  <span className="font-medium text-emerald-800">
+                    {currentGallons.toLocaleString()} gal
+                  </span>
                 </div>
                 {formData.gallons_added && (
                   <div className="flex justify-between">
                     <span className="text-emerald-700">Adding</span>
-                    <span className="font-medium text-emerald-600">+{parseFloat(formData.gallons_added).toLocaleString()} gal</span>
+                    <span className="font-medium text-emerald-600">
+                      +{parseFloat(formData.gallons_added).toLocaleString()} gal
+                    </span>
                   </div>
                 )}
                 <div className="h-px bg-emerald-200 my-2" />
                 <div className="flex justify-between">
                   <span className="text-emerald-700 font-medium">New Total</span>
-                  <span className="text-xl font-bold text-emerald-600">{projectedTotal.toLocaleString()} gal</span>
+                  <span className="text-xl font-bold text-emerald-600">
+                    {projectedTotal.toLocaleString()} gal
+                  </span>
                 </div>
               </div>
             </div>
