@@ -6,17 +6,17 @@ import { createPageUrl } from "@/utils";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { ArrowLeft, Fuel, Save, Loader2, UserPlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/fuel-ui/button";
+import { Input } from "@/components/fuel-ui/input";
+import { Label } from "@/components/fuel-ui/label";
+import { Textarea } from "@/components/fuel-ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/fuel-ui/select";
 import ImageUpload from "@/components/fuel/ImageUpload";
 
 export default function AddReading() {

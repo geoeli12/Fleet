@@ -9,22 +9,22 @@ import {
   ArrowLeft, Filter, Calendar, TrendingDown, Plus, 
   Fuel, Download, ChevronDown
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/fuel-ui/button";
+import { Badge } from "@/components/fuel-ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/fuel-ui/tabs";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/fuel-ui/select";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarUI } from "@/components/ui/calendar";
+} from "@/components/fuel-ui/popover";
+import { Calendar as CalendarUI } from "@/components/fuel-ui/calendar";
 import ReadingCard from "@/components/fuel/ReadingCard";
 import RefillCard from "@/components/fuel/RefillCard";
 
@@ -124,9 +124,12 @@ export default function FuelHistory() {
 
   // Filter data
   const filterByDate = (items) => {
-    return items.filter(item => {
-      const date = new Date(item.date);
-      return date >= dateRange.from && date <= dateRange.to;
+    const arr = Array.isArray(items) ? items : [];
+    if (dateRange.preset === "all") return arr;
+    return arr.filter(item => {
+      const d = item?.date ? new Date(item.date) : null;
+      if (!d || isNaN(d.getTime())) return false;
+      return d >= dateRange.from && d <= dateRange.to;
     });
   };
 
