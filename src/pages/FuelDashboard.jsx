@@ -4,9 +4,9 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { format, subDays, startOfWeek, endOfWeek } from "date-fns";
 import { motion } from "framer-motion";
-import { 
-  Fuel, Plus, Users, TrendingDown, Calendar, 
-  ArrowUpRight, Droplets, BarChart3 
+import {
+  Fuel, Plus, Users, TrendingDown, Calendar,
+  ArrowUpRight, Droplets, BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import TankGauge from "@/components/fuel/TankGauge";
@@ -73,7 +73,7 @@ export default function FuelDashboard() {
   // Calculate stats
   const thisWeekStart = startOfWeek(new Date());
   const thisWeekEnd = endOfWeek(new Date());
-  
+
   const weekReadings = readings.filter(r => {
     const date = new Date(r.date);
     return date >= thisWeekStart && date <= thisWeekEnd;
@@ -82,6 +82,14 @@ export default function FuelDashboard() {
   const weekUsage = weekReadings.reduce((sum, r) => sum + (r.gallons_used || 0), 0);
   const totalUsage = readings.reduce((sum, r) => sum + (r.gallons_used || 0), 0);
   const totalRefills = refills.reduce((sum, r) => sum + (r.gallons_added || 0), 0);
+
+  // ✅ PA-only active drivers (matches your AddReading filter logic)
+  const paActiveDriversCount = drivers.filter(d =>
+    d &&
+    d.active !== false &&
+    d.state &&
+    d.state.trim().toUpperCase() === "PA"
+  ).length;
 
   // Combine and sort activity feed
   const activityFeed = [
@@ -125,7 +133,7 @@ export default function FuelDashboard() {
             >
               <h2 className="text-lg font-semibold text-slate-800 mb-6 text-center">Tank Level</h2>
               <TankGauge currentGallons={currentTankLevel} />
-              
+
               <div className="mt-8 pt-6 border-t border-slate-100">
                 <Link to={createPageUrl("AddRefill")}>
                   <Button className="w-full bg-emerald-500 hover:bg-emerald-600">
@@ -164,8 +172,8 @@ export default function FuelDashboard() {
               />
               <StatsCard
                 title="Drivers"
-                value={drivers.filter(d => d && d.active !== false).length}
-                subtitle="active"
+                value={paActiveDriversCount}
+                subtitle="active (PA)"
                 icon={Users}
                 color="blue"
               />
@@ -179,7 +187,7 @@ export default function FuelDashboard() {
                   View all <ArrowUpRight className="w-4 h-4" />
                 </Link>
               </div>
-              
+
               <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
                 {activityFeed.length === 0 ? (
                   <div className="text-center py-12 text-slate-400">
@@ -196,20 +204,20 @@ export default function FuelDashboard() {
                       transition={{ delay: index * 0.05 }}
                     >
                       {item.type === 'reading' ? (
-                            <ReadingCard 
-                              reading={item} 
-                              onDelete={(id) => deleteReadingMutation.mutate(id)}
-                              onEdit={(id, data) => updateReadingMutation.mutate({ id, data })}
-                              isEditing={updateReadingMutation.isPending}
-                            />
-                          ) : (
-                            <RefillCard 
-                              refill={item} 
-                              onDelete={(id) => deleteRefillMutation.mutate(id)}
-                              onEdit={(id, data) => updateRefillMutation.mutate({ id, data })}
-                              isEditing={updateRefillMutation.isPending}
-                            />
-                          )}
+                        <ReadingCard
+                          reading={item}
+                          onDelete={(id) => deleteReadingMutation.mutate(id)}
+                          onEdit={(id, data) => updateReadingMutation.mutate({ id, data })}
+                          isEditing={updateReadingMutation.isPending}
+                        />
+                      ) : (
+                        <RefillCard
+                          refill={item}
+                          onDelete={(id) => deleteRefillMutation.mutate(id)}
+                          onEdit={(id, data) => updateRefillMutation.mutate({ id, data })}
+                          isEditing={updateRefillMutation.isPending}
+                        />
+                      )}
                     </motion.div>
                   ))
                 )}
