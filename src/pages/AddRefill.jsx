@@ -20,8 +20,7 @@ export default function AddRefill() {
     gallons_added: "",
     date: format(new Date(), "yyyy-MM-dd"),
     cost: "",
-    notes: "",
-    invoice_number: ""
+    notes: ""
   });
 
   const { data: readings = [] } = useQuery({
@@ -34,23 +33,6 @@ export default function AddRefill() {
     queryFn: () => api.entities.FuelRefill.list()
   });
 
-
-
-  const extractInvoiceFromNotes = (notes) => {
-    const m = /\bInv(?:oice)?\s*#?\s*([A-Za-z0-9\-]+)/i.exec(notes || "");
-    return m ? m[1] : "";
-  };
-
-  const injectInvoiceIntoNotes = (notes, invoice) => {
-    const inv = (invoice || "").trim();
-    if (!inv) return notes || "";
-    const tag = `Inv ${inv}`;
-    const cur = (notes || "").trim();
-    if (!cur) return tag;
-    if (/\binv(?:oice)?\b/i.test(cur)) return cur;
-    return `${tag} - ${cur}`;
-  };
-
   // Calculate current tank level from refills minus usage
   const currentGallons = refills.reduce((sum, r) => sum + (r.gallons_added || 0), 0) 
     - readings.reduce((sum, r) => sum + (r.gallons_used || 0), 0);
@@ -60,34 +42,12 @@ export default function AddRefill() {
       const gallonsAdded = parseFloat(data.gallons_added);
 
       // Create refill record only - tank level is calculated from refills minus usage
-      {
-        const inv = (data.invoice_number || "").trim();
-
-        const payload = {
-          gallons_added: gallonsAdded,
-          date: data.date + "T12:00:00",
-          cost: data.cost ? parseFloat(data.cost) : null,
-          notes: data.notes
-        };
-
-        try {
-          if (inv) payload.invoice_number = inv;
-          await api.entities.FuelRefill.create(payload);
-        } catch (err) {
-          const msg = String(err?.message || err || "").toLowerCase();
-          const looksLikeMissingField =
-            inv &&
-            (msg.includes("invoice") || msg.includes("column") || msg.includes("field") || msg.includes("does not exist") || msg.includes("no field"));
-
-          if (looksLikeMissingField) {
-            const payload2 = { ...payload };
-            payload2.notes = injectInvoiceIntoNotes(data.notes, inv);
-            await api.entities.FuelRefill.create(payload2);
-          } else {
-            throw err;
-          }
-        }
-      }
+      await api.entities.FuelRefill.create({
+        gallons_added: gallonsAdded,
+        date: data.date + "T12:00:00",
+        cost: data.cost ? parseFloat(data.cost) : null,
+        notes: data.notes
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['refills'] });
@@ -168,16 +128,6 @@ export default function AddRefill() {
             </div>
 
             {/* Notes */}
-              <div className="space-y-2">
-                <Label>Invoice # (optional)</Label>
-                <Input
-                  value={formData.invoice_number}
-                  onChange={(e) => setFormData(prev => ({ ...prev, invoice_number: e.target.value }))}
-                  placeholder="e.g., 825786"
-                />
-              </div>
-
-
             <div className="space-y-2">
               <Label>Notes (optional)</Label>
               <Textarea
