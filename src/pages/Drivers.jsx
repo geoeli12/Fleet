@@ -90,6 +90,16 @@ export default function Drivers() {
 
     const getDriverId = (d) => d?.id ?? d?._id ?? d?.objectId ?? d?.uuid;
 
+    const normalizeState = (v) => (v ?? "").toString().trim().toUpperCase();
+
+    const normalizeFormData = (d) => ({
+        ...d,
+        name: (d?.name ?? "").toString().trim(),
+        phone: (d?.phone ?? "").toString().trim(),
+        state: normalizeState(d?.state) || "IL",
+    });
+
+
     const getErrorMessage = (err) => {
         if (!err) return 'Save failed.';
         return (
@@ -116,9 +126,14 @@ export default function Drivers() {
         e.preventDefault();
         setSaveError('');
         if (editingDriver) {
-            updateMutation.mutate({ id: editingDriver.id, data: formData });
+            const driverId = getDriverId(editingDriver);
+            if (!driverId) {
+                setSaveError('Missing driver id for update.');
+                return;
+            }
+            updateMutation.mutate({ id: driverId, data: normalizeFormData(formData) });
         } else {
-            createMutation.mutate(formData);
+            createMutation.mutate(normalizeFormData(formData));
         }
     };
 
