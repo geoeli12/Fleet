@@ -8,7 +8,7 @@ import {
   Fuel, Plus, Users, TrendingDown, Calendar, 
   ArrowUpRight, Droplets, BarChart3 
 } from "lucide-react";
-import { Button } from "@/components/fuel-ui/button";
+import { Button } from "@/components/ui/button";
 import TankGauge from "@/components/fuel/TankGauge";
 import StatsCard from "@/components/fuel/StatsCard";
 import ReadingCard from "@/components/fuel/ReadingCard";
@@ -164,7 +164,7 @@ export default function FuelDashboard() {
               />
               <StatsCard
                 title="Drivers"
-                value={drivers.filter(d => d.status === 'active').length}
+                value={drivers.filter(d => d && d.active !== false).length}
                 subtitle="active"
                 icon={Users}
                 color="blue"
