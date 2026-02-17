@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import ImageUpload from "@/components/fuel/ImageUpload";
 
+const isPA = (d) => String(d?.state ?? '').toUpperCase() === 'PA';
 export default function AddReading() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -37,14 +38,12 @@ export default function AddReading() {
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
-    queryFn: () => api.entities.Driver.list('name')
+    queryFn: () => api.entities.Driver.filter({ status: 'active' })
   });
 
 
 
-  
-  const activeDrivers = (Array.isArray(drivers) ? drivers : []).filter(d => d && d.active !== false);
-const createReadingMutation = useMutation({
+  const createReadingMutation = useMutation({
     mutationFn: async (data) => {
       const before = parseFloat(data.before_reading);
       const after = parseFloat(data.after_reading);
@@ -67,7 +66,7 @@ const createReadingMutation = useMutation({
   });
 
   const handleDriverChange = (driverId) => {
-    const driver = activeDrivers.find(d => d.id === driverId);
+    const driver = drivers.find(d => d.id === driverId);
     setFormData(prev => ({
       ...prev,
       driver_id: driverId,
@@ -109,9 +108,9 @@ const createReadingMutation = useMutation({
           {/* Driver Selection */}
           <div className="space-y-2">
             <Label>Driver</Label>
-            {activeDrivers.length === 0 ? (
+            {drivers.length === 0 ? (
               <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl">
-                <p className="text-slate-500 mb-3">No drivers added yet</p>
+                <p className="text-slate-500 mb-3">No PA drivers added yet</p>
                 <Link to={createPageUrl("Drivers")}>
                   <Button variant="outline" size="sm">
                     <UserPlus className="w-4 h-4 mr-2" />
@@ -125,7 +124,7 @@ const createReadingMutation = useMutation({
                   <SelectValue placeholder="Select driver" />
                 </SelectTrigger>
                 <SelectContent>
-                  {activeDrivers.map(driver => (
+                  {drivers.map(driver => (
                     <SelectItem key={driver.id} value={driver.id}>
                       {driver.name}
                     </SelectItem>

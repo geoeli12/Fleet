@@ -103,10 +103,44 @@ export default function Drivers() {
     };
 
     if (isLoading) {
-        return (
+        
+  const setDriverStateMutation = useMutation({
+    mutationFn: async ({ id, state }) => {
+      return api.entities.Driver.update(id, { state });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    }
+  });
+
+  const handleSetState = (driver, state) => {
+    if (!driver?.id) return;
+    setDriverStateMutation.mutate({ id: driver.id, state });
+  };
+
+return (
             <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-amber-700" />
             </div>
+
+              <div className="flex items-center gap-2 mt-2">
+                <Button
+                  type="button"
+                  variant={driver.state === 'IL' ? 'default' : 'outline'}
+                  className="h-8 px-4 rounded-xl"
+                  onClick={() => handleSetState(driver, 'IL')}
+                >
+                  IL
+                </Button>
+                <Button
+                  type="button"
+                  variant={driver.state === 'PA' ? 'default' : 'outline'}
+                  className="h-8 px-4 rounded-xl"
+                  onClick={() => handleSetState(driver, 'PA')}
+                >
+                  PA
+                </Button>
+              </div>
         );
     }
 
