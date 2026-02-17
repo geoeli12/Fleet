@@ -71,6 +71,46 @@ const COLLECTIONS = {
     primaryKey: "id",
     allowed: ["id", "label", "created_at"],
   },
+
+fuel_readings: {
+  table: "fuel_readings",
+  primaryKey: "id",
+  allowed: [
+    "id",
+    "driver_id",
+    "driver_name",
+    "before_image",
+    "after_image",
+    "before_reading",
+    "after_reading",
+    "gallons_used",
+    "date",
+    "time",
+    "notes",
+    "created_at",
+  ],
+},
+
+fuel_refills: {
+  table: "fuel_refills",
+  primaryKey: "id",
+  allowed: [
+    "id",
+    "gallons_added",
+    "date",
+    "cost",
+    "notes",
+    "running_total_after",
+    "created_at",
+  ],
+},
+
+fuel_tank: {
+  table: "fuel_tank",
+  primaryKey: "id",
+  allowed: ["id", "current_gallons", "last_updated", "created_at"],
+},
+
 };
 
 function requireCollection(key) {

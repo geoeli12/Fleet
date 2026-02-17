@@ -9,6 +9,9 @@ import shifts from "./routes/shifts.js";
 import runs from "./routes/runs.js";
 import schedules from "./routes/schedules.js";
 import customLoadTypes from "./routes/customLoadTypes.js";
+import fuelReadings from "./routes/fuelReadings.js";
+import fuelRefills from "./routes/fuelRefills.js";
+import fuelTank from "./routes/fuelTank.js";
 
 await initDb();
 
@@ -23,6 +26,9 @@ app.use("/api/shifts", shifts);
 app.use("/api/runs", runs);
 app.use("/api/schedules", schedules);
 app.use("/api/custom-load-types", customLoadTypes);
+app.use("/api/fuel-readings", fuelReadings);
+app.use("/api/fuel-refills", fuelRefills);
+app.use("/api/fuel-tank", fuelTank);
 
 // --- Static hosting (so you can use the app by URL) ---
 // When you run `npm run build` at the repo root, Vite outputs: <root>/dist
