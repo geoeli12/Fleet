@@ -19,18 +19,59 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
     gallons_added: refill.gallons_added || "",
     date: refill.date ? format(new Date(refill.date), "yyyy-MM-dd") : "",
     cost: refill.cost || "",
-    notes: refill.notes || ""
+    notes: refill.notes || "",
+    invoice_number: (refill.invoice_number || extractInvoiceFromNotes(refill.notes)) || ""
   });
+
+
+
+  const extractInvoiceFromNotes = (notes) => {
+    const m = /\bInv(?:oice)?\s*#?\s*([A-Za-z0-9\-]+)/i.exec(notes || "");
+    return m ? m[1] : "";
+  };
+
+  const injectInvoiceIntoNotes = (notes, invoice) => {
+    const inv = (invoice || "").trim();
+    if (!inv) return notes || "";
+    const tag = `Inv ${inv}`;
+    const cur = (notes || "").trim();
+    if (!cur) return tag;
+    if (/\binv(?:oice)?\b/i.test(cur)) return cur;
+    return `${tag} - ${cur}`;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await onSave(refill.id, {
+
+    const inv = (formData.invoice_number || "").trim();
+
+    const payload = {
       gallons_added: parseFloat(formData.gallons_added),
       date: formData.date + "T12:00:00",
       cost: formData.cost ? parseFloat(formData.cost) : null,
       notes: formData.notes
-    });
-    setOpen(false);
+    };
+
+    // Try saving invoice_number if your DB supports it; otherwise fall back to Notes.
+    try {
+      if (inv) payload.invoice_number = inv;
+      await onSave(refill.id, payload);
+      setOpen(false);
+    } catch (err) {
+      const msg = String(err?.message || err || "").toLowerCase();
+      const looksLikeMissingField =
+        inv &&
+        (msg.includes("invoice") || msg.includes("column") || msg.includes("field") || msg.includes("does not exist") || msg.includes("no field"));
+
+      if (looksLikeMissingField) {
+        const payload2 = { ...payload };
+        payload2.notes = injectInvoiceIntoNotes(formData.notes, inv);
+        await onSave(refill.id, payload2);
+        setOpen(false);
+        return;
+      }
+      throw err;
+    }
   };
 
   return (
@@ -77,6 +118,16 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Invoice # (optional)</Label>
+            <Input
+              value={formData.invoice_number}
+              onChange={(e) => setFormData(prev => ({ ...prev, invoice_number: e.target.value }))}
+              placeholder="e.g., 825786"
+            />
+          </div>
+
+
 
           <div className="space-y-2">
             <Label>Notes</Label>
