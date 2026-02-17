@@ -62,6 +62,64 @@ function pickDistDir() {
   return candidates[0];
 }
 
+
+function injectErrorOverlay(html) {
+  // Inject an inline script that renders a visible overlay when the JS bundle fails
+  // before React mounts (e.g., import error, missing env, module init crash).
+  const overlayScript = `
+<script>
+(function(){
+  function show(msg){
+    try {
+      var id='__early_error_overlay__';
+      var el=document.getElementById(id);
+      if(!el){
+        el=document.createElement('div');
+        el.id=id;
+        el.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#7f1d1d;color:#fff;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;white-space:pre-wrap;word-break:break-word;padding:16px;overflow:auto;';
+        document.body.appendChild(el);
+      }
+      el.textContent='App failed to start. Copy this error:\\n\\n'+msg;
+    } catch(e) {}
+  }
+  window.addEventListener('error', function(ev){
+    var err = ev && (ev.error || ev.message) ? (ev.error && (ev.error.stack||ev.error.message) || ev.message) : String(ev);
+    show(String(err));
+  });
+  window.addEventListener('unhandledrejection', function(ev){
+    var r = ev && ev.reason ? ev.reason : ev;
+    var err = r && (r.stack||r.message) ? (r.stack||r.message) : String(r);
+    show(String(err));
+  });
+})();
+</script>
+`;
+  // Inject before </head> if possible, otherwise prepend.
+  if (typeof html !== "string") return html;
+  if (html.includes("__early_error_overlay__")) return html;
+  const idx = html.toLowerCase().lastIndexOf("</head>");
+  if (idx !== -1) return html.slice(0, idx) + overlayScript + html.slice(idx);
+  return overlayScript + html;
+}
+
+function sendSpaIndex(res) {
+  try {
+    const p = path.join(DIST_DIR, "index.html");
+    if (!fs.existsSync(p)) {
+      return res
+        .status(500)
+        .type("text/plain")
+        .send(
+          `Build not found. Expected index.html in: \n- ${candidates.join("\n- ")}\n\nOpen /debug/dist for details.`
+        );
+    }
+    const html = fs.readFileSync(p, "utf8");
+    res.type("text/html").send(injectErrorOverlay(html));
+  } catch (e) {
+    res.status(500).type("text/plain").send(String(e));
+  }
+}
+
 const DIST_DIR = pickDistDir();
 console.log("Serving client from:", DIST_DIR);
 
@@ -96,16 +154,11 @@ app.get("/debug/index", (_req, res) => {
 
 app.use(express.static(DIST_DIR));
 
+app.get("/", (_req, res) => sendSpaIndex(res));
+
 // SPA fallback (React Router): any non-API route should load index.html
 app.get(/^\/(?!api\/).*/, (_req, res) => {
-  const p = path.join(DIST_DIR, "index.html");
-  if (fs.existsSync(p)) return res.sendFile(p);
-  res
-    .status(500)
-    .type("text/plain")
-    .send(
-      `Build not found. Expected index.html in: \n- ${candidates.join("\n- ")}\n\nOpen /debug/dist for details.`
-    );
+  return sendSpaIndex(res);
 });
 
 // Cloud-friendly bind/port
