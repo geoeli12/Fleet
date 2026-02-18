@@ -27,7 +27,7 @@ export default function RefillCard({ refill, onDelete, onEdit, isEditing }) {
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-800">Tank Refill</span>
               <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-xs">
-                {format(new Date(refill.date), "MMM d")}
+                {format(new Date(refill.date + "T12:00:00"), "MMM d")}
               </Badge>
             </div>
             {refill.invoice_number && (
