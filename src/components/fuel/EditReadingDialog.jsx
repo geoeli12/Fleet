@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
+import { toDateOrNull } from "@/utils/date";
 import { Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,7 @@ export default function EditReadingDialog({ reading, onSave, isSaving }) {
   const [formData, setFormData] = useState({
     before_reading: reading.before_reading || "",
     after_reading: reading.after_reading || "",
-    date: reading.date ? format(new Date(reading.date), "yyyy-MM-dd") : "",
+    date: reading.date ? format(toDateOrNull(reading.date) || new Date(0), "yyyy-MM-dd") : "",
     time: reading.time || "",
     notes: reading.notes || ""
   });

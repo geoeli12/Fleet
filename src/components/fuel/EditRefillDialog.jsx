@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
+import { toDateOrNull } from "@/utils/date";
 import { Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,7 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     gallons_added: refill.gallons_added || "",
-    date: refill.date ? format(new Date(refill.date), "yyyy-MM-dd") : "",
+    date: refill.date ? format(toDateOrNull(refill.date) || new Date(0), "yyyy-MM-dd") : "",
     cost: refill.cost || "",
     invoice_number: refill.invoice_number || "",
     notes: refill.notes || "",

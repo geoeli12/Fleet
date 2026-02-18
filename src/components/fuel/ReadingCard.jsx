@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { toDateOrNull } from "@/utils/date";
 import { Fuel, User, ArrowRight, ImageIcon, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ export default function ReadingCard({ reading, onDelete, onEdit, isEditing }) {
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-800">{reading.driver_name}</span>
               <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-xs">
-                {format(new Date(reading.date), "MMM d")}{reading.time && ` • ${(() => {
+                {format(toDateOrNull(reading.date) || new Date(0), "MMM d")}{reading.time && ` • ${(() => {
                   const [hours, minutes] = reading.time.split(':');
                   const h = parseInt(hours);
                   const period = h >= 12 ? 'pm' : 'am';
