@@ -3,7 +3,6 @@ import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { toDateOrNull } from "@/utils/date";
 import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks, startOfDay, endOfDay, subDays } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -37,6 +36,72 @@ export default function FuelHistory() {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date())
   });
+
+  // --- Sorting helpers ------------------------------------------------------
+  // Supabase DATE columns commonly arrive as "YYYY-MM-DD" strings.
+  // Using `new Date("YYYY-MM-DD")` parses as UTC midnight and can shift the day in CST.
+  // We also need correct ordering within the same day by the stored `time` string.
+  const parseDateOnlyLocal = (value) => {
+    if (!value) return null;
+    if (value instanceof Date) return new Date(value.getTime());
+    if (typeof value !== "string") return null;
+
+    // Date-only: YYYY-MM-DD
+    const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) {
+      const y = parseInt(m[1], 10);
+      const mo = parseInt(m[2], 10) - 1;
+      const d = parseInt(m[3], 10);
+      // Noon local avoids DST/UTC edge weirdness.
+      return new Date(y, mo, d, 12, 0, 0, 0);
+    }
+
+    // Anything else (ISO with time, etc.)
+    const dt = new Date(value);
+    return isNaN(dt.getTime()) ? null : dt;
+  };
+
+  const parseTimeToMinutes = (value) => {
+    if (!value || typeof value !== "string") return null;
+    const s = value.trim();
+
+    // "05:15 AM" / "5:15pm"
+    let m = s.match(/^(\d{1,2})\s*:\s*(\d{2})\s*([AaPp][Mm])$/);
+    if (m) {
+      let h = parseInt(m[1], 10);
+      const mi = parseInt(m[2], 10);
+      const ap = m[3].toUpperCase();
+      if (ap === "AM") {
+        if (h === 12) h = 0;
+      } else {
+        if (h !== 12) h += 12;
+      }
+      return h * 60 + mi;
+    }
+
+    // "05:15" (24h)
+    m = s.match(/^(\d{1,2})\s*:\s*(\d{2})$/);
+    if (m) {
+      const h = parseInt(m[1], 10);
+      const mi = parseInt(m[2], 10);
+      if (h >= 0 && h <= 23 && mi >= 0 && mi <= 59) return h * 60 + mi;
+    }
+
+    return null;
+  };
+
+  const getActivitySortTs = (item) => {
+    const base = parseDateOnlyLocal(item?.date);
+    if (!base) return -Infinity;
+
+    const mins = parseTimeToMinutes(item?.time);
+    // If an entry has no time (e.g., refills), treat it as end-of-day so it stays grouped.
+    const minutes = mins == null ? (23 * 60 + 59) : mins;
+
+    const dt = new Date(base.getTime());
+    dt.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+    return dt.getTime();
+  };
 
   const { data: readings = [] } = useQuery({
     queryKey: ['readings'],
@@ -86,9 +151,10 @@ export default function FuelHistory() {
     rows.push(["Date", "Type", "Driver", "Before", "After", "Gallons Used", "Gallons Added", "Cost", "Notes"]);
     
     allActivity.forEach(item => {
+      const safeDate = parseDateOnlyLocal(item?.date) || new Date();
       if (item.type === 'reading') {
         rows.push([
-          format(toDateOrNull(item.date) || new Date(0), "yyyy-MM-dd"),
+          format(safeDate, "yyyy-MM-dd"),
           "Usage",
           item.driver_name || "",
           item.before_reading || "",
@@ -100,7 +166,7 @@ export default function FuelHistory() {
         ]);
       } else {
         rows.push([
-          format(toDateOrNull(item.date) || new Date(0), "yyyy-MM-dd"),
+          format(safeDate, "yyyy-MM-dd"),
           "Refill",
           "",
           "",
@@ -128,7 +194,7 @@ export default function FuelHistory() {
     const arr = Array.isArray(items) ? items : [];
     if (dateRange.preset === "all") return arr;
     return arr.filter(item => {
-      const d = item?.date ? (toDateOrNull(item.date)) : null;
+      const d = parseDateOnlyLocal(item?.date);
       if (!d || isNaN(d.getTime())) return false;
       return d >= dateRange.from && d <= dateRange.to;
     });
@@ -146,7 +212,7 @@ export default function FuelHistory() {
   const allActivity = [
     ...filteredReadings.map(r => ({ ...r, type: 'reading' })),
     ...filteredRefills.map(r => ({ ...r, type: 'refill' }))
-  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+  ].sort((a, b) => getActivitySortTs(b) - getActivitySortTs(a));
 
   // Stats for current filter
   const totalUsed = filteredReadings.reduce((sum, r) => sum + (r.gallons_used || 0), 0);
