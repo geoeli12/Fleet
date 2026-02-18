@@ -99,6 +99,7 @@ fuel_refills: {
     "gallons_added",
     "date",
     "cost",
+    "invoice_number",
     "notes",
     "running_total_after",
     "created_at",
