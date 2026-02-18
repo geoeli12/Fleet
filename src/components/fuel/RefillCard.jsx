@@ -1,5 +1,4 @@
 import { format } from "date-fns";
-import { toDateOrNull } from "@/utils/date";
 import { Plus, DollarSign, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,9 +27,14 @@ export default function RefillCard({ refill, onDelete, onEdit, isEditing }) {
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-800">Tank Refill</span>
               <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-xs">
-                {format(toDateOrNull(refill.date) || new Date(0), "MMM d")}
+                {format(new Date(refill.date), "MMM d")}
               </Badge>
             </div>
+            {refill.invoice_number && (
+              <div className="mt-1 text-xs text-slate-500">
+                Invoice: <span className="font-medium text-slate-600">{refill.invoice_number}</span>
+              </div>
+            )}
             {refill.cost && (
               <div className="flex items-center gap-1 mt-1 text-sm text-slate-500">
                 <DollarSign className="w-3 h-3" />

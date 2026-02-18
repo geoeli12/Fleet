@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { toDateOrNull } from "@/utils/date";
 import { Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,7 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     gallons_added: refill.gallons_added || "",
-    date: refill.date ? format(toDateOrNull(refill.date) || new Date(0), "yyyy-MM-dd") : "",
+    date: refill.date ? format(new Date(refill.date), "yyyy-MM-dd") : "",
     cost: refill.cost || "",
     invoice_number: refill.invoice_number || "",
     notes: refill.notes || "",
@@ -26,13 +25,15 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const invoice = String(formData.invoice_number || "").trim();
+
+    if (!invoice) return;
+
     await onSave(refill.id, {
       gallons_added: parseFloat(formData.gallons_added),
       date: formData.date + "T12:00:00",
       cost: formData.cost ? parseFloat(formData.cost) : null,
-      invoice_number: formData.invoice_number
-        ? String(formData.invoice_number).trim()
-        : null,
+      invoice_number: invoice,
       notes: formData.notes,
     });
     setOpen(false);
@@ -96,7 +97,7 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
           </div>
 
           <div className="space-y-2">
-            <Label>Invoice # (optional)</Label>
+            <Label>Invoice #</Label>
             <Input
               type="text"
               placeholder="e.g., INV-10483"
@@ -107,6 +108,7 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
                   invoice_number: e.target.value,
                 }))
               }
+              required
             />
           </div>
 
@@ -124,7 +126,7 @@ export default function EditRefillDialog({ refill, onSave, isSaving }) {
           <Button
             type="submit"
             className="w-full bg-emerald-500 hover:bg-emerald-600"
-            disabled={isSaving}
+            disabled={isSaving || !String(formData.invoice_number || "").trim()}
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
           </Button>
