@@ -2,6 +2,7 @@ import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { toDateOrNull } from "@/utils/date";
 import { format, subDays, startOfWeek, endOfWeek } from "date-fns";
 import { motion } from "framer-motion";
 import {
@@ -75,7 +76,7 @@ export default function FuelDashboard() {
   const thisWeekEnd = endOfWeek(new Date());
 
   const weekReadings = readings.filter(r => {
-    const date = new Date(r.date);
+    const date = toDateOrNull(r.date) || new Date(0);
     return date >= thisWeekStart && date <= thisWeekEnd;
   });
 

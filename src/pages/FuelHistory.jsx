@@ -3,6 +3,7 @@ import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { toDateOrNull } from "@/utils/date";
 import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks, startOfDay, endOfDay, subDays } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -29,40 +30,6 @@ import ReadingCard from "@/components/fuel/ReadingCard";
 import RefillCard from "@/components/fuel/RefillCard";
 
 export default function FuelHistory() {
-  // IMPORTANT: Supabase/Base44 often stores `date` as a date-only string (YYYY-MM-DD).
-  // In JS, `new Date('YYYY-MM-DD')` is treated as UTC midnight, which can display as the *previous day*
-  // in US timezones. This helper forces date-only values to be interpreted as LOCAL midnight.
-  const parseFuelDate = (value) => {
-    if (!value) return null;
-
-    if (typeof value === "string") {
-      const m = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
-      if (m) {
-        const y = Number(m[1]);
-        const mo = Number(m[2]);
-        const d = Number(m[3]);
-
-        // Date-only (YYYY-MM-DD) -> local midnight
-        if (value.length === 10) return new Date(y, mo - 1, d);
-
-        // Datetime -> let JS parse it (keeps Z/offset if present)
-        const dt = new Date(value);
-        if (!isNaN(dt.getTime())) return dt;
-
-        // Fallback
-        return new Date(y, mo - 1, d);
-      }
-    }
-
-    const dt = new Date(value);
-    return isNaN(dt.getTime()) ? null : dt;
-  };
-
-  const dateLabel = (value) => {
-    const d = parseFuelDate(value);
-    return d ? format(d, "yyyy-MM-dd") : "";
-  };
-
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("all");
   const [selectedDriver, setSelectedDriver] = useState("all");
@@ -121,7 +88,7 @@ export default function FuelHistory() {
     allActivity.forEach(item => {
       if (item.type === 'reading') {
         rows.push([
-          dateLabel(item.date),
+          format(toDateOrNull(item.date) || new Date(0), "yyyy-MM-dd"),
           "Usage",
           item.driver_name || "",
           item.before_reading || "",
@@ -133,7 +100,7 @@ export default function FuelHistory() {
         ]);
       } else {
         rows.push([
-          dateLabel(item.date),
+          format(toDateOrNull(item.date) || new Date(0), "yyyy-MM-dd"),
           "Refill",
           "",
           "",
@@ -161,7 +128,7 @@ export default function FuelHistory() {
     const arr = Array.isArray(items) ? items : [];
     if (dateRange.preset === "all") return arr;
     return arr.filter(item => {
-      const d = item?.date ? parseFuelDate(item.date) : null;
+      const d = item?.date ? (toDateOrNull(item.date)) : null;
       if (!d || isNaN(d.getTime())) return false;
       return d >= dateRange.from && d <= dateRange.to;
     });
@@ -179,7 +146,7 @@ export default function FuelHistory() {
   const allActivity = [
     ...filteredReadings.map(r => ({ ...r, type: 'reading' })),
     ...filteredRefills.map(r => ({ ...r, type: 'refill' }))
-  ].sort((a, b) => parseFuelDate(b.date) - parseFuelDate(a.date));
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   // Stats for current filter
   const totalUsed = filteredReadings.reduce((sum, r) => sum + (r.gallons_used || 0), 0);
