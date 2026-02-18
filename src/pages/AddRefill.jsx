@@ -42,13 +42,19 @@ export default function AddRefill() {
   const createRefillMutation = useMutation({
     mutationFn: async (data) => {
       const gallonsAdded = parseFloat(data.gallons_added);
+      const invoice = String(data.invoice_number || "").trim();
+
+      if (!invoice) {
+        // UI should prevent this, but keep a hard guard so we never create a refill without an invoice.
+        throw new Error("Invoice # is required");
+      }
 
       // Create refill record only - tank level is calculated from refills minus usage
       await api.entities.FuelRefill.create({
         gallons_added: gallonsAdded,
         date: data.date + "T12:00:00",
         cost: data.cost ? parseFloat(data.cost) : null,
-        invoice_number: data.invoice_number ? String(data.invoice_number).trim() : null,
+        invoice_number: invoice,
         notes: data.notes
       });
     },
@@ -134,7 +140,7 @@ export default function AddRefill() {
 
             {/* Invoice # */}
             <div className="space-y-2">
-              <Label>Invoice # (optional)</Label>
+              <Label>Invoice #</Label>
               <Input
                 type="text"
                 placeholder="e.g., INV-10483"
@@ -142,6 +148,7 @@ export default function AddRefill() {
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, invoice_number: e.target.value }))
                 }
+                required
               />
             </div>
 
@@ -186,7 +193,11 @@ export default function AddRefill() {
             {/* Submit */}
             <Button
               type="submit"
-              disabled={!formData.gallons_added || createRefillMutation.isPending}
+              disabled={
+                !formData.gallons_added ||
+                !String(formData.invoice_number || "").trim() ||
+                createRefillMutation.isPending
+              }
               className="w-full bg-emerald-500 hover:bg-emerald-600 h-12 text-base"
             >
               {createRefillMutation.isPending ? (
