@@ -392,6 +392,7 @@ export default function ShiftHistory() {
                                 </Select>
                             </div>
                         </div>
+                                        )}
                     </CardContent>
                 </Card>
 
@@ -421,6 +422,7 @@ export default function ShiftHistory() {
                                                 </div>
                                                 {getAttendanceBadge(shift)}
                                                 </div>
+                                        )}
                                         </CardContent>
                                     </Card>
                                 );
@@ -472,6 +474,7 @@ export default function ShiftHistory() {
                                                     </AlertDialog>
                                                 </div>
                                             </div>
+                                        )}
                                         </CardContent>
                                     </Card>
                                 );
@@ -587,49 +590,6 @@ export default function ShiftHistory() {
                                                     ))}
                                                 </div>
                                             </div>
-                                        )}>
-                                                            <div className="flex items-center justify-between text-sm mb-1">
-                                                                <div className="flex items-center gap-3">
-                                                                    <span className="h-6 w-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-medium text-zinc-700">{idx + 1}</span>
-                                                                    <span className="font-medium text-zinc-900">{run.city}</span>
-                                                                    <span className="text-slate-400">•</span>
-                                                                    <span className="text-zinc-500">{run.customer_name}</span>
-                                                                    {run.trailer_dropped && <span className="text-xs text-red-500">↓{run.trailer_dropped}</span>}
-                                                                    {run.trailer_picked_up && <span className="text-xs text-amber-300">↑{run.trailer_picked_up}</span>}
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    {run.load_type && <Badge variant="outline" className="text-xs">{run.load_type.toUpperCase()}</Badge>}
-                                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                                                                        <AlertDialog>
-                                                                            <AlertDialogTrigger asChild>
-                                                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-600" onClick={(e) => e.stopPropagation()}>
-                                                                                    <Trash2 className="h-3 w-3" />
-                                                                                </Button>
-                                                                            </AlertDialogTrigger>
-                                                                            <AlertDialogContent className="rounded-2xl">
-                                                                                <AlertDialogHeader>
-                                                                                    <AlertDialogTitle>Delete Run</AlertDialogTitle>
-                                                                                    <AlertDialogDescription>Are you sure you want to delete this run?</AlertDialogDescription>
-                                                                                </AlertDialogHeader>
-                                                                                <AlertDialogFooter>
-                                                                                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                                                                                    <AlertDialogAction onClick={() => deleteRunMutation.mutate(run.id)} className="bg-red-600 hover:bg-red-700 rounded-xl">Delete</AlertDialogAction>
-                                                                                </AlertDialogFooter>
-                                                                            </AlertDialogContent>
-                                                                        </AlertDialog>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            {(run.arrival_time || run.departure_time) && (
-                                                                <div className="flex items-center gap-4 ml-9 text-xs text-zinc-500">
-                                                                    {run.arrival_time && <span>Arrived: <span className="font-medium text-zinc-900">{format(new Date(run.arrival_time), 'h:mm a')}</span></span>}
-                                                                    {run.departure_time && <span>Left: <span className="font-medium text-zinc-900">{format(new Date(run.departure_time), 'h:mm a')}</span></span>}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
                                         )}
                                     </CardContent>
                                 
@@ -687,6 +647,7 @@ export default function ShiftHistory() {
                                                     </AlertDialog>
                                                 </div>
                                             </div>
+                                        )}
                                         </CardContent>
                                     )}
                                 </Card>
