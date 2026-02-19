@@ -648,10 +648,10 @@ export default function ShiftHistory() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    {getAttendanceBadge(shift)}
-                                                    <Badge className="border-0 bg-blue-50 text-blue-700">
-                                                        Runs {shiftRuns.length}
-                                                    </Badge>
+	                                            <Badge className="border-0 bg-blue-50 text-blue-700">
+	                                                Runs {shiftRuns.length}
+	                                            </Badge>
+	                                            {getAttendanceBadge(shift)}
                                                     <Badge className={`border-0 ${isNight ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'}`}>
                                                         {isNight ? 'Night' : 'Day'}
                                                     </Badge>
