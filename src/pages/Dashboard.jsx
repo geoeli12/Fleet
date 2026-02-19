@@ -63,25 +63,25 @@ const Tile = ({ to, icon: Icon, title, description, pill }) => (
 export default function Dashboard() {
   const primary = [
     {
-      name: "Log",
+      name: "Driver Logs",
       to: createPageUrl("DriverLog"),
       icon: ClipboardList,
       description: "Clock in/out, manage active shifts, and add runs as you go.",
     },
     {
-      name: "History",
+      name: "Shift History",
       to: createPageUrl("ShiftHistory"),
       icon: History,
       description: "Review completed shifts, edit entries, and check totals.",
     },
     {
-      name: "Calendar",
+      name: "Shift Calendar",
       to: createPageUrl("Calendar"),
       icon: CalendarDays,
       description: "See attendance, PTO, absences, and lateness at a glance.",
     },
     {
-      name: "Schedule",
+      name: "Create a Schedule",
       to: createPageUrl("Schedule"),
       icon: Gauge,
       description: "Plan the day/night schedule and keep coverage balanced.",
