@@ -1,167 +1,294 @@
 import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { createPageUrl } from "@/utils";
 import { api } from "@/api/apiClient";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  LayoutGrid,
   ClipboardList,
   History,
+  CalendarDays,
+  Users,
   Truck,
-  Gauge,
   Fuel,
   Droplets,
-  CalendarDays,
-  Users
+  PlusCircle,
+  Gauge,
+  ArrowRight,
 } from "lucide-react";
+import {
+  endOfMonth,
+  endOfWeek,
+  isWithinInterval,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
+
+const Section = ({ title, subtitle, children }) => (
+  <section className="space-y-4">
+    <div className="flex items-end justify-between gap-4">
+      <div>
+        <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
+          {title}
+        </h2>
+        {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
+      </div>
+    </div>
+    {children}
+  </section>
+);
+
+const Bubble = ({ to, icon: Icon, title, description, pill }) => (
+  <TooltipProvider delayDuration={120}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link
+          to={to}
+          className="group flex flex-col items-center gap-3 rounded-2xl p-2 transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+        >
+          <div className="relative">
+            <div className="h-24 w-24 rounded-full bg-black shadow-sm ring-1 ring-black/10 grid place-items-center transition-all group-hover:shadow-md group-hover:ring-amber-400/30">
+              <Icon className="h-10 w-10 text-amber-400" />
+            </div>
+
+            {pill ? (
+              <div className="absolute -top-2 -right-2">
+                <Badge className="rounded-full bg-amber-400 text-black hover:bg-amber-400">
+                  {pill}
+                </Badge>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-semibold text-foreground">{title}</div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </Link>
+      </TooltipTrigger>
+
+      {/* FIX: DESCRIPTION ONLY (no title line) */}
+      <TooltipContent side="top" className="max-w-[260px]">
+        <div className="text-xs leading-relaxed text-muted-foreground">
+          {description}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
+
+function safeParseISO(d) {
+  try {
+    if (!d) return null;
+    return parseISO(String(d));
+  } catch {
+    return null;
+  }
+}
+
+function dateOnlyLocal(dt) {
+  if (!dt) return null;
+  return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
 
 export default function Dashboard() {
-  const { data: dispatchOrders = [] } = useQuery({
-    queryKey: ["dispatch-orders"],
-    queryFn: async () => {
-      const res = await api.dispatchorder.list();
-      return res ?? [];
-    }
-  });
-
-  const today = new Date();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay());
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-  const stats = useMemo(() => {
-    const todayStr = today.toISOString().split("T")[0];
-
-    const todayOrders = dispatchOrders.filter(
-      o => o.date?.startsWith(todayStr)
-    );
-
-    const weekOrders = dispatchOrders.filter(
-      o => new Date(o.date) >= startOfWeek
-    );
-
-    const monthOrders = dispatchOrders.filter(
-      o => new Date(o.date) >= startOfMonth
-    );
-
-    const remaining = todayOrders.filter(
-      o => !o.driver_name
-    );
-
-    return {
-      today: todayOrders.length,
-      week: weekOrders.length,
-      month: monthOrders.length,
-      remaining: remaining.length
-    };
-  }, [dispatchOrders]);
-
-  const pages = [
+  const primary = [
     {
       name: "Driver Logs",
-      desc: "Clock in/out, manage active shifts, and add runs as you go.",
+      to: createPageUrl("DriverLog"),
       icon: ClipboardList,
-      path: "/DriverLog"
+      description: "Clock in/out, manage active shifts, and add runs as you go.",
     },
     {
       name: "Shift History",
-      desc: "Review completed shifts and edit entries.",
+      to: createPageUrl("ShiftHistory"),
       icon: History,
-      path: "/ShiftHistory"
+      description: "Review completed shifts, edit entries, and check totals.",
     },
     {
       name: "Dispatch Log",
-      desc: "Track dispatch info and operational notes.",
+      to: createPageUrl("DispatchLog"),
       icon: Truck,
-      path: "/DispatchLog"
+      description: "Track dispatch info and operational notes in one place.",
     },
     {
       name: "Create a Schedule",
-      desc: "Plan the day/night schedule and balance coverage.",
+      to: createPageUrl("Schedule"),
       icon: Gauge,
-      path: "/Schedule"
+      description: "Plan the day/night schedule and keep coverage balanced.",
     },
     {
       name: "Fuel",
-      desc: "Enter fuel usage and tank refills.",
+      to: createPageUrl("FuelDashboard"),
       icon: Fuel,
-      path: "/Fuel"
+      description: "Enter fuel usage, and main tank refills.",
     },
     {
       name: "Fuel History",
-      desc: "Browse all logged fuel history.",
+      to: createPageUrl("FuelHistory"),
       icon: Droplets,
-      path: "/FuelHistory"
+      description: "Browse all fuel usage logged history.",
     },
     {
       name: "Attd Calendar",
-      desc: "Track attendance, PTO, and status.",
+      to: createPageUrl("Calendar"),
       icon: CalendarDays,
-      path: "/Calendar"
+      description: "See attendance, PTO, absences, and lateness at a glance.",
     },
     {
       name: "Drivers",
-      desc: "Manage driver profiles and information.",
+      to: createPageUrl("Drivers"),
       icon: Users,
-      path: "/Drivers"
-    }
+      description: "Add new drivers, and manage driver profiles.",
+    },
   ];
 
+  const quick = [
+    {
+      name: "Add Refill",
+      to: createPageUrl("AddRefill"),
+      icon: PlusCircle,
+      description: "Log a tank refill fast (with invoice # when needed).",
+      pill: "Quick add",
+    },
+    {
+      name: "Add Reading",
+      to: createPageUrl("AddReading"),
+      icon: PlusCircle,
+      description: "Enter a fuel reading to keep consumption accurate.",
+      pill: "Quick add",
+    },
+  ];
+
+  const dispatchQuery = useQuery({
+    queryKey: ["dispatchOrders"],
+    queryFn: async () => {
+      const list = await api.entities.DispatchOrder.list("-date");
+      return Array.isArray(list) ? list : [];
+    },
+  });
+
+  const counts = useMemo(() => {
+    const orders = Array.isArray(dispatchQuery.data) ? dispatchQuery.data : [];
+    const now = new Date();
+
+    const today = dateOnlyLocal(now);
+    const wkStart = startOfWeek(now, { weekStartsOn: 1 });
+    const wkEnd = endOfWeek(now, { weekStartsOn: 1 });
+    const moStart = startOfMonth(now);
+    const moEnd = endOfMonth(now);
+
+    let todayCount = 0;
+    let remainNoDriver = 0;
+    let weekCount = 0;
+    let monthCount = 0;
+
+    for (const o of orders) {
+      const d = safeParseISO(o?.date);
+      if (!d) continue;
+
+      const localDay = dateOnlyLocal(d);
+      if (!localDay) continue;
+
+      const drv = String(o?.driver_name || "").trim();
+      const inToday = today && localDay.getTime() === today.getTime();
+      const inWeek = isWithinInterval(localDay, {
+        start: dateOnlyLocal(wkStart),
+        end: dateOnlyLocal(wkEnd),
+      });
+      const inMonth = isWithinInterval(localDay, {
+        start: dateOnlyLocal(moStart),
+        end: dateOnlyLocal(moEnd),
+      });
+
+      if (inToday) {
+        todayCount += 1;
+        if (!drv) remainNoDriver += 1;
+      }
+      if (inWeek) weekCount += 1;
+      if (inMonth) monthCount += 1;
+    }
+
+    return { todayCount, remainNoDriver, weekCount, monthCount };
+  }, [dispatchQuery.data]);
+
   return (
-    <TooltipProvider>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Transport Dash</h1>
-          <p className="text-muted-foreground">
-            Pick where you want to go — everything is one click away.
-          </p>
+    <div className="min-h-screen bg-[radial-gradient(60%_60%_at_50%_0%,rgba(245,158,11,0.14),transparent_55%),linear-gradient(to_bottom,rgba(255,251,235,0.9),rgba(255,251,235,0.75))]">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-8">
+        <div className="flex items-start gap-4">
+          <div className="mt-1 h-12 w-12 shrink-0 rounded-2xl bg-amber-400/90 text-black grid place-items-center shadow-sm ring-1 ring-black/10">
+            <LayoutGrid className="h-6 w-6" />
+          </div>
+
+          <div className="min-w-0">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+              Transport Dash
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Pick where you want to go — everything is one click away.
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge className="rounded-full bg-black text-amber-400 hover:bg-black">
+                Today: {counts.todayCount}
+              </Badge>
+              <Badge className="rounded-full bg-amber-100 text-amber-900 hover:bg-amber-100">
+                Rmn: {counts.remainNoDriver}
+              </Badge>
+              <Badge className="rounded-full bg-white/80 text-foreground hover:bg-white/80">
+                Week: {counts.weekCount}
+              </Badge>
+              <Badge className="rounded-full bg-white/80 text-foreground hover:bg-white/80">
+                Month: {counts.monthCount}
+              </Badge>
+            </div>
+          </div>
         </div>
 
-        <div className="flex gap-3 flex-wrap">
-          <span className="px-3 py-1 rounded-full bg-black text-white text-sm">
-            Today: {stats.today}
-          </span>
-          <span className="px-3 py-1 rounded-full bg-amber-200 text-sm">
-            Rmn: {stats.remaining}
-          </span>
-          <span className="px-3 py-1 rounded-full bg-gray-200 text-sm">
-            Week: {stats.week}
-          </span>
-          <span className="px-3 py-1 rounded-full bg-gray-200 text-sm">
-            Month: {stats.month}
-          </span>
-        </div>
+        <div className="mt-8 space-y-10">
+          <Section title="Main Pages" subtitle="Your daily workflow — shift log, schedule, dispatch, and fuel.">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              {primary.map((x) => (
+                <Bubble
+                  key={x.name}
+                  to={x.to}
+                  icon={x.icon}
+                  title={x.name}
+                  description={x.description}
+                  pill={x.pill}
+                />
+              ))}
+            </div>
+          </Section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 pt-6">
-          {pages.map((page) => {
-            const Icon = page.icon;
-            return (
-              <div key={page.name} className="flex flex-col items-center space-y-3">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link
-                      to={page.path}
-                      className="w-24 h-24 rounded-full bg-black flex items-center justify-center shadow-md hover:scale-105 transition-transform"
-                    >
-                      <Icon className="w-10 h-10 text-yellow-400" />
-                    </Link>
-                  </TooltipTrigger>
+          <Section title="Quick Actions" subtitle="Jump straight into common data entry screens.">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              {quick.map((x) => (
+                <Bubble
+                  key={x.name}
+                  to={x.to}
+                  icon={x.icon}
+                  title={x.name}
+                  description={x.description}
+                  pill={x.pill}
+                />
+              ))}
+            </div>
+          </Section>
 
-                  {/* DESCRIPTION ONLY — title removed */}
-                  <TooltipContent>
-                    <div className="text-sm">
-                      {page.desc}
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-
-                <span className="text-sm font-medium">
-                  {page.name}
-                </span>
-              </div>
-            );
-          })}
+          <div className="pb-6 text-xs text-muted-foreground">
+            Tip: this is your home base — use the Back buttons to return here fast.
+          </div>
         </div>
       </div>
-    </TooltipProvider>
+    </div>
   );
 }
