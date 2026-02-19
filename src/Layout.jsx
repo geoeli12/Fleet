@@ -1,10 +1,16 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { ArrowLeft } from "lucide-react";
+import { useEffect } from "react";
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Always jump to top when route changes (fixes "keeps same scroll position")
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname]);
 
   const pageName =
     currentPageName ||
@@ -44,11 +50,8 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </header>
 
-      {/* Page Content */}
-      {/* IMPORTANT: no max-width here so page backgrounds can be full-bleed */}
-      <main className="w-full">
-        {children}
-      </main>
+      {/* Page Content (full-bleed so page backgrounds can be full width) */}
+      <main className="w-full">{children}</main>
     </div>
   );
 }
