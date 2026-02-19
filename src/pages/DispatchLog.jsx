@@ -374,9 +374,9 @@ export default function DispatchLog() {
             ) : (
               <div className="space-y-8">
                 {grouped.map((g) => {
-                  const routedCount = g.items.filter((o) => (o.driver_name || "").trim()).length;
-                  const readyCount = g.items.filter((o) => !(o.driver_name || "").trim() && (o.trailer_number || "").trim()).length;
                   const totalCount = g.items.length;
+                  const routedCount = g.items.reduce((n, it) => n + (it.driver_name ? 1 : 0), 0);
+                  const readyCount = g.items.reduce((n, it) => n + (!it.driver_name && it.trailer_number ? 1 : 0), 0);
                   return (
                   <div key={g.date || "no-date"}>
                     <div className="flex items-center justify-between mb-3">
@@ -384,9 +384,9 @@ export default function DispatchLog() {
                         {g.date ? format(new Date(g.date + "T00:00:00"), "EEE, M/d/yy") : "No Date"}
                       </div>
                       <div className="flex items-center gap-2 text-sm">
-                        <Badge className="rounded-full bg-zinc-100 text-zinc-700 border-0">{totalCount} Orders</Badge>
-                        <Badge className="rounded-full bg-emerald-100 text-emerald-800 border-0">{readyCount} Ready</Badge>
-                        <Badge className="rounded-full bg-rose-100 text-rose-800 border-0">{routedCount} Routed</Badge>
+                        <Badge className="rounded-full border-0 bg-zinc-200/70 text-zinc-800">{totalCount} Orders</Badge>
+                        <Badge className="rounded-full border-0 bg-emerald-100 text-emerald-900">{readyCount} Ready</Badge>
+                        <Badge className="rounded-full border-0 bg-rose-100 text-rose-900">{routedCount} Routed</Badge>
                       </div>
                     </div>
 
@@ -442,7 +442,7 @@ export default function DispatchLog() {
                       })}
                     </div>
                   </div>
-                );
+                  );
                 })}
               </div>
             )}
@@ -638,4 +638,3 @@ export default function DispatchLog() {
     </div>
   );
 }
-/
