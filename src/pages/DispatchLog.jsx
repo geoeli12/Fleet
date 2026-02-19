@@ -317,14 +317,14 @@ export default function DispatchLog() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50/40 via-background to-background">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-3xl font-light tracking-tight text-white">
+            <h1 className="text-3xl font-light tracking-tight text-zinc-900">
               Dispatch <span className="font-semibold">Log</span>
             </h1>
-            <p className="text-white/60 mt-1">Track orders by day, assign trailer and driver, and keep dock hours in one place.</p>
+            <p className="text-zinc-600 mt-1">Track orders by day, assign trailer and driver, and keep dock hours in one place.</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -354,17 +354,17 @@ export default function DispatchLog() {
           </div>
         </div>
 
-        <Card className="border-0 shadow-lg">
+        <Card className="border-0 shadow-lg bg-white/70 backdrop-blur">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-amber-300" />
               Orders
-              <span className="text-sm font-normal text-white/60">({orders?.length || 0})</span>
+              <span className="text-sm font-normal text-zinc-500">({orders?.length || 0})</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-white/70">Loading...</div>
+              <div className="text-zinc-600">Loading...</div>
             ) : grouped.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-amber-200/40 bg-white/60 p-10 text-center">
                 <FileText className="h-10 w-10 text-zinc-400 mx-auto mb-3" />
@@ -376,10 +376,10 @@ export default function DispatchLog() {
                 {grouped.map((g) => (
                   <div key={g.date || "no-date"}>
                     <div className="flex items-center justify-between mb-3">
-                      <div className="text-lg font-semibold text-white">
+                      <div className="text-lg font-semibold text-zinc-900">
                         {g.date ? format(new Date(g.date + "T00:00:00"), "EEE, M/d/yy") : "No Date"}
                       </div>
-                      <div className="text-white/60 text-sm">{g.items.length} order{g.items.length === 1 ? "" : "s"}</div>
+                      <div className="text-zinc-500 text-sm">{g.items.length} order{g.items.length === 1 ? "" : "s"}</div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -391,32 +391,42 @@ export default function DispatchLog() {
                             className={`border shadow-sm cursor-pointer transition-all hover:shadow-md ${tone.card}`}
                             onClick={() => openEdit(o)}
                           >
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="font-semibold text-zinc-900 truncate">{o.customer || "(No customer)"}</div>
-                                  <div className="text-sm text-zinc-700 truncate">{o.city || ""}</div>
+                            <CardContent className="p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="h-10 w-10 rounded-2xl bg-white/60 border border-black/5 flex items-center justify-center shrink-0">
+                                    <Truck className="h-5 w-5 text-zinc-700" />
+                                  </div>
+
+                                  <div className="min-w-0">
+                                    <div className="font-semibold text-zinc-900 truncate">{o.customer || "(No customer)"}</div>
+                                    <div className="text-sm text-zinc-700 truncate">
+                                      {o.city ? o.city : ""}
+                                      {o.city ? " • " : ""}
+                                      <span className="text-zinc-600">BOL</span> {o.bol_number || "—"}
+                                    </div>
+                                  </div>
                                 </div>
-                                <Badge className={`${tone.badge} border-0 shrink-0`}>{tone.label}</Badge>
+
+                                <Badge className={`${tone.badge} border-0 shrink-0 rounded-full`}>{tone.label}</Badge>
                               </div>
 
-                              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                                <div className="rounded-xl bg-white/60 border border-black/5 px-3 py-2">
-                                  <div className="text-[11px] uppercase tracking-wide text-zinc-500">BOL</div>
-                                  <div className="font-semibold text-zinc-900 truncate">{o.bol_number || "—"}</div>
-                                </div>
-                                <div className="rounded-xl bg-white/60 border border-black/5 px-3 py-2">
-                                  <div className="text-[11px] uppercase tracking-wide text-zinc-500">Trailer</div>
-                                  <div className="font-semibold text-zinc-900 truncate">{o.trailer_number || "—"}</div>
-                                </div>
-                                <div className="rounded-xl bg-white/60 border border-black/5 px-3 py-2 col-span-2">
-                                  <div className="text-[11px] uppercase tracking-wide text-zinc-500">Driver</div>
-                                  <div className="font-semibold text-zinc-900 truncate">{o.driver_name || "—"}</div>
-                                </div>
+                              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                                <span className="px-2 py-1 rounded-full bg-white/60 border border-black/5 text-zinc-700">
+                                  <span className="text-zinc-500">Trailer:</span> {o.trailer_number || "—"}
+                                </span>
+                                <span className="px-2 py-1 rounded-full bg-white/60 border border-black/5 text-zinc-700">
+                                  <span className="text-zinc-500">Driver:</span> {o.driver_name || "—"}
+                                </span>
+                                {o.dock_hours ? (
+                                  <span className="px-2 py-1 rounded-full bg-white/60 border border-black/5 text-zinc-700">
+                                    <span className="text-zinc-500">Dock:</span> {o.dock_hours}
+                                  </span>
+                                ) : null}
                               </div>
 
                               {o.notes ? (
-                                <div className="mt-3 text-sm text-zinc-700 line-clamp-2">{o.notes}</div>
+                                <div className="mt-2 text-sm text-zinc-700 line-clamp-1">{o.notes}</div>
                               ) : null}
                             </CardContent>
                           </Card>
