@@ -11,15 +11,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  endOfMonth,
-  endOfWeek,
-  format,
-  isWithinInterval,
-  parseISO,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns";
-import {
   LayoutGrid,
   ClipboardList,
   History,
@@ -30,8 +21,16 @@ import {
   Droplets,
   PlusCircle,
   Gauge,
-  ArrowRight
+  ArrowRight,
 } from "lucide-react";
+import {
+  endOfMonth,
+  endOfWeek,
+  isWithinInterval,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 
 const Section = ({ title, subtitle, children }) => (
   <section className="space-y-4">
@@ -46,102 +45,57 @@ const Section = ({ title, subtitle, children }) => (
 );
 
 const Bubble = ({ to, icon: Icon, title, description, pill }) => (
-  <TooltipProvider delayDuration={150}>
+  <TooltipProvider delayDuration={120}>
     <Tooltip>
       <TooltipTrigger asChild>
         <Link
           to={to}
-          className="group relative flex flex-col items-center justify-center text-center gap-2 rounded-3xl border border-black/10 bg-white/70 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 p-4"
+          className="group flex flex-col items-center gap-3 rounded-2xl p-2 transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
         >
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent rounded-3xl" />
-
           <div className="relative">
-            <div className="h-20 w-20 rounded-full bg-black/90 text-amber-300 flex items-center justify-center shadow-sm ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform">
-              <Icon className="h-7 w-7" />
+            <div className="h-24 w-24 rounded-full bg-black shadow-sm ring-1 ring-black/10 grid place-items-center transition-all group-hover:shadow-md group-hover:ring-amber-400/30">
+              <Icon className="h-10 w-10 text-amber-400" />
             </div>
+
             {pill ? (
-              <span className="absolute -top-2 -right-2 text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/20">
-                {pill}
-              </span>
+              <div className="absolute -top-2 -right-2">
+                <Badge className="rounded-full bg-amber-400 text-black hover:bg-amber-400">{pill}</Badge>
+              </div>
             ) : null}
           </div>
 
-          <div className="relative min-w-0">
-            <div className="flex items-center justify-center gap-2">
-              <h3 className="text-sm sm:text-base font-semibold text-foreground truncate max-w-[12rem]">
-                {title}
-              </h3>
-              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-            </div>
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-semibold text-foreground">{title}</div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </div>
         </Link>
       </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
-        <div className="space-y-1">
-          <div className="font-semibold text-[13px]">{title}</div>
-          <div className="text-xs opacity-90">{description}</div>
+
+      <TooltipContent side="top" className="max-w-[260px]">
+        <div className="text-xs leading-relaxed">
+          <div className="font-medium text-foreground">{title}</div>
+          <div className="text-muted-foreground">{description}</div>
         </div>
       </TooltipContent>
     </Tooltip>
   </TooltipProvider>
 );
 
+function safeParseISO(d) {
+  try {
+    if (!d) return null;
+    return parseISO(String(d));
+  } catch {
+    return null;
+  }
+}
+
+function dateOnlyLocal(dt) {
+  if (!dt) return null;
+  return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+
 export default function Dashboard() {
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
-  const monthStart = startOfMonth(new Date());
-  const monthEnd = endOfMonth(new Date());
-
-  const { data: orders = [] } = useQuery({
-    queryKey: ["dispatchOrders"],
-    queryFn: async () => {
-      try {
-        const list = await api.entities.DispatchOrder.list("-date");
-        return list || [];
-      } catch {
-        return [];
-      }
-    },
-  });
-
-  const orderStats = useMemo(() => {
-    const safeOrders = Array.isArray(orders) ? orders : [];
-
-    const toDate = (o) => {
-      const d = (o?.date || "").toString().trim();
-      try {
-        return d.length >= 10 ? parseISO(d.slice(0, 10)) : null;
-      } catch {
-        return null;
-      }
-    };
-
-    let todayTotal = 0;
-    let todayLeft = 0;
-    let weekTotal = 0;
-    let monthTotal = 0;
-
-    for (const o of safeOrders) {
-      const dRaw = (o?.date || "").toString().trim();
-      if (!dRaw) continue;
-
-      if (dRaw.slice(0, 10) === todayStr) {
-        todayTotal += 1;
-        const drv = (o?.driver_name || "").toString().trim();
-        if (!drv) todayLeft += 1;
-      }
-
-      const dt = toDate(o);
-      if (!dt) continue;
-
-      if (isWithinInterval(dt, { start: weekStart, end: weekEnd })) weekTotal += 1;
-      if (isWithinInterval(dt, { start: monthStart, end: monthEnd })) monthTotal += 1;
-    }
-
-    return { todayTotal, todayLeft, weekTotal, monthTotal };
-  }, [orders, todayStr, weekStart, weekEnd, monthStart, monthEnd]);
-
   const primary = [
     {
       name: "Driver Logs",
@@ -210,72 +164,109 @@ export default function Dashboard() {
     },
   ];
 
+  const dispatchQuery = useQuery({
+    queryKey: ["dispatchOrders"],
+    queryFn: async () => {
+      const list = await api.entities.DispatchOrder.list("-date");
+      return Array.isArray(list) ? list : [];
+    },
+  });
+
+  const counts = useMemo(() => {
+    const orders = Array.isArray(dispatchQuery.data) ? dispatchQuery.data : [];
+    const now = new Date();
+
+    const today = dateOnlyLocal(now);
+    const wkStart = startOfWeek(now, { weekStartsOn: 1 });
+    const wkEnd = endOfWeek(now, { weekStartsOn: 1 });
+    const moStart = startOfMonth(now);
+    const moEnd = endOfMonth(now);
+
+    let todayCount = 0;
+    let remainNoDriver = 0;
+    let weekCount = 0;
+    let monthCount = 0;
+
+    for (const o of orders) {
+      const d = safeParseISO(o?.date);
+      if (!d) continue;
+
+      const localDay = dateOnlyLocal(d);
+      if (!localDay) continue;
+
+      const drv = String(o?.driver_name || "").trim();
+      const inToday = today && localDay.getTime() === today.getTime();
+      const inWeek = isWithinInterval(localDay, { start: dateOnlyLocal(wkStart), end: dateOnlyLocal(wkEnd) });
+      const inMonth = isWithinInterval(localDay, { start: dateOnlyLocal(moStart), end: dateOnlyLocal(moEnd) });
+
+      if (inToday) {
+        todayCount += 1;
+        if (!drv) remainNoDriver += 1;
+      }
+      if (inWeek) weekCount += 1;
+      if (inMonth) monthCount += 1;
+    }
+
+    return { todayCount, remainNoDriver, weekCount, monthCount };
+  }, [dispatchQuery.data]);
+
   return (
-    <div className="max-w-5xl mx-auto px-4">
-      <div className="pt-10 pb-6">
+    <div className="min-h-screen bg-[radial-gradient(60%_60%_at_50%_0%,rgba(245,158,11,0.14),transparent_55%),linear-gradient(to_bottom,rgba(255,251,235,0.9),rgba(255,251,235,0.75))]">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-8">
         <div className="flex items-start gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 ring-1 ring-black/10">
-            <LayoutGrid className="h-6 w-6 text-black/90" />
+          <div className="mt-1 h-12 w-12 shrink-0 rounded-2xl bg-amber-400/90 text-black grid place-items-center shadow-sm ring-1 ring-black/10">
+            <LayoutGrid className="h-6 w-6" />
           </div>
+
           <div className="min-w-0">
-            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
-              Transport Dash
-            </h1>
-            <p className="mt-2 text-sm sm:text-base text-muted-foreground">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">Transport Dash</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
               Pick where you want to go — everything is one click away.
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Badge className="bg-black/90 text-amber-300 border border-black/10">
-                Today: {orderStats.todayTotal}
-              </Badge>
-              <Badge className="bg-amber-500/15 text-amber-800 border border-amber-500/20">
-                Left (no driver): {orderStats.todayLeft}
-              </Badge>
-              <Badge className="bg-white/70 text-foreground border border-black/10">
-                Week: {orderStats.weekTotal}
-              </Badge>
-              <Badge className="bg-white/70 text-foreground border border-black/10">
-                Month: {orderStats.monthTotal}
-              </Badge>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge className="rounded-full bg-black text-amber-400 hover:bg-black">Today: {counts.todayCount}</Badge>
+              <Badge className="rounded-full bg-amber-100 text-amber-900 hover:bg-amber-100">Rmn: {counts.remainNoDriver}</Badge>
+              <Badge className="rounded-full bg-white/80 text-foreground hover:bg-white/80">Week: {counts.weekCount}</Badge>
+              <Badge className="rounded-full bg-white/80 text-foreground hover:bg-white/80">Month: {counts.monthCount}</Badge>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="space-y-10">
-        <Section title="Main Pages" subtitle="Your daily workflow — shift log, schedule, dispatch, and fuel.">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {primary.map((x) => (
-              <Bubble
-                key={x.name}
-                to={x.to}
-                icon={x.icon}
-                title={x.name}
-                description={x.description}
-                pill={x.pill}
-              />
-            ))}
+        <div className="mt-8 space-y-10">
+          <Section title="Main Pages" subtitle="Your daily workflow — shift log, schedule, dispatch, and fuel.">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              {primary.map((x) => (
+                <Bubble
+                  key={x.name}
+                  to={x.to}
+                  icon={x.icon}
+                  title={x.name}
+                  description={x.description}
+                  pill={x.pill}
+                />
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Quick Actions" subtitle="Jump straight into common data entry screens.">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              {quick.map((x) => (
+                <Bubble
+                  key={x.name}
+                  to={x.to}
+                  icon={x.icon}
+                  title={x.name}
+                  description={x.description}
+                  pill={x.pill}
+                />
+              ))}
+            </div>
+          </Section>
+
+          <div className="pb-6 text-xs text-muted-foreground">
+            Tip: this is your home base — use the Back buttons to return here fast.
           </div>
-        </Section>
-
-        <Section title="Quick Actions" subtitle="Jump straight into common data entry screens.">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {quick.map((x) => (
-              <Bubble
-                key={x.name}
-                to={x.to}
-                icon={x.icon}
-                title={x.name}
-                description={x.description}
-                pill={x.pill}
-              />
-            ))}
-          </div>
-        </Section>
-
-        <div className="pb-6 text-xs text-muted-foreground">
-          Tip: use the top navigation to move between pages anytime — the dashboard is just your new home base.
         </div>
       </div>
     </div>
