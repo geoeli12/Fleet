@@ -21,7 +21,7 @@
  *   }
  *   
  *   export const pagesConfig = {
- *       mainPage: "HomePage",
+ *       mainPage: "Dashboard",
  *       Pages: PAGES,
  *   };
  * 
@@ -41,17 +41,18 @@ import __Layout from './Layout.jsx';
  *   }
  *
  *   export const pagesConfig = {
- *       mainPage: "Home",
+ *       mainPage: "Dashboard",
  *       Pages: PAGES,
  *       Layout: __Layout,
  *   };
  *
  * To change the main page from HomePage to Dashboard, use find_replace:
- *   Old: mainPage: "HomePage",
+ *   Old: mainPage: "Dashboard",
  *   New: mainPage: "Dashboard",
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import Dashboard from './pages/Dashboard';
 import DriverLog from './pages/DriverLog';
 import Drivers from './pages/Drivers';
 import ShiftHistory from './pages/ShiftHistory';
@@ -66,6 +67,7 @@ import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "Dashboard": Dashboard,
     "DriverLog": DriverLog,
     "Drivers": Drivers,
     "ShiftHistory": ShiftHistory,
@@ -79,7 +81,7 @@ export const PAGES = {
 }
 
 export const pagesConfig = {
-    mainPage: "DriverLog",
+    mainPage: "Dashboard",
     Pages: PAGES,
     Layout: __Layout,
 };
