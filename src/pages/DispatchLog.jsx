@@ -373,13 +373,21 @@ export default function DispatchLog() {
               </div>
             ) : (
               <div className="space-y-8">
-                {grouped.map((g) => (
+                {grouped.map((g) => {
+                  const routedCount = g.items.filter((o) => (o.driver_name || "").trim()).length;
+                  const readyCount = g.items.filter((o) => !(o.driver_name || "").trim() && (o.trailer_number || "").trim()).length;
+                  const totalCount = g.items.length;
+                  return (
                   <div key={g.date || "no-date"}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-lg font-semibold text-zinc-900">
                         {g.date ? format(new Date(g.date + "T00:00:00"), "EEE, M/d/yy") : "No Date"}
                       </div>
-                      <div className="text-zinc-500 text-sm">{g.items.length} order{g.items.length === 1 ? "" : "s"}</div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Badge className="rounded-full bg-zinc-100 text-zinc-700 border-0">{totalCount} Orders</Badge>
+                        <Badge className="rounded-full bg-emerald-100 text-emerald-800 border-0">{readyCount} Ready</Badge>
+                        <Badge className="rounded-full bg-rose-100 text-rose-800 border-0">{routedCount} Routed</Badge>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -434,7 +442,8 @@ export default function DispatchLog() {
                       })}
                     </div>
                   </div>
-                ))}
+                );
+                })}
               </div>
             )}
           </CardContent>
@@ -629,3 +638,4 @@ export default function DispatchLog() {
     </div>
   );
 }
+/
