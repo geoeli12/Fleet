@@ -13,12 +13,10 @@ export default function Layout({ children, currentPageName }) {
   const isDashboard = pageName === "Dashboard";
 
   return (
-    <div className="min-h-screen bg-white">
-      
+    <div className="min-h-screen bg-amber-50">
       {/* Header */}
       <header className="bg-neutral-900 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-
           {/* Left: Logo + Brand + Current Page */}
           <Link to={createPageUrl("Dashboard")} className="flex items-center gap-3 min-w-0">
             <img src="/ash_pallet_logo.svg" alt="ASH Pallet" className="h-10 w-auto shrink-0" />
@@ -47,7 +45,8 @@ export default function Layout({ children, currentPageName }) {
       </header>
 
       {/* Page Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      {/* IMPORTANT: no max-width here so page backgrounds can be full-bleed */}
+      <main className="w-full">
         {children}
       </main>
     </div>
