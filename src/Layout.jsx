@@ -13,7 +13,7 @@ export default function Layout({ children, currentPageName }) {
   const isDashboard = pageName === "Dashboard";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-100 to-neutral-200">
+    <div className="min-h-screen bg-white">
       
       {/* Header */}
       <header className="bg-neutral-900 text-white shadow-lg">
