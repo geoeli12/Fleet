@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { api } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -649,7 +648,7 @@ export default function ShiftHistory() {
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
 	                                            <Badge className="border-0 bg-blue-50 text-blue-700">
-	                                                Runs {shiftRuns.length}
+	                                                {shiftRuns.length} {shiftRuns.length === 1 ? "Run" : "Runs"}
 	                                            </Badge>
 	                                            {getAttendanceBadge(shift)}
                                                     <Badge className={`border-0 ${isNight ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'}`}>
