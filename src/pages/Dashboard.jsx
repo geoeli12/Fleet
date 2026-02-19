@@ -68,13 +68,17 @@ const Bubble = ({ to, icon: Icon, title, description, pill }) => (
             ) : null}
           </div>
 
+          {/* 🔥 RESTORED ICON TAB NAME */}
           <div className="flex items-center gap-2">
-            <div className="text-sm font-semibold text-foreground">{title}</div>
+            <div className="text-sm font-semibold text-foreground">
+              {title}
+            </div>
             <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </div>
         </Link>
       </TooltipTrigger>
 
+      {/* Tooltip shows description ONLY */}
       <TooltipContent side="top" className="max-w-[260px]">
         <div className="text-xs leading-relaxed text-muted-foreground">
           {description}
@@ -235,25 +239,19 @@ export default function Dashboard() {
               Pick where you want to go — everything is one click away.
             </p>
 
-            {/* 🔥 Larger Badges */}
             <div className="mt-4 flex flex-wrap items-center gap-4">
-
-              <Badge className="px-6 py-2 text-base font-semibold rounded-xl bg-black text-amber-400 hover:bg-black shadow-sm">
+              <Badge className="px-6 py-2 text-base font-semibold rounded-xl bg-black text-amber-400 shadow-sm">
                 Today: {counts.todayCount}
               </Badge>
-
-              <Badge className="px-6 py-2 text-base font-semibold rounded-xl bg-amber-100 text-amber-900 hover:bg-amber-100 shadow-sm">
+              <Badge className="px-6 py-2 text-base font-semibold rounded-xl bg-amber-100 text-amber-900 shadow-sm">
                 Rmn: {counts.remainNoDriver}
               </Badge>
-
-              <Badge className="px-6 py-2 text-base font-semibold rounded-xl bg-white/90 text-foreground hover:bg-white/90 shadow-sm ring-1 ring-black/5">
+              <Badge className="px-6 py-2 text-base font-semibold rounded-xl bg-white/90 text-foreground shadow-sm ring-1 ring-black/5">
                 Week: {counts.weekCount}
               </Badge>
-
-              <Badge className="px-6 py-2 text-base font-semibold rounded-xl bg-white/90 text-foreground hover:bg-white/90 shadow-sm ring-1 ring-black/5">
+              <Badge className="px-6 py-2 text-base font-semibold rounded-xl bg-white/90 text-foreground shadow-sm ring-1 ring-black/5">
                 Month: {counts.monthCount}
               </Badge>
-
             </div>
           </div>
         </div>
@@ -262,7 +260,14 @@ export default function Dashboard() {
           <Section title="Main Pages" subtitle="Your daily workflow — shift log, schedule, dispatch, and fuel.">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
               {primary.map((x) => (
-                <Bubble key={x.name} {...x} />
+                <Bubble
+                  key={x.name}
+                  to={x.to}
+                  icon={x.icon}
+                  title={x.name}
+                  description={x.description}
+                  pill={x.pill}
+                />
               ))}
             </div>
           </Section>
@@ -270,7 +275,14 @@ export default function Dashboard() {
           <Section title="Quick Actions" subtitle="Jump straight into common data entry screens.">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
               {quick.map((x) => (
-                <Bubble key={x.name} {...x} />
+                <Bubble
+                  key={x.name}
+                  to={x.to}
+                  icon={x.icon}
+                  title={x.name}
+                  description={x.description}
+                  pill={x.pill}
+                />
               ))}
             </div>
           </Section>
