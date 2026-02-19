@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { History, ClipboardList, Users, CalendarDays, Fuel, Droplets } from 'lucide-react';
+import { History, ClipboardList, Users, CalendarDays, Fuel, Droplets, Truck } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
     const navItems = [
@@ -9,6 +9,7 @@ export default function Layout({ children, currentPageName }) {
         { name: 'ShiftHistory', label: 'History', icon: History },
         { name: 'Calendar', label: 'Calendar', icon: CalendarDays },
         { name: 'Schedule', label: 'Schedule', icon: ClipboardList },
+        { name: 'DispatchLog', label: 'Dispatch', icon: Truck },
         { name: 'FuelDashboard', label: 'Fuel', icon: Fuel },
         { name: 'FuelHistory', label: 'Fuel History', icon: Droplets },
         { name: 'Drivers', label: 'Drivers', icon: Users },

@@ -61,6 +61,7 @@ import FuelDashboard from './pages/FuelDashboard';
 import FuelHistory from './pages/FuelHistory';
 import AddReading from './pages/AddReading';
 import AddRefill from './pages/AddRefill';
+import DispatchLog from './pages/DispatchLog';
 import __Layout from './Layout.jsx';
 
 
@@ -70,6 +71,7 @@ export const PAGES = {
     "ShiftHistory": ShiftHistory,
     "Calendar": Calendar,
     "Schedule": Schedule,
+    "DispatchLog": DispatchLog,
     "FuelDashboard": FuelDashboard,
     "FuelHistory": FuelHistory,
     "AddReading": AddReading,
