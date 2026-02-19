@@ -19,12 +19,13 @@ import {
 import { 
     Loader2, Calendar, Clock, Gauge, Route, User,
     ChevronRight, Trash2, Download, Sun, Moon,
-    CalendarDays, AlertCircle
+    CalendarDays, AlertCircle, Plus
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO, eachDayOfInterval, isSameDay } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import EditRunDialog from '@/components/shifts/EditRunDialog';
+import AddRunForm from '@/components/shifts/AddRunForm';
 import RunCard from '@/components/shifts/RunCard';
 
 export default function ShiftHistory() {
@@ -32,6 +33,8 @@ export default function ShiftHistory() {
     const [driverFilter, setDriverFilter] = useState('all');
     const [editingShift, setEditingShift] = useState(null);
     const [editingRun, setEditingRun] = useState(null);
+    const [showAddRun, setShowAddRun] = useState(false);
+    const [addRunShift, setAddRunShift] = useState(null);
     const [expandedShiftId, setExpandedShiftId] = useState(null);
     const [editShiftData, setEditShiftData] = useState({});
     const queryClient = useQueryClient();
@@ -83,6 +86,15 @@ export default function ShiftHistory() {
     const deleteRunMutation = useMutation({
         mutationFn: (id) => api.entities.Run.delete(id),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['allRuns'] })
+    });
+
+    const addRunMutation = useMutation({
+        mutationFn: (data) => api.entities.Run.create(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['allRuns'] });
+            setShowAddRun(false);
+            setAddRunShift(null);
+        }
     });
 
     const runsByShift = allRuns.reduce((acc, run) => {
@@ -392,7 +404,6 @@ export default function ShiftHistory() {
                                 </Select>
                             </div>
                         </div>
-                                        )}
                     </CardContent>
                 </Card>
 
@@ -408,38 +419,43 @@ export default function ShiftHistory() {
                             // Absent record
                             if (shift.is_absent) {
                                 return (
-                                    <Card key={shift.id} className="border-0 shadow-md bg-red-50/50 backdrop-blur-sm cursor-default ">
+                                    <Card key={shift.id} className="border-0 shadow-md bg-red-50/50 backdrop-blur-sm cursor-default">
                                         <CardContent className="p-4">
                                             <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 rounded-xl bg-red-100 flex items-center justify-center">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="h-10 w-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
                                                         <AlertCircle className="h-5 w-5 text-red-500" />
                                                     </div>
-                                                    <div>
-                                                        <div className="font-semibold text-zinc-900">{shift.driver_name}</div>
-                                                        <div className="text-sm text-zinc-500">{shift.date ? format(parseISO(shift.date), 'MMMM d, yyyy') : ''}</div>
+                                                    <div className="min-w-0">
+                                                        <div className="font-semibold text-zinc-900 truncate">{shift.driver_name}</div>
+                                                        <div className="text-sm text-zinc-500">
+                                                            {shift.date ? format(parseISO(shift.date), 'MMMM d, yyyy') : ''}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 {getAttendanceBadge(shift)}
-                                                </div>
-                                        )}
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 );
                             }
 
-                            // PTO record
+                            // PTO record (click to edit PTO dates in DriverLog)
                             if (shift.is_pto || shift.shift_type === 'pto') {
                                 return (
-                                    <Card key={shift.id} className="border-0 shadow-md bg-violet-50/50 backdrop-blur-sm cursor-default ">
+                                    <Card
+                                        key={shift.id}
+                                        onClick={() => openEditShift(shift)}
+                                        className="border-0 shadow-md bg-violet-50/50 backdrop-blur-sm cursor-pointer hover:shadow-lg transition-shadow"
+                                    >
                                         <CardContent className="p-4">
                                             <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
                                                         <CalendarDays className="h-5 w-5 text-violet-600" />
                                                     </div>
-                                                    <div>
-                                                        <div className="font-semibold text-zinc-900">{shift.driver_name}</div>
+                                                    <div className="min-w-0">
+                                                        <div className="font-semibold text-zinc-900 truncate">{shift.driver_name}</div>
                                                         <div className="text-sm text-zinc-500">
                                                             PTO: {formatPtoRange(shift.pto_dates || [getShiftDateStr(shift)])}
                                                         </div>
@@ -449,7 +465,12 @@ export default function ShiftHistory() {
                                                     {getAttendanceBadge(shift)}
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                            >
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </AlertDialogTrigger>
@@ -460,21 +481,25 @@ export default function ShiftHistory() {
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
                                                                 <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={async () => {
-                                                                    if (shift.pto_ids && shift.pto_ids.length) {
-                                                                        for (const id of shift.pto_ids) {
-                                                                            await deleteShiftMutation.mutateAsync(id);
+                                                                <AlertDialogAction
+                                                                    onClick={async () => {
+                                                                        if (shift.pto_ids && shift.pto_ids.length) {
+                                                                            for (const id of shift.pto_ids) {
+                                                                                await deleteShiftMutation.mutateAsync(id);
+                                                                            }
+                                                                        } else {
+                                                                            await deleteShiftMutation.mutateAsync(shift.id);
                                                                         }
-                                                                    } else {
-                                                                        await deleteShiftMutation.mutateAsync(shift.id);
-                                                                    }
-                                                                }} className="bg-red-600 hover:bg-red-700 rounded-xl">Delete</AlertDialogAction>
+                                                                    }}
+                                                                    className="bg-red-600 hover:bg-red-700 rounded-xl"
+                                                                >
+                                                                    Delete
+                                                                </AlertDialogAction>
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
                                                 </div>
                                             </div>
-                                        )}
                                         </CardContent>
                                     </Card>
                                 );
@@ -576,7 +601,20 @@ export default function ShiftHistory() {
                                             <div className="border-t border-black/10 pt-4">
                                                 <div className="flex items-center justify-between mb-3">
                                                     <div className="text-sm font-medium text-zinc-700">Today's Runs</div>
-                                                    <div className="text-sm text-zinc-500">{shiftRuns.length} run{shiftRuns.length === 1 ? '' : 's'}</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="text-sm text-zinc-500">{shiftRuns.length} run{shiftRuns.length === 1 ? '' : 's'}</div>
+                                                        <Button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setAddRunShift(shift);
+                                                                setShowAddRun(true);
+                                                            }}
+                                                            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl shadow-lg shadow-blue-500/25 h-8 px-3"
+                                                        >
+                                                            <Plus className="h-4 w-4 mr-2" /> Add Run
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                                 <div className="space-y-3">
                                                     {shiftRuns.map((run, index) => (
@@ -590,7 +628,6 @@ export default function ShiftHistory() {
                                                     ))}
                                                 </div>
                                             </div>
-                                        )}
                                     </CardContent>
                                 
                                         </>
@@ -647,7 +684,6 @@ export default function ShiftHistory() {
                                                     </AlertDialog>
                                                 </div>
                                             </div>
-                                        )}
                                         </CardContent>
                                     )}
                                 </Card>
@@ -656,7 +692,33 @@ export default function ShiftHistory() {
                     </div>
                 )}
 
-                {/* Edit Shift Dialog */}
+                
+                {/* Add Run Dialog */}
+                <Dialog
+                    open={showAddRun}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setShowAddRun(false);
+                            setAddRunShift(null);
+                        }
+                    }}
+                >
+                    <DialogContent className="rounded-2xl max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Add Run</DialogTitle>
+                        </DialogHeader>
+                        {addRunShift && (
+                            <AddRunForm
+                                shiftId={addRunShift.id}
+                                driverName={addRunShift.driver_name}
+                                onSubmit={(data) => addRunMutation.mutate(data)}
+                                isLoading={addRunMutation.isPending}
+                            />
+                        )}
+                    </DialogContent>
+                </Dialog>
+
+{/* Edit Shift Dialog */}
                 <Dialog open={!!editingShift} onOpenChange={() => setEditingShift(null)}>
                     <DialogContent className="rounded-2xl">
                         <DialogHeader><DialogTitle>Edit Shift</DialogTitle></DialogHeader>
@@ -710,4 +772,3 @@ export default function ShiftHistory() {
         </div>
     );
 }
-
