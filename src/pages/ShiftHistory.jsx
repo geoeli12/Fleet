@@ -17,20 +17,22 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger 
 } from "@/components/ui/alert-dialog";
 import { 
-    Loader2, Calendar, Clock, Gauge, Route, User, 
-    ChevronRight, Pencil, Trash2, Download, Sun, Moon,
+    Loader2, Calendar, Clock, Gauge, Route, User,
+    ChevronRight, Trash2, Download, Sun, Moon,
     CalendarDays, AlertCircle
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO, eachDayOfInterval, isSameDay } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import EditRunDialog from '@/components/shifts/EditRunDialog';
+import RunCard from '@/components/shifts/RunCard';
 
 export default function ShiftHistory() {
     const [timeFilter, setTimeFilter] = useState('all');
     const [driverFilter, setDriverFilter] = useState('all');
     const [editingShift, setEditingShift] = useState(null);
     const [editingRun, setEditingRun] = useState(null);
+    const [expandedShiftId, setExpandedShiftId] = useState(null);
     const [editShiftData, setEditShiftData] = useState({});
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -418,10 +420,7 @@ export default function ShiftHistory() {
                                                     </div>
                                                 </div>
                                                 {getAttendanceBadge(shift)}
-                                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditShift(shift); }} className="h-8 w-8">
-                                                    <Pencil className="h-4 w-4 text-slate-400" />
-                                                </Button>
-                                            </div>
+                                                </div>
                                         </CardContent>
                                     </Card>
                                 );
@@ -446,9 +445,6 @@ export default function ShiftHistory() {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     {getAttendanceBadge(shift)}
-                                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditShift(shift); }} className="h-8 w-8">
-                                                        <Pencil className="h-4 w-4 text-slate-400" />
-                                                    </Button>
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
                                                             <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50">
@@ -489,7 +485,15 @@ export default function ShiftHistory() {
                             const isNight = shift.shift_type === 'night';
 
                             return (
-                                <Card key={shift.id} onClick={() => handleEditShift(shift)} className="border-0 shadow-lg bg-white ring-1 ring-black/5 backdrop-blur-sm hover:shadow-xl transition-all duration-300 cursor-pointer">
+                                <Card
+                                    key={shift.id}
+                                    onClick={expandedShiftId === shift.id ? undefined : () => setExpandedShiftId(shift.id)}
+                                    className={`border-0 shadow-md bg-white ring-1 ring-black/5 backdrop-blur-sm transition-all duration-300 ${
+                                        expandedShiftId === shift.id ? 'shadow-lg' : 'hover:shadow-lg cursor-pointer'
+                                    }`}
+                                >
+                                    {expandedShiftId === shift.id ? (
+                                        <>
                                     <CardHeader className="pb-3">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
@@ -501,7 +505,11 @@ export default function ShiftHistory() {
                                                 <div>
                                                     <div className="flex items-center gap-2">
                                                         <User className="h-4 w-4 text-slate-400" />
-                                                        <CardTitle className="text-lg font-semibold text-zinc-900">{shift.driver_name}</CardTitle>
+                                                        <CardTitle className="text-lg font-semibold text-zinc-900">
+                                                        <button type="button" className="text-left hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); setExpandedShiftId(null); }}>
+                                                            {shift.driver_name}
+                                                        </button>
+                                                    </CardTitle>
                                                     </div>
                                                     <div className="text-sm text-zinc-500">
                                                         Unit {shift.unit_number} • {startTime ? format(startTime, 'MMMM d, yyyy') : ''}
@@ -510,15 +518,9 @@ export default function ShiftHistory() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {getAttendanceBadge(shift)}
-                                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditShift(shift); }} className="h-8 w-8">
-                                                        <Pencil className="h-4 w-4 text-slate-400" />
-                                                    </Button>
-                                                <Badge className={`border-0 ${isNight ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                    <Badge className={`border-0 ${isNight ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'}`}>
                                                     {isNight ? 'Night' : 'Day'}
                                                 </Badge>
-                                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditShift(shift); }} className="h-8 w-8">
-                                                    <Pencil className="h-4 w-4 text-slate-400" />
-                                                </Button>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50">
@@ -569,10 +571,23 @@ export default function ShiftHistory() {
 
                                         {shiftRuns.length > 0 && (
                                             <div className="border-t border-black/10 pt-4">
-                                                <div className="text-sm font-medium text-zinc-700 mb-3">Run Details</div>
-                                                <div className="space-y-2">
-                                                    {shiftRuns.map((run, idx) => (
-                                                        <div key={run.id} className="bg-slate-50/50 px-3 py-2 rounded-lg group cursor-pointer hover:bg-black/5/50" onClick={() => setEditingRun(run)}>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="text-sm font-medium text-zinc-700">Today's Runs</div>
+                                                    <div className="text-sm text-zinc-500">{shiftRuns.length} run{shiftRuns.length === 1 ? '' : 's'}</div>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {shiftRuns.map((run, index) => (
+                                                        <RunCard
+                                                            key={run.id}
+                                                            run={run}
+                                                            index={index}
+                                                            isCurrentRun={index === 0}
+                                                            onClick={() => setEditingRun(run)}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}>
                                                             <div className="flex items-center justify-between text-sm mb-1">
                                                                 <div className="flex items-center gap-3">
                                                                     <span className="h-6 w-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-medium text-zinc-700">{idx + 1}</span>
@@ -585,9 +600,6 @@ export default function ShiftHistory() {
                                                                 <div className="flex items-center gap-2">
                                                                     {run.load_type && <Badge variant="outline" className="text-xs">{run.load_type.toUpperCase()}</Badge>}
                                                                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                                                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingRun(run); }}>
-                                                                            <Pencil className="h-3 w-3 text-slate-400" />
-                                                                        </Button>
                                                                         <AlertDialog>
                                                                             <AlertDialogTrigger asChild>
                                                                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-600" onClick={(e) => e.stopPropagation()}>
@@ -620,6 +632,63 @@ export default function ShiftHistory() {
                                             </div>
                                         )}
                                     </CardContent>
+                                
+                                        </>
+                                    ) : (
+                                        <CardContent className="p-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                                        isNight ? 'bg-rose-100/70' : 'bg-indigo-100/70'
+                                                    }`}>
+                                                        {isNight ? <Moon className="h-5 w-5 text-rose-600" /> : <Sun className="h-5 w-5 text-indigo-600" />}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="font-semibold text-zinc-900 truncate">{shift.driver_name}</div>
+                                                        <div className="text-sm text-zinc-500 truncate">
+                                                            Unit {shift.unit_number}{startTime ? ` • Started ${format(startTime, 'h:mm a')}` : ''}{startTime ? ` • ${format(startTime, 'MMMM d, yyyy')}` : ''}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {getAttendanceBadge(shift)}
+                                                    <Badge className={`border-0 ${isNight ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                                                        {isNight ? 'Night' : 'Day'}
+                                                    </Badge>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent className="rounded-2xl">
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Delete Shift</AlertDialogTitle>
+                                                                <AlertDialogDescription>Delete this shift and all its runs?</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={async () => {
+                                                                    if (shift.pto_ids && shift.pto_ids.length) {
+                                                                        for (const id of shift.pto_ids) {
+                                                                            await deleteShiftMutation.mutateAsync(id);
+                                                                        }
+                                                                    } else {
+                                                                        await deleteShiftMutation.mutateAsync(shift.id);
+                                                                    }
+                                                                }} className="bg-red-600 hover:bg-red-700 rounded-xl">Delete</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    )}
                                 </Card>
                             );
                         })}
