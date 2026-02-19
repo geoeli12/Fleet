@@ -33,7 +33,7 @@ export default function Layout({ children }) {
               className="flex items-center gap-3"
             >
               <img
-                src="/ash-logo.png"
+                src="/ash_pallet_logo.svg"
                 alt="ASH Logo"
                 className="h-10 w-10 rounded-md"
               />
