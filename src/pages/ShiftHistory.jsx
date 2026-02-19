@@ -597,7 +597,7 @@ export default function ShiftHistory() {
                                             </div>
                                         </div>
 
-                                        {shiftRuns.length > 0 && (
+	                                        {shiftRuns.length > 0 && (
                                             <div className="border-t border-black/10 pt-4">
                                                 <div className="flex items-center justify-between mb-3">
                                                     <div className="text-sm font-medium text-zinc-700">Today's Runs</div>
@@ -627,8 +627,9 @@ export default function ShiftHistory() {
                                                         />
                                                     ))}
                                                 </div>
-                                            </div>
-                                    </CardContent>
+	                                            </div>
+	                                        )}
+	                                    </CardContent>
                                 
                                         </>
                                     ) : (
