@@ -66,6 +66,24 @@ const COLLECTIONS = {
     allowed: ["id", "schedule_date", "data", "created_at"],
   },
 
+  dispatch_orders: {
+    table: "dispatch_orders",
+    primaryKey: "id",
+    allowed: [
+      "id",
+      "date",
+      "customer",
+      "city",
+      "bol_number",
+      "notes",
+      "dock_hours",
+      "trailer_number",
+      "driver_name",
+      "source_file_name",
+      "created_at",
+    ],
+  },
+
   customLoadTypes: {
     table: "custom_load_types",
     primaryKey: "id",
@@ -174,6 +192,22 @@ export function normalizePayload(collectionKey, payload) {
     // UI sends `date`; DB column is `run_date`
     if (p.date !== undefined && p.run_date === undefined) p.run_date = p.date;
     delete p.date;
+
+    return pickAllowed(collectionKey, p);
+  }
+
+  // ---- DISPATCH ORDERS ----
+  if (collectionKey === "dispatch_orders") {
+    // Accept a few friendly UI keys
+    if (p.bol !== undefined && p.bol_number === undefined) p.bol_number = p.bol;
+    if (p.trl_number !== undefined && p.trailer_number === undefined) p.trailer_number = p.trl_number;
+    if (p.trl !== undefined && p.trailer_number === undefined) p.trailer_number = p.trl;
+    if (p.driver !== undefined && p.driver_name === undefined) p.driver_name = p.driver;
+
+    delete p.bol;
+    delete p.trl_number;
+    delete p.trl;
+    delete p.driver;
 
     return pickAllowed(collectionKey, p);
   }
