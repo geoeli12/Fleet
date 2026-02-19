@@ -1,6 +1,24 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { api } from "@/api/apiClient";
+import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  endOfMonth,
+  endOfWeek,
+  format,
+  isWithinInterval,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 import {
   LayoutGrid,
   ClipboardList,
@@ -27,40 +45,103 @@ const Section = ({ title, subtitle, children }) => (
   </section>
 );
 
-const Tile = ({ to, icon: Icon, title, description, pill }) => (
-  <Link
-    to={to}
-    className="group relative overflow-hidden rounded-2xl border border-black/10 bg-white/70 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200"
-  >
-    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent" />
-    <div className="relative p-5 sm:p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-2xl bg-black/90 text-amber-300 flex items-center justify-center shadow-sm ring-1 ring-white/10">
-            <Icon className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-semibold text-foreground truncate">{title}</h3>
-              {pill ? (
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/20">
-                  {pill}
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{description}</p>
-          </div>
-        </div>
+const Bubble = ({ to, icon: Icon, title, description, pill }) => (
+  <TooltipProvider delayDuration={150}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link
+          to={to}
+          className="group relative flex flex-col items-center justify-center text-center gap-2 rounded-3xl border border-black/10 bg-white/70 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 p-4"
+        >
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent rounded-3xl" />
 
-        <div className="shrink-0 mt-1 text-muted-foreground group-hover:text-foreground transition-colors">
-          <ArrowRight className="h-5 w-5" />
+          <div className="relative">
+            <div className="h-20 w-20 rounded-full bg-black/90 text-amber-300 flex items-center justify-center shadow-sm ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform">
+              <Icon className="h-7 w-7" />
+            </div>
+            {pill ? (
+              <span className="absolute -top-2 -right-2 text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/20">
+                {pill}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="relative min-w-0">
+            <div className="flex items-center justify-center gap-2">
+              <h3 className="text-sm sm:text-base font-semibold text-foreground truncate max-w-[12rem]">
+                {title}
+              </h3>
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            </div>
+          </div>
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <div className="space-y-1">
+          <div className="font-semibold text-[13px]">{title}</div>
+          <div className="text-xs opacity-90">{description}</div>
         </div>
-      </div>
-    </div>
-  </Link>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
 );
 
 export default function Dashboard() {
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+  const monthStart = startOfMonth(new Date());
+  const monthEnd = endOfMonth(new Date());
+
+  const { data: orders = [] } = useQuery({
+    queryKey: ["dispatchOrders"],
+    queryFn: async () => {
+      try {
+        const list = await api.entities.DispatchOrder.list("-date");
+        return list || [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const orderStats = useMemo(() => {
+    const safeOrders = Array.isArray(orders) ? orders : [];
+
+    const toDate = (o) => {
+      const d = (o?.date || "").toString().trim();
+      try {
+        return d.length >= 10 ? parseISO(d.slice(0, 10)) : null;
+      } catch {
+        return null;
+      }
+    };
+
+    let todayTotal = 0;
+    let todayLeft = 0;
+    let weekTotal = 0;
+    let monthTotal = 0;
+
+    for (const o of safeOrders) {
+      const dRaw = (o?.date || "").toString().trim();
+      if (!dRaw) continue;
+
+      if (dRaw.slice(0, 10) === todayStr) {
+        todayTotal += 1;
+        const drv = (o?.driver_name || "").toString().trim();
+        if (!drv) todayLeft += 1;
+      }
+
+      const dt = toDate(o);
+      if (!dt) continue;
+
+      if (isWithinInterval(dt, { start: weekStart, end: weekEnd })) weekTotal += 1;
+      if (isWithinInterval(dt, { start: monthStart, end: monthEnd })) monthTotal += 1;
+    }
+
+    return { todayTotal, todayLeft, weekTotal, monthTotal };
+  }, [orders, todayStr, weekStart, weekEnd, monthStart, monthEnd]);
+
   const primary = [
     {
       name: "Driver Logs",
@@ -138,20 +219,35 @@ export default function Dashboard() {
           </div>
           <div className="min-w-0">
             <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
-              Dashboard
+              Transport Dash
             </h1>
             <p className="mt-2 text-sm sm:text-base text-muted-foreground">
               Pick where you want to go — everything is one click away.
             </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Badge className="bg-black/90 text-amber-300 border border-black/10">
+                Today: {orderStats.todayTotal}
+              </Badge>
+              <Badge className="bg-amber-500/15 text-amber-800 border border-amber-500/20">
+                Left (no driver): {orderStats.todayLeft}
+              </Badge>
+              <Badge className="bg-white/70 text-foreground border border-black/10">
+                Week: {orderStats.weekTotal}
+              </Badge>
+              <Badge className="bg-white/70 text-foreground border border-black/10">
+                Month: {orderStats.monthTotal}
+              </Badge>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="space-y-10">
         <Section title="Main Pages" subtitle="Your daily workflow — shift log, schedule, dispatch, and fuel.">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {primary.map((x) => (
-              <Tile
+              <Bubble
                 key={x.name}
                 to={x.to}
                 icon={x.icon}
@@ -164,9 +260,9 @@ export default function Dashboard() {
         </Section>
 
         <Section title="Quick Actions" subtitle="Jump straight into common data entry screens.">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {quick.map((x) => (
-              <Tile
+              <Bubble
                 key={x.name}
                 to={x.to}
                 icon={x.icon}
