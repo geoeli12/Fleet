@@ -148,7 +148,7 @@ export default function FuelHistory() {
 
   const exportToExcel = () => {
     const rows = [];
-    rows.push(["Date", "Type", "Driver", "Before", "After", "Gallons Used", "Gallons Added", "Cost", "Notes"]);
+    rows.push(["Date", "Type", "Invoice #", "Driver", "Before", "After", "Gallons Used", "Gallons Added", "Cost", "Notes"]);
     
     allActivity.forEach(item => {
       const safeDate = parseDateOnlyLocal(item?.date) || new Date();
@@ -156,6 +156,7 @@ export default function FuelHistory() {
         rows.push([
           format(safeDate, "yyyy-MM-dd"),
           "Usage",
+          "",
           item.driver_name || "",
           item.before_reading || "",
           item.after_reading || "",
@@ -168,6 +169,7 @@ export default function FuelHistory() {
         rows.push([
           format(safeDate, "yyyy-MM-dd"),
           "Refill",
+          item.invoice_number || "",
           "",
           "",
           "",
