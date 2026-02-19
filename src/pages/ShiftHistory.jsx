@@ -602,7 +602,6 @@ export default function ShiftHistory() {
                                                 <div className="flex items-center justify-between mb-3">
                                                     <div className="text-sm font-medium text-zinc-700">Today's Runs</div>
                                                     <div className="flex items-center gap-2">
-                                                        <div className="text-sm text-zinc-500">{shiftRuns.length} run{shiftRuns.length === 1 ? '' : 's'}</div>
                                                         <Button
                                                             type="button"
                                                             onClick={(e) => {
@@ -650,6 +649,9 @@ export default function ShiftHistory() {
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
                                                     {getAttendanceBadge(shift)}
+                                                    <Badge className="border-0 bg-blue-50 text-blue-700">
+                                                        Runs {shiftRuns.length}
+                                                    </Badge>
                                                     <Badge className={`border-0 ${isNight ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'}`}>
                                                         {isNight ? 'Night' : 'Day'}
                                                     </Badge>
