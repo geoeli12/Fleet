@@ -75,10 +75,10 @@ export default function Dashboard() {
       description: "Review completed shifts, edit entries, and check totals.",
     },
     {
-      name: "Shift Calendar",
-      to: createPageUrl("Calendar"),
-      icon: CalendarDays,
-      description: "See attendance, PTO, absences, and lateness at a glance.",
+      name: "Dispatch Log",
+      to: createPageUrl("DispatchLog"),
+      icon: Truck,
+      description: "Track dispatch info and operational notes in one place.",
     },
     {
       name: "Create a Schedule",
@@ -87,28 +87,28 @@ export default function Dashboard() {
       description: "Plan the day/night schedule and keep coverage balanced.",
     },
     {
-      name: "Dispatch",
-      to: createPageUrl("DispatchLog"),
-      icon: Truck,
-      description: "Track dispatch info and operational notes in one place.",
-    },
-    {
       name: "Fuel",
       to: createPageUrl("FuelDashboard"),
       icon: Fuel,
-      description: "Enter refills/reads and keep tanks & units up to date.",
+      description: "Enter fuel usage, and main tank refills.",
     },
     {
       name: "Fuel History",
       to: createPageUrl("FuelHistory"),
       icon: Droplets,
-      description: "Browse all refills and readings with clean drill-down cards.",
+      description: "Browse all fuel usage logged history.",
+    },
+    {
+      name: "Attd Calendar",
+      to: createPageUrl("Calendar"),
+      icon: CalendarDays,
+      description: "See attendance, PTO, absences, and lateness at a glance.",
     },
     {
       name: "Drivers",
       to: createPageUrl("Drivers"),
       icon: Users,
-      description: "Manage driver profiles, phone numbers, and IL/PA flags.",
+      description: "Add new drivers, and manage driver profiles.",
     },
   ];
 
