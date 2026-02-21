@@ -21,7 +21,24 @@ await initDb();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// NOTE: Customers "Initialize from Excel" can post a large JSON array.
+// Express' default JSON limit is 100kb which will fail with an HTML error page.
+// Bump the limit and return JSON errors so the client can display them cleanly.
+app.use(express.json({ limit: "10mb" }));
+
+// JSON/body-parser error handler (must come AFTER express.json)
+app.use((err, _req, res, next) => {
+  if (!err) return next();
+  // Payload too large
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ error: "Request payload too large" });
+  }
+  // Bad JSON
+  if (err instanceof SyntaxError && "body" in err) {
+    return res.status(400).json({ error: "Invalid JSON body" });
+  }
+  return next(err);
+});
 
 // Simple request logger (helps debugging on Render)
 app.use((req, _res, next) => {
