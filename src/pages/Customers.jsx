@@ -327,7 +327,8 @@ export default function Customers() {
   }, [list]);
 
   const rows = useMemo(() => {
-    const sorted = [...(list || [])].sort((a, b) => {
+    const base = (list || []).filter(r => String(r?.customer ?? "").trim() !== "");
+    const sorted = [...base].sort((a, b) => {
       const aa = norm(a?.customer);
       const bb = norm(b?.customer);
       return aa.localeCompare(bb);
