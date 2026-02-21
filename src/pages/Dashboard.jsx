@@ -123,6 +123,12 @@ export default function Dashboard() {
       description: "Track dispatch info and operational notes in one place.",
     },
     {
+      name: "Load History",
+      to: createPageUrl("LoadHistory"),
+      icon: History,
+      description: "Search all dispatch records and edit older entries.",
+    },
+    {
       name: "Create a Schedule",
       to: createPageUrl("Schedule"),
       icon: Gauge,

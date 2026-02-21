@@ -1,29 +1,20 @@
 import React, { useMemo, useState } from "react";
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Truck, RefreshCw, Search, ChevronLeft, ChevronRight, History } from "lucide-react";
+import { History, RefreshCw, Search, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { format, addDays, subDays } from "date-fns";
 import DispatchTable from "@/components/dispatch/DispatchTable";
-import AddDispatchForm from "@/components/dispatch/AddDispatchForm";
-import StatusSummary from "@/components/dispatch/StatusSummary";
 
-export default function DispatchLog() {
+export default function LoadHistory() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const queryClient = useQueryClient();
 
   const { data: logs = [], isLoading, refetch } = useQuery({
     queryKey: ["dispatch-orders"],
     queryFn: () => api.entities.DispatchOrder.list("-created_at"),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data) => api.entities.DispatchOrder.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatch-orders"] }),
   });
 
   const updateMutation = useMutation({
@@ -38,22 +29,21 @@ export default function DispatchLog() {
 
   const filteredLogs = useMemo(() => {
     const arr = Array.isArray(logs) ? logs : [];
+    if (!searchTerm) return arr;
 
+    const search = searchTerm.toLowerCase();
     return arr.filter((log) => {
-      if (toText(log.date) !== selectedDate) return false;
-
-      if (!searchTerm) return true;
-      const search = searchTerm.toLowerCase();
       return (
         toText(log.customer).toLowerCase().includes(search) ||
         toText(log.city).toLowerCase().includes(search) ||
         toText(log.trailer_number).toLowerCase().includes(search) ||
         toText(log.bol_number).toLowerCase().includes(search) ||
         toText(log.driver_name).toLowerCase().includes(search) ||
-        toText(log.notes).toLowerCase().includes(search)
+        toText(log.notes).toLowerCase().includes(search) ||
+        toText(log.date).includes(search)
       );
     });
-  }, [logs, selectedDate, searchTerm]);
+  }, [logs, searchTerm]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -63,18 +53,18 @@ export default function DispatchLog() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-slate-800 p-2.5 rounded-xl">
-                <Truck className="h-6 w-6 text-white" />
+                <History className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-800">Dispatch Log</h1>
-                <p className="text-sm text-slate-500">Track loads and deliveries</p>
+                <h1 className="text-xl font-bold text-slate-800">Load History</h1>
+                <p className="text-sm text-slate-500">All dispatch records</p>
               </div>
             </div>
             <div className="flex gap-2">
-              <Link to={createPageUrl("LoadHistory")}>
+              <Link to={createPageUrl("DispatchLog")}>
                 <Button variant="outline" className="rounded-xl">
-                  <History className="h-4 w-4 mr-2" />
-                  Load History
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Today
                 </Button>
               </Link>
               <Button variant="outline" size="icon" onClick={() => refetch()} className="rounded-xl">
@@ -87,44 +77,16 @@ export default function DispatchLog() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        {/* Status Summary */}
-        <StatusSummary logs={filteredLogs} />
-
-        {/* Date Navigation */}
-        <div className="flex items-center justify-center gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setSelectedDate(format(subDays(new Date(selectedDate), 1), "yyyy-MM-dd"))}
-            className="rounded-xl h-12 w-12"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-3">
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="border-0 p-0 h-8 text-lg font-semibold text-center w-40"
-            />
+        {/* Search */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+          <div className="text-slate-600">
+            <span className="font-semibold text-2xl">{filteredLogs.length}</span> total entries
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setSelectedDate(format(addDays(new Date(selectedDate), 1), "yyyy-MM-dd"))}
-            className="rounded-xl h-12 w-12"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
 
-        {/* Add Form & Search */}
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          <AddDispatchForm onAdd={createMutation.mutateAsync} defaultDate={selectedDate} />
-          <div className="relative w-full md:w-72">
+          <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
-              placeholder="Search entries..."
+              placeholder="Search all history..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 h-12 rounded-xl bg-white"
@@ -136,7 +98,7 @@ export default function DispatchLog() {
         {isLoading ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
             <RefreshCw className="h-8 w-8 animate-spin text-slate-400 mx-auto mb-3" />
-            <p className="text-slate-500">Loading dispatch logs...</p>
+            <p className="text-slate-500">Loading history...</p>
           </div>
         ) : (
           <DispatchTable
