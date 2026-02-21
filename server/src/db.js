@@ -90,45 +90,45 @@ const COLLECTIONS = {
     allowed: ["id", "label", "created_at"],
   },
 
-fuel_readings: {
-  table: "fuel_readings",
-  primaryKey: "id",
-  allowed: [
-    "id",
-    "driver_id",
-    "driver_name",
-    "before_image",
-    "after_image",
-    "before_reading",
-    "after_reading",
-    "gallons_used",
-    "date",
-    "time",
-    "notes",
-    "created_at",
-  ],
-},
+  fuel_readings: {
+    table: "fuel_readings",
+    primaryKey: "id",
+    allowed: [
+      "id",
+      "driver_id",
+      "driver_name",
+      "before_image",
+      "after_image",
+      "before_reading",
+      "after_reading",
+      "gallons_used",
+      "date",
+      "time",
+      "notes",
+      "created_at",
+    ],
+  },
 
-fuel_refills: {
-  table: "fuel_refills",
-  primaryKey: "id",
-  allowed: [
-    "id",
-    "gallons_added",
-    "date",
-    "cost",
-    "invoice_number",
-    "notes",
-    "running_total_after",
-    "created_at",
-  ],
-},
+  fuel_refills: {
+    table: "fuel_refills",
+    primaryKey: "id",
+    allowed: [
+      "id",
+      "gallons_added",
+      "date",
+      "cost",
+      "invoice_number",
+      "notes",
+      "running_total_after",
+      "created_at",
+    ],
+  },
 
-fuel_tank: {
-  table: "fuel_tank",
-  primaryKey: "id",
-  allowed: ["id", "current_gallons", "last_updated", "created_at"],
-},
+  fuel_tank: {
+    table: "fuel_tank",
+    primaryKey: "id",
+    allowed: ["id", "current_gallons", "last_updated", "created_at"],
+  },
 
   // ---- CUSTOMERS ----
   customers_il: {
@@ -176,7 +176,6 @@ fuel_tank: {
       "created_at",
     ],
   },
-
 };
 
 function requireCollection(key) {
@@ -196,6 +195,26 @@ function pickAllowed(collectionKey, payload) {
 
 export function tableNameFor(collectionKey) {
   return requireCollection(collectionKey).table;
+}
+
+function normalizeNumericId(id) {
+  if (id === undefined || id === null) return null;
+  if (typeof id === "number" && Number.isFinite(id)) return Math.trunc(id);
+
+  // Handle strings like "il-1", "pa-23", "IL-004" or even "  12  "
+  if (typeof id === "string") {
+    const s = id.trim();
+    if (!s) return null;
+
+    const m = s.match(/(\d+)/); // first number group
+    if (!m) return null;
+
+    const n = parseInt(m[1], 10);
+    if (!Number.isFinite(n)) return null;
+    return n;
+  }
+
+  return null;
 }
 
 /**
@@ -259,7 +278,6 @@ export function normalizePayload(collectionKey, payload) {
     return pickAllowed(collectionKey, p);
   }
 
-
   // ---- CUSTOMERS (IL/PA) ----
   if (collectionKey === "customers_il" || collectionKey === "customers_pa") {
     if (p.receivingHours !== undefined && p.receiving_hours === undefined) p.receiving_hours = p.receivingHours;
@@ -275,6 +293,15 @@ export function normalizePayload(collectionKey, payload) {
     delete p.dropTrailers;
     delete p.contactPhone;
     delete p.contactEmail;
+
+    // IMPORTANT: Your Excel/JSON may still have ids like "il-1" / "pa-1".
+    // Supabase table uses bigint, so we must normalize to a numeric id.
+    const nid = normalizeNumericId(p.id);
+    if (nid === null) {
+      delete p.id;
+    } else {
+      p.id = nid;
+    }
 
     return pickAllowed(collectionKey, p);
   }
@@ -305,7 +332,6 @@ export function apiShape(collectionKey, row) {
 
     return out;
   }
-
 
   if (collectionKey === "customers_il" || collectionKey === "customers_pa") {
     const out = { ...row };
@@ -399,7 +425,6 @@ export async function deleteRecord(collectionKey, id) {
   const c = requireCollection(collectionKey);
 
   const { error } = await supabase.from(c.table).delete().eq(c.primaryKey, id);
-
   if (error) throw error;
   return { ok: true };
 }
