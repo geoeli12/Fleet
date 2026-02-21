@@ -130,6 +130,53 @@ fuel_tank: {
   allowed: ["id", "current_gallons", "last_updated", "created_at"],
 },
 
+  // ---- CUSTOMERS ----
+  customers_il: {
+    table: "customers_il",
+    primaryKey: "id",
+    allowed: [
+      "id",
+      "customer",
+      "address",
+      "receiving_hours",
+      "receiving_notes",
+      "weekend_hours",
+      "distance",
+      "contact",
+      "contact_phone",
+      "contact_email",
+      "notes",
+      "drop_trailers",
+      "coordinates",
+      "dis",
+      "eta",
+      "created_at",
+    ],
+  },
+
+  customers_pa: {
+    table: "customers_pa",
+    primaryKey: "id",
+    allowed: [
+      "id",
+      "customer",
+      "address",
+      "receiving_hours",
+      "receiving_notes",
+      "weekend_hours",
+      "distance",
+      "contact",
+      "contact_phone",
+      "contact_email",
+      "notes",
+      "drop_trailers",
+      "coordinates",
+      "dis",
+      "eta",
+      "created_at",
+    ],
+  },
+
 };
 
 function requireCollection(key) {
@@ -212,6 +259,26 @@ export function normalizePayload(collectionKey, payload) {
     return pickAllowed(collectionKey, p);
   }
 
+
+  // ---- CUSTOMERS (IL/PA) ----
+  if (collectionKey === "customers_il" || collectionKey === "customers_pa") {
+    if (p.receivingHours !== undefined && p.receiving_hours === undefined) p.receiving_hours = p.receivingHours;
+    if (p.receivingNotes !== undefined && p.receiving_notes === undefined) p.receiving_notes = p.receivingNotes;
+    if (p.weekendHours !== undefined && p.weekend_hours === undefined) p.weekend_hours = p.weekendHours;
+    if (p.dropTrailers !== undefined && p.drop_trailers === undefined) p.drop_trailers = p.dropTrailers;
+    if (p.contactPhone !== undefined && p.contact_phone === undefined) p.contact_phone = p.contactPhone;
+    if (p.contactEmail !== undefined && p.contact_email === undefined) p.contact_email = p.contactEmail;
+
+    delete p.receivingHours;
+    delete p.receivingNotes;
+    delete p.weekendHours;
+    delete p.dropTrailers;
+    delete p.contactPhone;
+    delete p.contactEmail;
+
+    return pickAllowed(collectionKey, p);
+  }
+
   // Default: strip to allowed keys
   return pickAllowed(collectionKey, p);
 }
@@ -236,6 +303,18 @@ export function apiShape(collectionKey, row) {
     // Some schemas store phone_number; map it
     if (!out.phone && out.phone_number) out.phone = out.phone_number;
 
+    return out;
+  }
+
+
+  if (collectionKey === "customers_il" || collectionKey === "customers_pa") {
+    const out = { ...row };
+    if (out.receiving_hours !== undefined && out.receivingHours === undefined) out.receivingHours = out.receiving_hours;
+    if (out.receiving_notes !== undefined && out.receivingNotes === undefined) out.receivingNotes = out.receiving_notes;
+    if (out.weekend_hours !== undefined && out.weekendHours === undefined) out.weekendHours = out.weekend_hours;
+    if (out.drop_trailers !== undefined && out.dropTrailers === undefined) out.dropTrailers = out.drop_trailers;
+    if (out.contact_phone !== undefined && out.contactPhone === undefined) out.contactPhone = out.contact_phone;
+    if (out.contact_email !== undefined && out.contactEmail === undefined) out.contactEmail = out.contact_email;
     return out;
   }
 
