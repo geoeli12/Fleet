@@ -110,6 +110,22 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
           </div>
 
           <div className="space-y-2">
+            <Label>Coordinates</Label>
+            <Input value={form.coordinates || ""} onChange={set("coordinates")} className="rounded-xl" placeholder="lat, lng" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Dis</Label>
+            <Input value={form.dis || ""} onChange={set("dis")} className="rounded-xl" placeholder="e.g., 18 mi" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>ETA</Label>
+            <Input value={form.eta || ""} onChange={set("eta")} className="rounded-xl" placeholder="e.g., 28 min" />
+          </div>
+
+
+          <div className="space-y-2">
             <Label>Drop Trailers</Label>
             <Input value={form.dropTrailers || ""} onChange={set("dropTrailers")} className="rounded-xl" />
           </div>
@@ -178,6 +194,8 @@ function CustomerCard({ row, onEdit, onDelete }) {
   const meta = joinParts(
     row?.receivingHours ? `Hours: ${row.receivingHours}` : "",
     row?.distance ? `Distance: ${row.distance}` : "",
+    row?.dis ? `Dis: ${row.dis}` : "",
+    row?.eta ? `ETA: ${row.eta}` : "",
     row?.dropTrailers ? `Drop: ${row.dropTrailers}` : ""
   );
 
@@ -251,6 +269,11 @@ function CustomerCard({ row, onEdit, onDelete }) {
               <div className="text-sm text-foreground whitespace-pre-wrap break-words">
                 {row.address}
               </div>
+              {row?.coordinates ? (
+                <div className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                  Coordinates: {row.coordinates}
+                </div>
+              ) : null}
               <div className="mt-2 flex gap-2">
                 <Button
                   type="button"
@@ -349,6 +372,9 @@ export default function Customers() {
         r?.contactEmail,
         r?.notes,
         r?.dropTrailers,
+        r?.coordinates,
+        r?.dis,
+        r?.eta,
       ]
         .map(norm)
         .join(" | ");
@@ -393,6 +419,9 @@ export default function Customers() {
       notes: "",
       distance: "",
       dropTrailers: "",
+      coordinates: "",
+      dis: "",
+      eta: "",
     });
     setEditOpen(true);
   };
@@ -405,6 +434,9 @@ export default function Customers() {
       contact: String(draft?.contact ?? "").trim(),
       contactPhone: String(draft?.contactPhone ?? "").trim(),
       contactEmail: String(draft?.contactEmail ?? "").trim(),
+      coordinates: String(draft?.coordinates ?? "").trim(),
+      dis: String(draft?.dis ?? "").trim(),
+      eta: String(draft?.eta ?? "").trim(),
     };
 
     if (!cleaned.customer) return;
