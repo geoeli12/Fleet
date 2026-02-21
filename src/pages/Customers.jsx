@@ -18,6 +18,14 @@ function norm(v) {
   return String(v ?? "").trim().toLowerCase();
 }
 
+function sortByCustomer(a, b) {
+  const aa = String(a?.customer ?? "").trim().toLowerCase();
+  const bb = String(b?.customer ?? "").trim().toLowerCase();
+  if (aa < bb) return -1;
+  if (aa > bb) return 1;
+  return 0;
+}
+
 function joinParts(...parts) {
   return parts
     .map((p) => String(p ?? "").trim())
@@ -286,9 +294,11 @@ export default function Customers() {
 
   const rows = useMemo(() => {
     const qq = norm(q);
-    if (!qq) return list;
+    const baseList = Array.isArray(list) ? list : [];
 
-    return list.filter((r) => {
+    if (!qq) return [...baseList].sort(sortByCustomer);
+
+    const filtered = baseList.filter((r) => {
       const hay = [
         r?.customer,
         r?.address,
@@ -306,6 +316,8 @@ export default function Customers() {
 
       return hay.includes(qq);
     });
+
+    return [...filtered].sort(sortByCustomer);
   }, [q, list]);
 
   const openEdit = (row) => {

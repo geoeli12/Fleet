@@ -18,6 +18,14 @@ function norm(v) {
   return String(v ?? "").trim().toLowerCase();
 }
 
+function sortByCustomer(a, b) {
+  const aa = String(a?.customer ?? "").trim().toLowerCase();
+  const bb = String(b?.customer ?? "").trim().toLowerCase();
+  if (aa < bb) return -1;
+  if (aa > bb) return 1;
+  return 0;
+}
+
 function joinParts(...parts) {
   return parts
     .map((p) => String(p ?? "").trim())
@@ -106,12 +114,12 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
           </div>
 
           <div className="space-y-2">
-            <Label>Phone</Label>
+            <Label>Contact Phone #</Label>
             <Input value={form.phone || ""} onChange={set("phone")} className="rounded-xl" />
           </div>
 
           <div className="space-y-2">
-            <Label>Email</Label>
+            <Label>Contact E-Mail</Label>
             <Input value={form.email || ""} onChange={set("email")} className="rounded-xl" />
           </div>
 
@@ -260,9 +268,11 @@ export default function CustomersPA() {
 
   const rows = useMemo(() => {
     const qq = norm(q);
-    if (!qq) return list;
+    const baseList = Array.isArray(list) ? list : [];
 
-    return list.filter((r) => {
+    if (!qq) return [...baseList].sort(sortByCustomer);
+
+    const filtered = baseList.filter((r) => {
       const hay = [
         r?.customer,
         r?.address,
@@ -279,6 +289,8 @@ export default function CustomersPA() {
 
       return hay.includes(qq);
     });
+
+    return [...filtered].sort(sortByCustomer);
   }, [q, list]);
 
   const openEdit = (row) => {
