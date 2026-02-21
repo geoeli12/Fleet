@@ -1,71 +1,38 @@
-import React, { useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Truck, Users, MapPin, Clock } from "lucide-react";
+import React from 'react';
+import { Truck, Package, Clock, CheckCircle2 } from 'lucide-react';
 
-function n(v) {
-  const num = Number(v);
-  return Number.isFinite(num) ? num : 0;
-}
-
-export default function StatusSummary({ logs = [] }) {
-  const stats = useMemo(() => {
-    const arr = Array.isArray(logs) ? logs : [];
-    const loads = arr.length;
-
-    const customers = new Set();
-    const drivers = new Set();
-    const cities = new Set();
-    let dock = 0;
-
-    for (const r of arr) {
-      if (r?.customer) customers.add(String(r.customer).trim());
-      if (r?.driver_name) drivers.add(String(r.driver_name).trim());
-      if (r?.city) cities.add(String(r.city).trim());
-      dock += n(r?.dock_hours);
+export default function StatusSummary({ logs }) {
+  const stats = logs.reduce((acc, log) => {
+    if (log.delivered_by && log.delivered_by.trim()) {
+      acc.dispatched++;
+    } else if (log.trailer_number && log.trailer_number.trim()) {
+      acc.loaded++;
+    } else {
+      acc.pending++;
     }
+    return acc;
+  }, { dispatched: 0, loaded: 0, pending: 0 });
 
-    return {
-      loads,
-      customers: customers.size,
-      drivers: drivers.size,
-      cities: cities.size,
-      dock,
-    };
-  }, [logs]);
-
-  const items = [
-    { icon: Truck, label: "Loads", value: stats.loads },
-    { icon: Users, label: "Drivers", value: stats.drivers },
-    { icon: MapPin, label: "Cities", value: stats.cities },
-    { icon: Clock, label: "Dock Hours", value: stats.dock ? stats.dock.toFixed(1) : "0.0" },
+  const cards = [
+    { label: 'Total Entries', value: logs.length, icon: Package, color: 'bg-slate-100 text-slate-600' },
+    { label: 'Loaded & Ready', value: stats.loaded, icon: CheckCircle2, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Dispatched', value: stats.dispatched, icon: Truck, color: 'bg-red-100 text-red-600' },
+    { label: 'Pending', value: stats.pending, icon: Clock, color: 'bg-amber-100 text-amber-600' },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {items.map((it) => (
-        <Card key={it.label} className="rounded-2xl border border-black/10 bg-white/70 backdrop-blur-sm shadow-sm">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-black/5 flex items-center justify-center">
-              <it.icon className="h-5 w-5" />
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {cards.map(card => (
+        <div key={card.label} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className={`p-2 rounded-xl ${card.color}`}>
+              <card.icon className="h-5 w-5" />
             </div>
-            <div className="min-w-0">
-              <div className="text-xs text-muted-foreground">{it.label}</div>
-              <div className="text-lg font-semibold leading-tight">{it.value}</div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-      <div className="col-span-2 md:col-span-4">
-        <div className="flex flex-wrap gap-2 pt-1">
-          <Badge variant="secondary" className="rounded-xl">
-            Customers: {stats.customers}
-          </Badge>
-          <Badge variant="secondary" className="rounded-xl">
-            Total Loads: {stats.loads}
-          </Badge>
+          </div>
+          <div className="text-3xl font-bold text-slate-800">{card.value}</div>
+          <div className="text-sm text-slate-500 mt-1">{card.label}</div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }
