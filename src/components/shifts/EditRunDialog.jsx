@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '@/api/apiClient';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -8,37 +8,50 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { TruckIcon, PackageCheck, Plus } from "lucide-react";
+import { MapPin, Building2, Package, Clock, ArrowRightLeft, TruckIcon, PackageCheck, FileText } from "lucide-react";
 
 const DEFAULT_LOAD_TYPES = ['scrap', 'occ', 'mix', 'empty'];
 
 export default function EditRunDialog({ run, open, onClose, onSave, isSaving }) {
-    const [data, setData] = useState({
-        run_type: run?.run_type || 'delivery',
-        city: run?.city || '',
-        customer_name: run?.customer_name || '',
-        trailer_dropped: run?.trailer_dropped || '',
-        trailer_picked_up: run?.trailer_picked_up || '',
-        load_type: run?.load_type || '',
-        arrival_time: run?.arrival_time ? new Date(run.arrival_time).toISOString().slice(0, 16) : '',
-        departure_time: run?.departure_time ? new Date(run.departure_time).toISOString().slice(0, 16) : '',
-        notes: run?.notes || ''
+    const buildInitialData = (r) => ({
+        run_type: r?.run_type || 'delivery',
+        customer_name: r?.customer_name || '',
+        city: r?.city || '',
+        trailer_dropped: r?.trailer_dropped || '',
+        trailer_picked_up: r?.trailer_picked_up || '',
+        load_type: r?.load_type || '',
+        arrival_time: r?.arrival_time ? new Date(r.arrival_time).toISOString().slice(0, 16) : '',
+        departure_time: r?.departure_time ? new Date(r.departure_time).toISOString().slice(0, 16) : '',
+        notes: r?.notes || ''
     });
+
+    const [data, setData] = useState(() => buildInitialData(run));
+
+    useEffect(() => {
+        if (open) setData(buildInitialData(run));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [run, open]);
+
 
     const { data: customLoadTypes = [] } = useQuery({
         queryKey: ['customLoadTypes'],
         queryFn: () => api.entities.CustomLoadType.list('name')
     });
 
-    const allLoadTypes = [
-        ...DEFAULT_LOAD_TYPES,
-        ...customLoadTypes.map(t => t.name.toLowerCase()).filter(n => !DEFAULT_LOAD_TYPES.includes(n))
-    ];
+    const allLoadTypes = useMemo(() => {
+        const list = [
+            ...DEFAULT_LOAD_TYPES,
+            ...customLoadTypes
+                .map(t => String(t.name || '').toLowerCase())
+                .filter(n => n && !DEFAULT_LOAD_TYPES.includes(n))
+        ];
 
-    // Also include the run's load_type if it's not in the list
-    if (run?.load_type && !allLoadTypes.includes(run.load_type)) {
-        allLoadTypes.push(run.load_type);
-    }
+        const runLoad = run?.load_type ? String(run.load_type).toLowerCase() : '';
+        if (runLoad && !list.includes(runLoad)) list.push(runLoad);
+
+        return list;
+    }, [customLoadTypes, run]);
+
 
     const handleSave = () => {
         onSave({
@@ -50,17 +63,17 @@ export default function EditRunDialog({ run, open, onClose, onSave, isSaving }) 
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="rounded-2xl max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="rounded-2xl max-w-2xl max-h-[90vh] overflow-y-auto border-0 shadow-lg bg-white/95 backdrop-blur-sm">
                 <DialogHeader>
-                    <DialogTitle>Edit Run</DialogTitle>
+                    <DialogTitle className="text-lg font-medium text-slate-900 flex items-center gap-2">Edit Run</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
                     <div className="space-y-2">
-                        <Label>Run Type</Label>
+                        <Label className="text-sm font-medium text-slate-700">Run Type</Label>
                         <div className="grid grid-cols-2 gap-3">
                             <button type="button" onClick={() => setData({...data, run_type: 'delivery'})}
                                 className={`flex items-center justify-center gap-2 h-11 rounded-xl border-2 transition-all ${
-                                    data.run_type === 'delivery' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200 bg-black text-white/70'
+                                    data.run_type === 'delivery' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                                 }`}>
                                 <TruckIcon className="h-4 w-4" /> Delivery
                             </button>
@@ -74,28 +87,42 @@ export default function EditRunDialog({ run, open, onClose, onSave, isSaving }) 
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label>City</Label>
-                            <Input value={data.city} onChange={(e) => setData({...data, city: e.target.value})} className="rounded-xl" />
+                            <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                <Building2 className="h-3.5 w-3.5" /> Customer Name
+                            </Label>
+                            <Input
+                                placeholder="Enter customer"
+                                value={data.customer_name}
+                                onChange={(e) => setData({ ...data, customer_name: e.target.value })}
+                                className="h-11 border-slate-200 rounded-xl bg-white text-slate-900"
+                            />
                         </div>
                         <div className="space-y-2">
-                            <Label>Customer</Label>
-                            <Input value={data.customer_name} onChange={(e) => setData({...data, customer_name: e.target.value})} className="rounded-xl" />
+                            <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                <MapPin className="h-3.5 w-3.5" /> City
+                            </Label>
+                            <Input
+                                placeholder="Enter city"
+                                value={data.city}
+                                onChange={(e) => setData({ ...data, city: e.target.value })}
+                                className="h-11 border-slate-200 rounded-xl bg-white text-slate-900"
+                            />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label>Trailer Dropped</Label>
-                            <Input value={data.trailer_dropped} onChange={(e) => setData({...data, trailer_dropped: e.target.value})} className="rounded-xl" />
+                            <Label className="text-sm font-medium text-slate-700 flex items-center gap-2"><ArrowRightLeft className="h-3.5 w-3.5" /> Trailer Dropped</Label>
+                            <Input placeholder="Trailer # dropped" value={data.trailer_dropped} onChange={(e) => setData({ ...data, trailer_dropped: e.target.value })} className="h-11 border-slate-200 rounded-xl bg-white text-slate-900" />
                         </div>
                         <div className="space-y-2">
-                            <Label>Trailer Picked Up</Label>
-                            <Input value={data.trailer_picked_up} onChange={(e) => setData({...data, trailer_picked_up: e.target.value})} className="rounded-xl" />
+                            <Label className="text-sm font-medium text-slate-700 flex items-center gap-2"><ArrowRightLeft className="h-3.5 w-3.5" /> Trailer Picked Up</Label>
+                            <Input placeholder="Trailer # picked up" value={data.trailer_picked_up} onChange={(e) => setData({ ...data, trailer_picked_up: e.target.value })} className="h-11 border-slate-200 rounded-xl bg-white text-slate-900" />
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label>Load Type</Label>
+                        <Label className="text-sm font-medium text-slate-700 flex items-center gap-2"><Package className="h-3.5 w-3.5" /> Load Type</Label>
                         <Select value={data.load_type} onValueChange={(value) => setData({...data, load_type: value})}>
-                            <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select load type" /></SelectTrigger>
+                            <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-white text-slate-900"><SelectValue placeholder="Select load type" /></SelectTrigger>
                             <SelectContent>
                                 {allLoadTypes.map(type => (
                                     <SelectItem key={type} value={type}>{type.toUpperCase()}</SelectItem>
@@ -106,11 +133,11 @@ export default function EditRunDialog({ run, open, onClose, onSave, isSaving }) 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Arrival Time</Label>
-                            <Input type="datetime-local" value={data.arrival_time} onChange={(e) => setData({...data, arrival_time: e.target.value})} className="rounded-xl" />
+                            <Input type="datetime-local" value={data.arrival_time} onChange={(e) => setData({...data, arrival_time: e.target.value})} className="h-11 border-slate-200 rounded-xl bg-white text-slate-900" />
                         </div>
                         <div className="space-y-2">
                             <Label>Departure Time</Label>
-                            <Input type="datetime-local" value={data.departure_time} onChange={(e) => setData({...data, departure_time: e.target.value})} className="rounded-xl" />
+                            <Input type="datetime-local" value={data.departure_time} onChange={(e) => setData({...data, departure_time: e.target.value})} className="h-11 border-slate-200 rounded-xl bg-white text-slate-900" />
                         </div>
                     </div>
                     <div className="space-y-2">
@@ -119,8 +146,10 @@ export default function EditRunDialog({ run, open, onClose, onSave, isSaving }) 
                     </div>
                 </div>
                 <DialogFooter className="pt-4">
-                    <Button variant="outline" onClick={() => onClose(false)} className="rounded-xl">Cancel</Button>
-                    <Button onClick={handleSave} disabled={isSaving} className="bg-amber-600 hover:bg-amber-700 rounded-xl">
+                    <Button variant="outline" onClick={() => onClose(false)} className="flex-1 h-11 rounded-xl border-slate-200">
+                        Cancel
+                    </Button>
+                    <Button onClick={handleSave} disabled={isSaving} className="flex-1 h-11 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl shadow-lg shadow-blue-500/25">
                         {isSaving ? 'Saving...' : 'Save Changes'}
                     </Button>
                 </DialogFooter>
