@@ -126,7 +126,7 @@ export default function Dashboard() {
       name: "Load History",
       to: createPageUrl("LoadHistory"),
       icon: History,
-      description: "Search all dispatch records and edit older entries.",
+      description: "Browse all dispatch records across dates.",
     },
     {
       name: "Create a Schedule",

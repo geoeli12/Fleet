@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { api } from "@/api/apiClient";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Truck, RefreshCw, Search, ChevronLeft, ChevronRight, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,54 +10,114 @@ import { format, addDays, subDays } from "date-fns";
 import DispatchTable from "@/components/dispatch/DispatchTable";
 import AddDispatchForm from "@/components/dispatch/AddDispatchForm";
 import StatusSummary from "@/components/dispatch/StatusSummary";
+import { toast } from "sonner";
+
+function toYMD(value) {
+  if (!value) return "";
+  const s = String(value);
+  // Accept ISO timestamps and YYYY-MM-DD
+  if (s.length >= 10 && s[4] === "-" && s[7] === "-") return s.slice(0, 10);
+  // Fallback: Date parse
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "";
+  return format(d, "yyyy-MM-dd");
+}
+
+function unwrapListResult(list) {
+  if (Array.isArray(list)) return list;
+  if (Array.isArray(list?.data)) return list.data;
+  if (Array.isArray(list?.items)) return list.items;
+  return [];
+}
+
+function toUiLog(order) {
+  return {
+    id: order.id,
+    date: toYMD(order.date),
+    company: order.customer ?? order.company ?? "",
+    trailer_number: order.trailer_number ?? "",
+    notes: order.notes ?? "",
+    dock_hours: order.dock_hours ?? "",
+    bol: order.bol_number ?? order.bol ?? "",
+    item: order.item ?? "",
+    delivered_by: order.driver_name ?? order.delivered_by ?? "",
+  };
+}
+
+function toDbPayload(ui) {
+  return {
+    date: ui.date || null,
+    customer: ui.company || "",
+    trailer_number: ui.trailer_number || "",
+    notes: ui.notes || "",
+    dock_hours: ui.dock_hours || "",
+    bol_number: ui.bol || "",
+    item: ui.item || "",
+    driver_name: ui.delivered_by || "",
+  };
+}
 
 export default function DispatchLog() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const queryClient = useQueryClient();
 
-  const { data: logs = [], isLoading, refetch } = useQuery({
-    queryKey: ["dispatch-orders"],
-    queryFn: () => api.entities.DispatchOrder.list("-created_at"),
+  const {
+    data: rawOrders,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["dispatchOrders"],
+    queryFn: async () => {
+      try {
+        const list = await api.entities.DispatchOrder.list("-date");
+        return unwrapListResult(list);
+      } catch (e) {
+        toast.error(e?.message || "Failed to load dispatch orders");
+        return [];
+      }
+    },
   });
 
+  const uiLogs = useMemo(() => unwrapListResult(rawOrders).map(toUiLog), [rawOrders]);
+
   const createMutation = useMutation({
-    mutationFn: (data) => api.entities.DispatchOrder.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatch-orders"] }),
+    mutationFn: async (uiData) => api.entities.DispatchOrder.create(toDbPayload(uiData)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatchOrders"] }),
+    onError: (e) => toast.error(e?.message || "Failed to add entry"),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => api.entities.DispatchOrder.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatch-orders"] }),
+    mutationFn: async ({ id, data }) => api.entities.DispatchOrder.update(id, toDbPayload(data)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatchOrders"] }),
+    onError: (e) => toast.error(e?.message || "Failed to update entry"),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => api.entities.DispatchOrder.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatch-orders"] }),
+    mutationFn: async (id) => api.entities.DispatchOrder.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatchOrders"] }),
+    onError: (e) => toast.error(e?.message || "Failed to delete entry"),
   });
 
   const filteredLogs = useMemo(() => {
-    const arr = Array.isArray(logs) ? logs : [];
-
-    return arr.filter((log) => {
-      if (toText(log.date) !== selectedDate) return false;
-
+    const base = Array.isArray(uiLogs) ? uiLogs : [];
+    return base.filter((log) => {
+      if (toYMD(log.date) !== selectedDate) return false;
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
       return (
-        toText(log.customer).toLowerCase().includes(search) ||
-        toText(log.city).toLowerCase().includes(search) ||
-        toText(log.trailer_number).toLowerCase().includes(search) ||
-        toText(log.bol_number).toLowerCase().includes(search) ||
-        toText(log.driver_name).toLowerCase().includes(search) ||
-        toText(log.notes).toLowerCase().includes(search)
+        log.company?.toLowerCase().includes(search) ||
+        log.trailer_number?.toLowerCase().includes(search) ||
+        log.bol?.toLowerCase().includes(search) ||
+        log.delivered_by?.toLowerCase().includes(search) ||
+        log.notes?.toLowerCase().includes(search) ||
+        log.item?.toLowerCase().includes(search)
       );
     });
-  }, [logs, selectedDate, searchTerm]);
+  }, [uiLogs, selectedDate, searchTerm]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -85,12 +145,9 @@ export default function DispatchLog() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        {/* Status Summary */}
         <StatusSummary logs={filteredLogs} />
 
-        {/* Date Navigation */}
         <div className="flex items-center justify-center gap-4">
           <Button
             variant="outline"
@@ -118,7 +175,6 @@ export default function DispatchLog() {
           </Button>
         </div>
 
-        {/* Add Form & Search */}
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
           <AddDispatchForm onAdd={createMutation.mutateAsync} defaultDate={selectedDate} />
           <div className="relative w-full md:w-72">
@@ -132,7 +188,6 @@ export default function DispatchLog() {
           </div>
         </div>
 
-        {/* Table */}
         {isLoading ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
             <RefreshCw className="h-8 w-8 animate-spin text-slate-400 mx-auto mb-3" />
@@ -142,14 +197,10 @@ export default function DispatchLog() {
           <DispatchTable
             logs={filteredLogs}
             onUpdate={(id, data) => updateMutation.mutateAsync({ id, data })}
-            onDelete={deleteMutation.mutateAsync}
+            onDelete={(id) => deleteMutation.mutateAsync(id)}
           />
         )}
       </main>
     </div>
   );
-}
-
-function toText(v) {
-  return v === null || v === undefined ? "" : String(v);
 }

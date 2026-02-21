@@ -1,53 +1,112 @@
 import React, { useMemo, useState } from "react";
 import { api } from "@/api/apiClient";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { History, RefreshCw, Search, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import DispatchTable from "@/components/dispatch/DispatchTable";
+import { format } from "date-fns";
+import { toast } from "sonner";
+
+function toYMD(value) {
+  if (!value) return "";
+  const s = String(value);
+  if (s.length >= 10 && s[4] === "-" && s[7] === "-") return s.slice(0, 10);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "";
+  return format(d, "yyyy-MM-dd");
+}
+
+function unwrapListResult(list) {
+  if (Array.isArray(list)) return list;
+  if (Array.isArray(list?.data)) return list.data;
+  if (Array.isArray(list?.items)) return list.items;
+  return [];
+}
+
+function toUiLog(order) {
+  return {
+    id: order.id,
+    date: toYMD(order.date),
+    company: order.customer ?? order.company ?? "",
+    trailer_number: order.trailer_number ?? "",
+    notes: order.notes ?? "",
+    dock_hours: order.dock_hours ?? "",
+    bol: order.bol_number ?? order.bol ?? "",
+    item: order.item ?? "",
+    delivered_by: order.driver_name ?? order.delivered_by ?? "",
+  };
+}
+
+function toDbPayload(ui) {
+  return {
+    date: ui.date || null,
+    customer: ui.company || "",
+    trailer_number: ui.trailer_number || "",
+    notes: ui.notes || "",
+    dock_hours: ui.dock_hours || "",
+    bol_number: ui.bol || "",
+    item: ui.item || "",
+    driver_name: ui.delivered_by || "",
+  };
+}
 
 export default function LoadHistory() {
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
 
-  const { data: logs = [], isLoading, refetch } = useQuery({
-    queryKey: ["dispatch-orders"],
-    queryFn: () => api.entities.DispatchOrder.list("-created_at"),
+  const {
+    data: rawOrders,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["dispatchOrders"],
+    queryFn: async () => {
+      try {
+        const list = await api.entities.DispatchOrder.list("-date");
+        return unwrapListResult(list);
+      } catch (e) {
+        toast.error(e?.message || "Failed to load dispatch history");
+        return [];
+      }
+    },
   });
 
+  const uiLogs = useMemo(() => unwrapListResult(rawOrders).map(toUiLog), [rawOrders]);
+
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => api.entities.DispatchOrder.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatch-orders"] }),
+    mutationFn: async ({ id, data }) => api.entities.DispatchOrder.update(id, toDbPayload(data)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatchOrders"] }),
+    onError: (e) => toast.error(e?.message || "Failed to update entry"),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => api.entities.DispatchOrder.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatch-orders"] }),
+    mutationFn: async (id) => api.entities.DispatchOrder.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatchOrders"] }),
+    onError: (e) => toast.error(e?.message || "Failed to delete entry"),
   });
 
   const filteredLogs = useMemo(() => {
-    const arr = Array.isArray(logs) ? logs : [];
-    if (!searchTerm) return arr;
-
+    const base = Array.isArray(uiLogs) ? uiLogs : [];
+    if (!searchTerm) return base;
     const search = searchTerm.toLowerCase();
-    return arr.filter((log) => {
+    return base.filter((log) => {
       return (
-        toText(log.customer).toLowerCase().includes(search) ||
-        toText(log.city).toLowerCase().includes(search) ||
-        toText(log.trailer_number).toLowerCase().includes(search) ||
-        toText(log.bol_number).toLowerCase().includes(search) ||
-        toText(log.driver_name).toLowerCase().includes(search) ||
-        toText(log.notes).toLowerCase().includes(search) ||
-        toText(log.date).includes(search)
+        log.company?.toLowerCase().includes(search) ||
+        log.trailer_number?.toLowerCase().includes(search) ||
+        log.bol?.toLowerCase().includes(search) ||
+        log.delivered_by?.toLowerCase().includes(search) ||
+        log.notes?.toLowerCase().includes(search) ||
+        log.item?.toLowerCase().includes(search) ||
+        log.date?.includes(search)
       );
     });
-  }, [logs, searchTerm]);
+  }, [uiLogs, searchTerm]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -75,14 +134,11 @@ export default function LoadHistory() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        {/* Search */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+        <div className="flex justify-between items-center">
           <div className="text-slate-600">
             <span className="font-semibold text-2xl">{filteredLogs.length}</span> total entries
           </div>
-
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
@@ -94,7 +150,6 @@ export default function LoadHistory() {
           </div>
         </div>
 
-        {/* Table */}
         {isLoading ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
             <RefreshCw className="h-8 w-8 animate-spin text-slate-400 mx-auto mb-3" />
@@ -104,14 +159,10 @@ export default function LoadHistory() {
           <DispatchTable
             logs={filteredLogs}
             onUpdate={(id, data) => updateMutation.mutateAsync({ id, data })}
-            onDelete={deleteMutation.mutateAsync}
+            onDelete={(id) => deleteMutation.mutateAsync(id)}
           />
         )}
       </main>
     </div>
   );
-}
-
-function toText(v) {
-  return v === null || v === undefined ? "" : String(v);
 }
