@@ -33,7 +33,10 @@ function norm(v) {
 
 
 function stripLeadingNumber(name) {
-  return String(name ?? "").replace(/^\s*\d+\s+/, "").trim();
+  // Handles "10 Albanese", "10\u00A0Albanese", "10. Albanese", etc.
+  return String(name ?? "")
+    .replace(/^[\s\u00A0]*\d+[\s\u00A0]*[\.)-]?[\s\u00A0]+/, "")
+    .trim();
 }
 
 function displayCustomerName(name) {
@@ -45,6 +48,22 @@ function displayIdNumber(id) {
   const s = String(id ?? "").trim();
   const m = s.match(/(\d+)/);
   return m ? m[1] : s;
+}
+
+function getNextId(customers) {
+  const nums = (customers || [])
+    .map((c) => {
+      const raw = c?.id;
+      // Accept numeric IDs or strings like "il-123"
+      const s = String(raw ?? "").trim();
+      const m = s.match(/(\d+)/);
+      const n = m ? parseInt(m[1], 10) : parseInt(s, 10);
+      return Number.isFinite(n) ? n : NaN;
+    })
+    .filter((n) => Number.isFinite(n));
+
+  const max = nums.length ? Math.max(...nums) : 0;
+  return max + 1;
 }
 
 function joinParts(...parts) {
@@ -582,7 +601,7 @@ export default function Customers() {
     if (!cleaned.customer) return;
 
     if (editMode === "new") {
-      const id = cleaned.id ?? `il-${Date.now()}`;
+      const id = getNextId(list);
       const next = [{ ...cleaned, id }, ...list];
       setList(next);
       setEditOpen(false);
