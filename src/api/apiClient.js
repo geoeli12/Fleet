@@ -4,10 +4,12 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 async function req(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
+  const res = await fetch(`${API_BASE}${path}`,
+    {
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      ...options,
+    }
+  );
 
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
@@ -51,5 +53,18 @@ export const api = {
     FuelReading: makeEntity("fuel-readings"),
     FuelRefill: makeEntity("fuel-refills"),
     FuelTank: makeEntity("fuel-tank"),
+
+    // Customers
+    CustomerIL: makeEntity("customers-il"),
+    CustomerPA: makeEntity("customers-pa"),
+  },
+
+  custom: {
+    customersIL: {
+      bulkUpsert: (rows) => req("/api/customers-il/bulk", { method: "POST", body: JSON.stringify({ rows: rows || [] }) }),
+    },
+    customersPA: {
+      bulkUpsert: (rows) => req("/api/customers-pa/bulk", { method: "POST", body: JSON.stringify({ rows: rows || [] }) }),
+    },
   },
 };
