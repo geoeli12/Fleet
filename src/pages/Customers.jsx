@@ -10,20 +10,23 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Building2, Copy, MapPin, ArrowRight, Pencil, Plus } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Building2, Copy, MapPin, ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
 
 const STORAGE_KEY = "customers_il";
 
 function norm(v) {
   return String(v ?? "").trim().toLowerCase();
-}
-
-function sortByCustomer(a, b) {
-  const aa = String(a?.customer ?? "").trim().toLowerCase();
-  const bb = String(b?.customer ?? "").trim().toLowerCase();
-  if (aa < bb) return -1;
-  if (aa > bb) return 1;
-  return 0;
 }
 
 function joinParts(...parts) {
@@ -80,7 +83,7 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -163,7 +166,7 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
   );
 }
 
-function CustomerCard({ row, onEdit }) {
+function CustomerCard({ row, onEdit, onDelete }) {
   const title = row?.customer || "Unknown customer";
 
   const hasAddr = !!String(row?.address || "").trim();
@@ -196,6 +199,37 @@ function CustomerCard({ row, onEdit }) {
             <Badge className="rounded-full bg-amber-400 text-black hover:bg-amber-400">
               IL
             </Badge>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-8 w-8 p-0 rounded-xl"
+                  title="Delete customer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this customer?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove <span className="font-medium">{title}</span> from your IL customer list.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-red-600 hover:bg-red-600/90"
+                    onClick={() => onDelete?.(row)}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
             <Button
               type="button"
               variant="secondary"
@@ -293,12 +327,16 @@ export default function Customers() {
   }, [list]);
 
   const rows = useMemo(() => {
+    const sorted = [...(list || [])].sort((a, b) => {
+      const aa = norm(a?.customer);
+      const bb = norm(b?.customer);
+      return aa.localeCompare(bb);
+    });
+
     const qq = norm(q);
-    const baseList = Array.isArray(list) ? list : [];
+    if (!qq) return sorted;
 
-    if (!qq) return [...baseList].sort(sortByCustomer);
-
-    const filtered = baseList.filter((r) => {
+    return sorted.filter((r) => {
       const hay = [
         r?.customer,
         r?.address,
@@ -316,9 +354,23 @@ export default function Customers() {
 
       return hay.includes(qq);
     });
-
-    return [...filtered].sort(sortByCustomer);
   }, [q, list]);
+
+  const deleteRow = (row) => {
+    if (!row) return;
+    const id = row?.id;
+
+    // Prefer id match; fall back to customer+address match
+    const next = (list || []).filter((r, idx) => {
+      const rid = r?.id ?? idx;
+      if (id != null) return String(rid) !== String(id);
+      const keyA = `${norm(r?.customer)}|${norm(r?.address)}`;
+      const keyB = `${norm(row?.customer)}|${norm(row?.address)}`;
+      return keyA !== keyB;
+    });
+
+    setList(next);
+  };
 
   const openEdit = (row) => {
     setEditMode("edit");
@@ -439,7 +491,12 @@ export default function Customers() {
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         {rows.map((r, idx) => (
-          <CustomerCard key={String(r?.id ?? idx)} row={r} onEdit={openEdit} />
+          <CustomerCard
+            key={String(r?.id ?? idx)}
+            row={r}
+            onEdit={openEdit}
+            onDelete={deleteRow}
+          />
         ))}
       </div>
     </div>
