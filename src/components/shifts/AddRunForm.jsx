@@ -52,11 +52,68 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
         return [...withMeta(customersIL, 'IL'), ...withMeta(customersPA, 'PA')].filter(r => r.customer);
     }, []);
 
+    // Address formats in your Excel are typically like:
+    // "13305 104th street Pleasant Prairie, WI 53158" (no comma between street and city)
+    // We extract the city by:
+    // 1) taking the portion before the last comma ("... Pleasant Prairie")
+    // 2) removing the street portion up to the last known street suffix ("street", "rd", "ave", etc.)
+    // 3) returning the remaining trailing text as the city (supports multi-word cities)
     const parseCityFromAddress = (address) => {
         if (!address) return '';
-        const parts = address.split(',').map(s => s.trim()).filter(Boolean);
-        if (parts.length >= 2) return parts[1];
-        return '';
+
+        const raw = String(address).trim();
+        if (!raw) return '';
+
+        const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+        const left = (parts.length >= 2 ? parts.slice(0, -1).join(', ') : raw).trim();
+        if (!left) return '';
+
+        const suffixes = [
+            'street', 'st',
+            'road', 'rd',
+            'avenue', 'ave',
+            'boulevard', 'blvd',
+            'drive', 'dr',
+            'lane', 'ln',
+            'court', 'ct',
+            'way',
+            'parkway', 'pkwy',
+            'highway', 'hwy',
+            'circle', 'cir',
+            'place', 'pl',
+            'terrace', 'ter',
+            'trail', 'trl',
+            'suite', 'ste',
+            'unit', 'apt'
+        ];
+
+        const lower = left.toLowerCase();
+        let bestIdx = -1;
+        let bestSuffixLen = 0;
+
+        // Find the *last* street suffix occurrence to split city from street.
+        for (const suf of suffixes) {
+            const re = new RegExp(`\\b${suf}\\b`, 'g');
+            let m;
+            while ((m = re.exec(lower)) !== null) {
+                const idx = m.index;
+                if (idx >= bestIdx) {
+                    bestIdx = idx;
+                    bestSuffixLen = suf.length;
+                }
+            }
+        }
+
+        if (bestIdx >= 0) {
+            const after = left.slice(bestIdx + bestSuffixLen).trim();
+            const cleaned = after.replace(/^[-–—,\s]+/, '').trim();
+            if (cleaned) return cleaned;
+        }
+
+        // Fallback: take the last 2-3 tokens (helps if suffix not found)
+        const tokens = left.split(/\s+/).filter(Boolean);
+        if (tokens.length <= 2) return left;
+        return tokens.slice(Math.max(0, tokens.length - 3)).join(' ');
     };
 
     const customerMatches = useMemo(() => {
