@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import seedCustomers from "@/data/customers_il.json";
+import { api } from "@/api/apiClient";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,16 +24,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Building2, Copy, MapPin, ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
-
-const STORAGE_KEY = "customers_il";
-const STORAGE_VERSION_KEY = "customers_il_v";
-const STORAGE_VERSION = 3; // bump when seed schema changes
+import { Building2, Copy, MapPin, ArrowRight, Pencil, Plus, Trash2, Loader2, RefreshCw } from "lucide-react";
 
 function norm(v) {
   return String(v ?? "").trim().toLowerCase();
 }
-
 
 function stripLeadingNumber(name) {
   // Handles "10 Albanese", "10\u00A0Albanese", "10. Albanese", etc.
@@ -54,7 +52,6 @@ function getNextId(customers) {
   const nums = (customers || [])
     .map((c) => {
       const raw = c?.id;
-      // Accept numeric IDs or strings like "il-123"
       const s = String(raw ?? "").trim();
       const m = s.match(/(\d+)/);
       const n = m ? parseInt(m[1], 10) : parseInt(s, 10);
@@ -72,11 +69,11 @@ function joinParts(...parts) {
     .filter(Boolean)
     .join(" • ");
 }
+
 function extractWeekendHours(notes) {
   const s = String(notes ?? "").trim();
   if (!s) return "";
 
-  // Capture Sat/Sun segments (works with "Sat", "Saturday", "Sun", "Sunday")
   const lower = s.toLowerCase();
 
   const grab = (day) => {
@@ -87,17 +84,13 @@ function extractWeekendHours(notes) {
 
   const sat = grab("sat");
   const sun = grab("sun");
-
   const parts = [sat, sun].filter(Boolean);
 
-  // If no explicit weekend tokens, try a fallback if the note contains "weekend"
   if (!parts.length && lower.includes("weekend")) return s;
 
-  // Clean duplicates / overly long text
   const uniq = Array.from(new Set(parts.map((p) => p.replace(/\s+/g, " ").trim())));
   return uniq.join(" • ");
 }
-
 
 async function copyText(text) {
   try {
@@ -108,94 +101,12 @@ async function copyText(text) {
   }
 }
 
-function safeJsonParse(str) {
-  try {
-    return JSON.parse(str);
-  } catch {
-    return null;
-  }
+function getErrorMessage(err) {
+  if (!err) return "Save failed.";
+  return err?.data?.error || err?.message || "Save failed.";
 }
 
-function loadCustomers() {
-  if (typeof window === "undefined") return Array.isArray(seedCustomers) ? seedCustomers : [];
-
-  const seed = Array.isArray(seedCustomers) ? seedCustomers : [];
-
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  const parsed = raw ? safeJsonParse(raw) : null;
-
-  const storedVRaw = window.localStorage.getItem(STORAGE_VERSION_KEY);
-  const storedV = storedVRaw ? Number(storedVRaw) : 0;
-
-  // If no saved data, start from seed and persist.
-  if (!Array.isArray(parsed)) {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
-      window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
-    } catch {
-      // ignore
-    }
-    return seed;
-  }
-
-  // Migration: if schema changed (new columns like coordinates/dis/eta), rebuild from seed.
-  // Rebuild if version mismatch or any row is missing the new keys.
-  const needsUpgrade =
-    storedV !== STORAGE_VERSION ||
-    parsed.some((r) => {
-      const hasCust = String(r?.customer ?? "").trim() !== "";
-      if (!hasCust) return false;
-      const hasCoords = Object.prototype.hasOwnProperty.call(r ?? {}, "coordinates");
-      const hasDis = Object.prototype.hasOwnProperty.call(r ?? {}, "dis");
-      const hasEta = Object.prototype.hasOwnProperty.call(r ?? {}, "eta");
-      return !hasCoords || !hasDis || !hasEta;
-    });
-
-  if (needsUpgrade) {
-    // Preserve any user-edited records by merging on (id) first, then customer+address as fallback.
-    const byId = new Map(parsed.map((r, i) => [String(r?.id ?? i), r]));
-    const byKey = new Map(parsed.map((r) => [`${norm(r?.customer)}|${norm(r?.address)}`, r]));
-
-    const merged = seed.map((s) => {
-      const sid = String(s?.id ?? "");
-      const fromId = sid ? byId.get(sid) : null;
-      const fromKey = byKey.get(`${norm(s?.customer)}|${norm(s?.address)}`) || null;
-      const userRow = fromId || fromKey;
-
-      // userRow overlays seed so any edits stick, but seed provides new columns.
-      const mergedRow = { ...s, ...(userRow || {}) };
-
-      if (!String(mergedRow.weekendHours ?? "").trim()) {
-        const derived = extractWeekendHours(mergedRow.receivingNotes);
-        if (derived) mergedRow.weekendHours = derived;
-      }
-
-      return mergedRow;
-    });
-
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-      window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
-    } catch {
-      // ignore
-    }
-    return merged;
-  }
-
-  return parsed;
-}
-
-
-function saveCustomers(list) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list ?? []));
-    window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
-  } catch {
-    // ignore
-  }
-}
-
-function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
+function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave, isSaving }) {
   const [form, setForm] = useState(() => ({ ...initial }));
 
   useEffect(() => {
@@ -258,19 +169,13 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
             <Input value={form.eta || ""} onChange={set("eta")} className="rounded-xl" placeholder="e.g., 28 min" />
           </div>
 
-
-          <div className="space-y-2">
-            <Label>Drop Trailers</Label>
-            <Input value={form.dropTrailers || ""} onChange={set("dropTrailers")} className="rounded-xl" />
-          </div>
-
           <div className="space-y-2">
             <Label>Contact</Label>
-            <Input value={form.contact || ""} onChange={set("contact")} className="rounded-xl" />
+            <Input value={form.contact || ""} onChange={set("contact")} className="rounded-xl" placeholder="Contact name / info" />
           </div>
 
           <div className="space-y-2">
-            <Label>Contact Phone #</Label>
+            <Label>Phone</Label>
             <Input
               value={form.contactPhone || ""}
               onChange={(e) => setForm((p) => ({ ...p, contactPhone: normalizePhone(e.target.value) }))}
@@ -280,7 +185,7 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
           </div>
 
           <div className="space-y-2">
-            <Label>Contact E-Mail</Label>
+            <Label>E-Mail</Label>
             <Input
               value={form.contactEmail || ""}
               onChange={(e) => setForm((p) => ({ ...p, contactEmail: normalizeEmail(e.target.value) }))}
@@ -298,17 +203,36 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
             <Label>Notes</Label>
             <Textarea value={form.notes || ""} onChange={set("notes")} className="min-h-[70px] rounded-xl" />
           </div>
+
+          <div className="space-y-2">
+            <Label>Distance</Label>
+            <Input value={form.distance || ""} onChange={set("distance")} className="rounded-xl" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Drop Trailers</Label>
+            <Input value={form.dropTrailers || ""} onChange={set("dropTrailers")} className="rounded-xl" />
+          </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="secondary" className="rounded-xl" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="mt-4">
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} className="rounded-xl" disabled={isSaving}>
             Cancel
           </Button>
           <Button
-            className="rounded-xl bg-amber-500 text-black hover:bg-amber-500/90"
+            type="button"
             onClick={() => onSave(form)}
+            className="rounded-xl bg-amber-500 text-black hover:bg-amber-500/90"
+            disabled={isSaving}
           >
-            Save
+            {isSaving ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving…
+              </span>
+            ) : (
+              "Save"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -316,157 +240,206 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
   );
 }
 
-function CustomerCard({ row, onEdit, onDelete }) {
-  const title = displayCustomerName(row?.customer);
+function CustomerCard({ row, onEdit, onDelete, onCopy }) {
+  const name = displayCustomerName(row?.customer);
+  const idBadge = displayIdNumber(row?.id);
 
-  const hasAddr = !!String(row?.address || "").trim();
-  const hasContactName = !!String(row?.contact || "").trim();
+  const hasAddress = !!String(row?.address || "").trim();
+  const hasReceiving = !!String(row?.receivingHours || "").trim();
+  const hasWeekend = !!String(row?.weekendHours || "").trim();
+  const hasNotes = !!String(row?.notes || "").trim();
+  const hasRecvNotes = !!String(row?.receivingNotes || "").trim();
+  const hasContact = !!String(row?.contact || "").trim();
   const hasContactPhone = !!String(row?.contactPhone || "").trim();
   const hasContactEmail = !!String(row?.contactEmail || "").trim();
-  const hasAnyContact = hasContactName || hasContactPhone || hasContactEmail;
+  const hasDistance = !!String(row?.distance || "").trim();
+  const hasDrop = !!String(row?.dropTrailers || "").trim();
+  const hasCoords = !!String(row?.coordinates || "").trim();
+  const hasDis = !!String(row?.dis || "").trim();
+  const hasEta = !!String(row?.eta || "").trim();
 
-  const meta = joinParts(
-    row?.receivingHours ? `Hours: ${row.receivingHours}` : "",
-    row?.weekendHours ? `Weekend: ${row.weekendHours}` : "",
-    row?.dis ? `Dis: ${row.dis}` : "",
-    row?.eta ? `ETA: ${row.eta}` : "",
-    row?.dropTrailers ? `Drop: ${row.dropTrailers}` : ""
-  );
+  const mapsUrl = hasAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.address)}` : null;
+
+  const copyLine = async () => {
+    const txt = joinParts(
+      name,
+      row?.address,
+      row?.receivingHours ? `Hours: ${row.receivingHours}` : "",
+      row?.weekendHours ? `Weekend: ${row.weekendHours}` : "",
+      row?.contact ? `Contact: ${row.contact}` : "",
+      row?.contactPhone ? `Phone: ${row.contactPhone}` : "",
+      row?.contactEmail ? `Email: ${row.contactEmail}` : "",
+      row?.dis ? `Dis: ${row.dis}` : "",
+      row?.eta ? `ETA: ${row.eta}` : ""
+    );
+
+    const ok = await copyText(txt);
+    if (onCopy) onCopy(ok);
+  };
 
   return (
-    <Card className="rounded-2xl border-black/10 bg-white/80 shadow-sm backdrop-blur-sm">
+    <Card className="rounded-2xl border-black/10 bg-white/70 backdrop-blur-sm">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <CardTitle className="text-base sm:text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-amber-600" />
-              <span className="truncate">{title}</span>
+            <CardTitle className="text-base sm:text-lg font-semibold leading-tight flex items-center gap-2">
+              <Badge className="rounded-full bg-black text-amber-400 hover:bg-black" title="Customer ID">
+                {idBadge}
+              </Badge>
+              <span className="truncate">{name}</span>
             </CardTitle>
-            {meta ? (
-              <div className="mt-1 text-xs text-muted-foreground">{meta}</div>
+            {hasAddress ? (
+              <div className="mt-1 text-sm text-muted-foreground flex items-start gap-2">
+                <MapPin className="h-4 w-4 mt-0.5 flex-none" />
+                <span className="line-clamp-2">{row.address}</span>
+              </div>
             ) : null}
           </div>
 
           <div className="flex items-center gap-2">
-            {row?.id ? (
-              <Badge className="rounded-full border border-black/10 bg-white/80 text-foreground hover:bg-white/80">
-                {displayIdNumber(row.id)}
-              </Badge>
-            ) : null}
+            <Button variant="secondary" size="icon" className="rounded-xl" onClick={copyLine} title="Copy">
+              <Copy className="h-4 w-4" />
+            </Button>
 
-            <Badge className="rounded-full bg-amber-400 text-black hover:bg-amber-400">
-              IL
-            </Badge>
+            <Button variant="secondary" size="icon" className="rounded-xl" onClick={() => onEdit(row)} title="Edit">
+              <Pencil className="h-4 w-4" />
+            </Button>
 
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-8 w-8 p-0 rounded-xl"
-                  title="Delete customer"
-                >
+                <Button variant="secondary" size="icon" className="rounded-xl" title="Delete">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this customer?</AlertDialogTitle>
+                  <AlertDialogTitle>Delete customer?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently remove <span className="font-medium">{title}</span> from your IL customer list.
+                    This will permanently remove <b>{name}</b> from the database.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-red-600 hover:bg-red-600/90"
-                    onClick={() => onDelete?.(row)}
-                  >
+                  <AlertDialogAction className="bg-red-600 hover:bg-red-600/90" onClick={() => onDelete(row)}>
                     Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-8 w-8 p-0 rounded-xl"
-              title="Edit customer"
-              onClick={() => onEdit?.(row)}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 space-y-3">
-        {hasAddr ? (
-          <div className="flex items-start gap-2">
-            <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="min-w-0">
-              <div className="text-sm text-foreground whitespace-pre-wrap break-words">
-                {row.address}
-              </div>
-              {row?.coordinates ? (
-                <div className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap break-words">
-                  Coordinates: {row.coordinates}
-                </div>
-              ) : null}
-              <div className="mt-2 flex gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-8 rounded-xl"
-                  onClick={async () => {
-                    await copyText(row.address);
-                  }}
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy address
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {row?.receivingNotes ? (
-          <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {row.receivingNotes}
-          </div>
-        ) : null}
-
-        {hasAnyContact ? (
-          <>
-            <Separator className="bg-black/10" />
-            <div className="space-y-1">
-              {hasContactName ? (
-                <div className="text-sm font-medium text-foreground whitespace-pre-wrap break-words">
-                  {row.contact}
+      <CardContent className="pt-0">
+        <div className="space-y-3">
+          {(hasReceiving || hasWeekend || hasDistance || hasDis || hasEta) ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              {hasReceiving ? (
+                <div>
+                  <span className="text-muted-foreground">Hours:</span> {row.receivingHours}
                 </div>
               ) : null}
 
-              {hasContactPhone ? (
-                <div className="text-sm text-foreground whitespace-pre-wrap break-words">
-                  <span className="text-muted-foreground">Phone:</span> {row.contactPhone}
+              {hasWeekend ? (
+                <div>
+                  <span className="text-muted-foreground">Weekend:</span> {row.weekendHours}
                 </div>
               ) : null}
 
-              {hasContactEmail ? (
-                <div className="text-sm text-foreground whitespace-pre-wrap break-words">
-                  <span className="text-muted-foreground">E-Mail:</span> {row.contactEmail}
+              {hasDistance ? (
+                <div>
+                  <span className="text-muted-foreground">Distance:</span> {row.distance}
+                </div>
+              ) : null}
+
+              {hasDis ? (
+                <div>
+                  <span className="text-muted-foreground">Dis:</span> {row.dis}
+                </div>
+              ) : null}
+
+              {hasEta ? (
+                <div>
+                  <span className="text-muted-foreground">ETA:</span> {row.eta}
                 </div>
               ) : null}
             </div>
-          </>
-        ) : null}
+          ) : null}
 
-        {row?.notes ? (
-          <div className="text-xs text-muted-foreground whitespace-pre-wrap">
-            {row.notes}
-          </div>
-        ) : null}
+          {(hasContact || hasContactPhone || hasContactEmail) ? (
+            <>
+              <Separator className="bg-black/10" />
+              <div className="space-y-1 text-sm">
+                {hasContact ? (
+                  <div>
+                    <span className="text-muted-foreground">Contact:</span> {row.contact}
+                  </div>
+                ) : null}
+                {hasContactPhone ? (
+                  <div>
+                    <span className="text-muted-foreground">Phone:</span> {row.contactPhone}
+                  </div>
+                ) : null}
+                {hasContactEmail ? (
+                  <div>
+                    <span className="text-muted-foreground">E-Mail:</span> {row.contactEmail}
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+
+          {hasRecvNotes ? (
+            <>
+              <Separator className="bg-black/10" />
+              <div className="text-sm">
+                <div className="text-muted-foreground">Receiving Notes</div>
+                <div className="whitespace-pre-wrap">{row.receivingNotes}</div>
+              </div>
+            </>
+          ) : null}
+
+          {hasNotes ? (
+            <>
+              <Separator className="bg-black/10" />
+              <div className="text-sm">
+                <div className="text-muted-foreground">Notes</div>
+                <div className="whitespace-pre-wrap">{row.notes}</div>
+              </div>
+            </>
+          ) : null}
+
+          {(hasDrop || hasCoords) ? (
+            <>
+              <Separator className="bg-black/10" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                {hasDrop ? (
+                  <div>
+                    <span className="text-muted-foreground">Drop Trailers:</span> {row.dropTrailers}
+                  </div>
+                ) : null}
+                {hasCoords ? (
+                  <div>
+                    <span className="text-muted-foreground">Coords:</span> {row.coordinates}
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+
+          {mapsUrl ? (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center text-sm font-medium text-amber-700 hover:text-amber-800"
+              title="Open in Google Maps"
+            >
+              Open map
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </a>
+          ) : null}
+        </div>
       </CardContent>
     </Card>
   );
@@ -474,95 +447,106 @@ function CustomerCard({ row, onEdit, onDelete }) {
 
 export default function Customers() {
   const [q, setQ] = useState("");
-  const [list, setList] = useState(() => loadCustomers());
-
   const [editOpen, setEditOpen] = useState(false);
-  const [editMode, setEditMode] = useState("edit"); // "edit" | "new"
+  const [editMode, setEditMode] = useState("edit"); // edit | new
   const [activeRow, setActiveRow] = useState(null);
+  const [toastMsg, setToastMsg] = useState("");
+  const [saveError, setSaveError] = useState("");
 
-  useEffect(() => {
-    // one-time hydrate in case SSR or older session
-    setList(loadCustomers());
-  }, []);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    saveCustomers(list);
-  }, [list]);
+  const {
+    data: customers = [],
+    isLoading,
+    isFetching,
+    error,
+  } = useQuery({
+    queryKey: ["customers_il"],
+    queryFn: () => api.entities.CustomerIL.list("customer"),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data) => api.entities.CustomerIL.create(data),
+    onError: (err) => setSaveError(getErrorMessage(err)),
+    onSuccess: () => {
+      setSaveError("");
+      setEditOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["customers_il"] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => api.entities.CustomerIL.update(id, data),
+    onError: (err) => setSaveError(getErrorMessage(err)),
+    onSuccess: () => {
+      setSaveError("");
+      setEditOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["customers_il"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.entities.CustomerIL.delete(id),
+    onError: (err) => setSaveError(getErrorMessage(err)),
+    onSuccess: () => {
+      setSaveError("");
+      queryClient.invalidateQueries({ queryKey: ["customers_il"] });
+    },
+  });
+
+  const bulkSeedMutation = useMutation({
+    mutationFn: () => api.custom.customersIL.bulkUpsert(Array.isArray(seedCustomers) ? seedCustomers : []),
+    onError: (err) => setSaveError(getErrorMessage(err)),
+    onSuccess: () => {
+      setSaveError("");
+      queryClient.invalidateQueries({ queryKey: ["customers_il"] });
+    },
+  });
 
   const rows = useMemo(() => {
-    const base = (list || []).filter(r => String(r?.customer ?? "").trim() !== "");
-    const sorted = [...base].sort((a, b) => {
-      const aa = norm(stripLeadingNumber(a?.customer));
-      const bb = norm(stripLeadingNumber(b?.customer));
-      return aa.localeCompare(bb);
-    });
-
+    const list = Array.isArray(customers) ? customers : [];
     const qq = norm(q);
-    if (!qq) return sorted;
 
-    return sorted.filter((r) => {
-      const hay = [
-        r?.customer,
-        stripLeadingNumber(r?.customer),
-        r?.id,
-        displayIdNumber(r?.id),
-        r?.address,
-        r?.receivingHours,
-        r?.receivingNotes,
-        r?.distance,
-        r?.contact,
-        r?.contactPhone,
-        r?.contactEmail,
-        r?.notes,
-        r?.dropTrailers,
-        r?.coordinates,
-        r?.dis,
-        r?.eta,
-        r?.weekendHours,
-      ]
-        .map(norm)
-        .join(" | ");
+    const filtered = !qq
+      ? list
+      : list.filter((r) => {
+          const hay = [
+            r?.id,
+            r?.customer,
+            stripLeadingNumber(r?.customer),
+            r?.address,
+            r?.receivingHours,
+            r?.receivingNotes,
+            r?.contact,
+            r?.contactPhone,
+            r?.contactEmail,
+            r?.notes,
+            r?.dropTrailers,
+            r?.coordinates,
+            r?.dis,
+            r?.eta,
+            r?.weekendHours,
+          ]
+            .map(norm)
+            .join(" | ");
+          return hay.includes(qq);
+        });
 
-      return hay.includes(qq);
-    });
-  }, [q, list]);
-
-  const deleteRow = (row) => {
-    if (!row) return;
-    const id = row?.id;
-
-    // Prefer id match; fall back to customer+address match
-    const next = (list || []).filter((r, idx) => {
-      const rid = r?.id ?? idx;
-      if (id != null) return String(rid) !== String(id);
-      const keyA = `${norm(r?.customer)}|${norm(r?.address)}`;
-      const keyB = `${norm(row?.customer)}|${norm(row?.address)}`;
-      return keyA !== keyB;
-    });
-
-    setList(next);
-  };
-
-
-  const rebuildFromExcel = () => {
-    const seed = Array.isArray(seedCustomers) ? seedCustomers : [];
-    setQ("");
-    setList(seed);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
-      window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
-    } catch {
-      // ignore
-    }
-  };
+    // Always sort by customer name (without the leading number)
+    return filtered.slice().sort((a, b) =>
+      displayCustomerName(a?.customer).localeCompare(displayCustomerName(b?.customer), undefined, { sensitivity: "base" })
+    );
+  }, [q, customers]);
 
   const openEdit = (row) => {
+    setSaveError("");
     setEditMode("edit");
     setActiveRow(row);
     setEditOpen(true);
   };
 
   const openNew = () => {
+    setSaveError("");
     setEditMode("new");
     setActiveRow({
       id: null,
@@ -587,36 +571,52 @@ export default function Customers() {
   const saveRow = (draft) => {
     const cleaned = {
       ...(draft || {}),
-      customer: String(draft?.customer ?? "").trim(),
+      customer: displayCustomerName(draft?.customer),
       address: String(draft?.address ?? "").trim(),
+      receivingHours: String(draft?.receivingHours ?? "").trim(),
+      receivingNotes: String(draft?.receivingNotes ?? "").trim(),
+      weekendHours: String(draft?.weekendHours ?? "").trim(),
+      distance: String(draft?.distance ?? "").trim(),
       contact: String(draft?.contact ?? "").trim(),
       contactPhone: String(draft?.contactPhone ?? "").trim(),
       contactEmail: String(draft?.contactEmail ?? "").trim(),
+      notes: String(draft?.notes ?? "").trim(),
+      dropTrailers: String(draft?.dropTrailers ?? "").trim(),
       coordinates: String(draft?.coordinates ?? "").trim(),
       dis: String(draft?.dis ?? "").trim(),
       eta: String(draft?.eta ?? "").trim(),
-      weekendHours: String(draft?.weekendHours ?? "").trim(),
     };
 
     if (!cleaned.customer) return;
 
     if (editMode === "new") {
-      const id = getNextId(list);
-      const next = [{ ...cleaned, id }, ...list];
-      setList(next);
-      setEditOpen(false);
+      // If your Supabase table uses an auto-increment id, you can remove this line.
+      if (cleaned.id === null || cleaned.id === undefined || cleaned.id === "") {
+        cleaned.id = getNextId(customers);
+      }
+      createMutation.mutate(cleaned);
       return;
     }
 
     const id = activeRow?.id;
-    const next = list.map((r, idx) => {
-      const rid = r?.id ?? idx;
-      if (String(rid) === String(id)) return { ...r, ...cleaned, id: rid };
-      return r;
-    });
-    setList(next);
-    setEditOpen(false);
+    if (id === undefined || id === null || id === "") return;
+
+    updateMutation.mutate({ id, data: cleaned });
   };
+
+  const deleteRow = (row) => {
+    const id = row?.id;
+    if (id === undefined || id === null || id === "") return;
+    deleteMutation.mutate(id);
+  };
+
+  const onCopy = (ok) => {
+    setToastMsg(ok ? "Copied" : "Copy failed");
+    window.setTimeout(() => setToastMsg(""), 900);
+  };
+
+  const hasDbCustomers = Array.isArray(customers) && customers.length > 0;
+  const seedCount = Array.isArray(seedCustomers) ? seedCustomers.length : 0;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-8">
@@ -626,6 +626,7 @@ export default function Customers() {
         title={editMode === "new" ? "Add new customer (IL)" : "Edit customer (IL)"}
         initial={activeRow || {}}
         onSave={saveRow}
+        isSaving={createMutation.isPending || updateMutation.isPending}
       />
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -635,12 +636,8 @@ export default function Customers() {
               <Building2 className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                Customers
-              </h1>
-              <div className="text-sm text-muted-foreground">
-                Quick lookup of customer details (from your Excel list).
-              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Customers</h1>
+              <div className="text-sm text-muted-foreground">Saved in Supabase (same as your other pages).</div>
             </div>
           </div>
         </div>
@@ -655,20 +652,31 @@ export default function Customers() {
             Add Customer
           </Button>
 
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={rebuildFromExcel}
-            className="h-10 rounded-xl"
-            title="Overwrite localStorage with the Excel seed list"
-          >
-            Rebuild from Excel
-          </Button>
+          {!hasDbCustomers && seedCount ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => bulkSeedMutation.mutate()}
+              className="h-10 rounded-xl"
+              disabled={bulkSeedMutation.isPending}
+              title="Push the built-in Excel list into Supabase"
+            >
+              {bulkSeedMutation.isPending ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Initializing…
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Initialize from Excel
+                </span>
+              )}
+            </Button>
+          ) : null}
 
           <div className="flex items-center gap-2">
-            <Badge className="rounded-full bg-black text-amber-400 hover:bg-black">
-              {rows.length}
-            </Badge>
+            <Badge className="rounded-full bg-black text-amber-400 hover:bg-black">{rows.length}</Badge>
             <span className="text-sm text-muted-foreground">matches</span>
           </div>
 
@@ -682,6 +690,20 @@ export default function Customers() {
         </div>
       </div>
 
+      <div className="mt-4">
+        {saveError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm">{saveError}</div>
+        ) : null}
+        {toastMsg ? (
+          <div className="mt-2 text-sm text-muted-foreground">{toastMsg}</div>
+        ) : null}
+        {error ? (
+          <div className="mt-2 rounded-xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm">
+            {getErrorMessage(error)}
+          </div>
+        ) : null}
+      </div>
+
       <div className="mt-6">
         <Input
           value={q}
@@ -691,6 +713,20 @@ export default function Customers() {
         />
       </div>
 
+      <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+        {isLoading ? (
+          <span className="inline-flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading customers…
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-2">
+            {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {hasDbCustomers ? "Loaded from Supabase" : (seedCount ? "No customers in Supabase yet" : "No customers")}
+          </span>
+        )}
+      </div>
+
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         {rows.map((r, idx) => (
           <CustomerCard
@@ -698,6 +734,7 @@ export default function Customers() {
             row={r}
             onEdit={openEdit}
             onDelete={deleteRow}
+            onCopy={onCopy}
           />
         ))}
       </div>
