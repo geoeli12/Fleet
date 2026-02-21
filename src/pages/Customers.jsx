@@ -37,6 +37,32 @@ function joinParts(...parts) {
     .filter(Boolean)
     .join(" • ");
 }
+function extractWeekendHours(notes) {
+  const s = String(notes ?? "").trim();
+  if (!s) return "";
+
+  // Capture Sat/Sun segments (works with "Sat", "Saturday", "Sun", "Sunday")
+  const lower = s.toLowerCase();
+
+  const grab = (day) => {
+    const reDay = new RegExp(`\\b${day}\\w*\\b[\\s\\S]*?(?=\\b(mon|tue|wed|thu|fri)\\w*\\b|$)`, "i");
+    const m = s.match(reDay);
+    return m ? String(m[0]).trim() : "";
+  };
+
+  const sat = grab("sat");
+  const sun = grab("sun");
+
+  const parts = [sat, sun].filter(Boolean);
+
+  // If no explicit weekend tokens, try a fallback if the note contains "weekend"
+  if (!parts.length && lower.includes("weekend")) return s;
+
+  // Clean duplicates / overly long text
+  const uniq = Array.from(new Set(parts.map((p) => p.replace(/\s+/g, " ").trim())));
+  return uniq.join(" • ");
+}
+
 
 async function copyText(text) {
   try {
@@ -101,7 +127,15 @@ function loadCustomers() {
       const fromKey = byKey.get(`${norm(s?.customer)}|${norm(s?.address)}`) || null;
       const userRow = fromId || fromKey;
 
-      return { ...s, ...(userRow || {}) };
+      // userRow overlays seed so any edits stick, but seed provides new columns.
+      const mergedRow = { ...s, ...(userRow || {}) };
+
+      if (!String(mergedRow.weekendHours ?? "").trim()) {
+        const derived = extractWeekendHours(mergedRow.receivingNotes);
+        if (derived) mergedRow.weekendHours = derived;
+      }
+
+      return mergedRow;
     });
 
     try {
@@ -130,7 +164,15 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
   const [form, setForm] = useState(() => ({ ...initial }));
 
   useEffect(() => {
-    setForm({ ...initial });
+    const next = { ...initial };
+
+    // Auto-fill Weekend Hours from Receiving Notes when missing
+    if (!String(next.weekendHours ?? "").trim()) {
+      const derived = extractWeekendHours(next.receivingNotes);
+      if (derived) next.weekendHours = derived;
+    }
+
+    setForm(next);
   }, [initial, open]);
 
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
@@ -162,8 +204,8 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
           </div>
 
           <div className="space-y-2">
-            <Label>Distance</Label>
-            <Input value={form.distance || ""} onChange={set("distance")} className="rounded-xl" />
+            <Label>Weekend Hours</Label>
+            <Input value={form.weekendHours || ""} onChange={set("weekendHours")} className="rounded-xl" placeholder="Sat/Sun hours" />
           </div>
 
           <div className="space-y-2">
@@ -250,7 +292,7 @@ function CustomerCard({ row, onEdit, onDelete }) {
 
   const meta = joinParts(
     row?.receivingHours ? `Hours: ${row.receivingHours}` : "",
-    row?.distance ? `Distance: ${row.distance}` : "",
+    row?.weekendHours ? `Weekend: ${row.weekendHours}` : "",
     row?.dis ? `Dis: ${row.dis}` : "",
     row?.eta ? `ETA: ${row.eta}` : "",
     row?.dropTrailers ? `Drop: ${row.dropTrailers}` : ""
@@ -432,6 +474,7 @@ export default function Customers() {
         r?.coordinates,
         r?.dis,
         r?.eta,
+        r?.weekendHours,
       ]
         .map(norm)
         .join(" | ");
@@ -489,6 +532,7 @@ export default function Customers() {
       notes: "",
       distance: "",
       dropTrailers: "",
+      weekendHours: "",
       coordinates: "",
       dis: "",
       eta: "",
@@ -507,6 +551,7 @@ export default function Customers() {
       coordinates: String(draft?.coordinates ?? "").trim(),
       dis: String(draft?.dis ?? "").trim(),
       eta: String(draft?.eta ?? "").trim(),
+      weekendHours: String(draft?.weekendHours ?? "").trim(),
     };
 
     if (!cleaned.customer) return;
