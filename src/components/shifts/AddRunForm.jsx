@@ -36,6 +36,21 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
 
     const customerDirectory = useMemo(() => {
         const normalize = (v) => (v ?? '').toString().trim();
+
+        const safeParse = (raw) => {
+            try { return JSON.parse(raw); } catch { return null; }
+        };
+
+        const getRows = (key, fallback) => {
+            if (typeof window === 'undefined') return fallback || [];
+            const raw = window.localStorage.getItem(key);
+            const parsed = raw ? safeParse(raw) : null;
+            return Array.isArray(parsed) ? parsed : (fallback || []);
+        };
+
+        const ilRows = getRows('customers_il', customersIL);
+        const paRows = getRows('customers_pa', customersPA);
+
         const withMeta = (rows, region) =>
             (rows || []).map((r, idx) => ({
                 _key: `${region}-${r.id ?? idx}`,
@@ -49,7 +64,7 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
                 dropTrailers: normalize(r.dropTrailers),
             }));
 
-        return [...withMeta(customersIL, 'IL'), ...withMeta(customersPA, 'PA')].filter(r => r.customer);
+        return [...withMeta(ilRows, 'IL'), ...withMeta(paRows, 'PA')].filter(r => r.customer);
     }, []);
 
     // Address formats in your Excel are typically like:
@@ -61,26 +76,18 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
     const parseCityFromAddress = (address) => {
         if (!address) return '';
 
-        const raw = String(address).replace(/\s+/g, ' ').trim();
+        const raw = String(address).trim();
         if (!raw) return '';
 
-        // If the address already uses commas, prefer the explicit city segment.
-        // Examples:
-        // "12657 Uline Wy, Kenosha, WI 53144"  -> city = "Kenosha"
-        // "11400 88th Ave, Pleasant Prairie, WI 53158" -> city = "Pleasant Prairie"
-        // "1401 N. Hobbie, Kankakee, IL 60901" -> city = "Kankakee"
-        const commaParts = raw.split(',').map(s => s.trim()).filter(Boolean);
-        if (commaParts.length >= 3) {
-            return commaParts[commaParts.length - 2] || '';
-        }
-
-        // Otherwise, many of your Excel addresses are like:
-        // "13305 104th street Pleasant Prairie, WI 53158" (no comma between street and city)
-        // We extract the city by:
-        // 1) taking the portion before the last comma (removes "WI 53158")
-        // 2) removing the street portion up to the last known street suffix ("street", "rd", "ave", etc.)
-        // 3) returning the remaining trailing text as the city (supports multi-word cities)
         const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+
+        // If address already contains comma-separated parts like:
+        // "12657 Uline Wy, Kenosha, WI 53144"
+        // then city is typically the second-to-last part.
+        if (parts.length >= 3) {
+            const cityPart = (parts[parts.length - 2] || '').trim();
+            if (cityPart) return cityPart;
+        }
         const left = (parts.length >= 2 ? parts.slice(0, -1).join(', ') : raw).trim();
         if (!left) return '';
 
@@ -98,7 +105,9 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
             'circle', 'cir',
             'place', 'pl',
             'terrace', 'ter',
-            'trail', 'trl'
+            'trail', 'trl',
+            'suite', 'ste',
+            'unit', 'apt'
         ];
 
         const lower = left.toLowerCase();
@@ -108,9 +117,9 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
         // Find the *last* street suffix occurrence to split city from street.
         for (const suf of suffixes) {
             const re = new RegExp(`\\b${suf}\\b`, 'g');
-            let mm;
-            while ((mm = re.exec(lower)) !== null) {
-                const idx = mm.index;
+            let m;
+            while ((m = re.exec(lower)) !== null) {
+                const idx = m.index;
                 if (idx >= bestIdx) {
                     bestIdx = idx;
                     bestSuffixLen = suf.length;
@@ -124,17 +133,10 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
             if (cleaned) return cleaned;
         }
 
-        // Final fallback: if we at least have a comma, take the last token before state/zip chunk
-        // (handles rare formats that don't contain a known suffix).
-        if (parts.length === 2) {
-            const maybe = parts[0].trim();
-            if (maybe) {
-                const toks = maybe.split(/\s+/).filter(Boolean);
-                if (toks.length >= 1) return toks.slice(Math.max(0, toks.length - 2)).join(' ');
-            }
-        }
-
-        return '';
+        // Fallback: take the last 2-3 tokens (helps if suffix not found)
+        const tokens = left.split(/\s+/).filter(Boolean);
+        if (tokens.length <= 2) return left;
+        return tokens.slice(Math.max(0, tokens.length - 3)).join(' ');
     };
 
     const customerMatches = useMemo(() => {
