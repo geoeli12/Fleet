@@ -67,6 +67,9 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
 
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
+  const normalizeEmail = (v) => String(v ?? "").trim();
+  const normalizePhone = (v) => String(v ?? "").trim();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
@@ -105,6 +108,26 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
             <Input value={form.contact || ""} onChange={set("contact")} className="rounded-xl" />
           </div>
 
+          <div className="space-y-2">
+            <Label>Contact Phone #</Label>
+            <Input
+              value={form.contactPhone || ""}
+              onChange={(e) => setForm((p) => ({ ...p, contactPhone: normalizePhone(e.target.value) }))}
+              className="rounded-xl"
+              placeholder="(###) ###-####"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Contact E-Mail</Label>
+            <Input
+              value={form.contactEmail || ""}
+              onChange={(e) => setForm((p) => ({ ...p, contactEmail: normalizeEmail(e.target.value) }))}
+              className="rounded-xl"
+              placeholder="name@company.com"
+            />
+          </div>
+
           <div className="space-y-2 sm:col-span-2">
             <Label>Receiving Notes</Label>
             <Textarea value={form.receivingNotes || ""} onChange={set("receivingNotes")} className="min-h-[70px] rounded-xl" />
@@ -136,7 +159,10 @@ function CustomerCard({ row, onEdit }) {
   const title = row?.customer || "Unknown customer";
 
   const hasAddr = !!String(row?.address || "").trim();
-  const hasContact = !!String(row?.contact || "").trim();
+  const hasContactName = !!String(row?.contact || "").trim();
+  const hasContactPhone = !!String(row?.contactPhone || "").trim();
+  const hasContactEmail = !!String(row?.contactEmail || "").trim();
+  const hasAnyContact = hasContactName || hasContactPhone || hasContactEmail;
 
   const meta = joinParts(
     row?.receivingHours ? `Hours: ${row.receivingHours}` : "",
@@ -206,11 +232,27 @@ function CustomerCard({ row, onEdit }) {
           </div>
         ) : null}
 
-        {hasContact ? (
+        {hasAnyContact ? (
           <>
             <Separator className="bg-black/10" />
-            <div className="text-sm text-foreground whitespace-pre-wrap break-words">
-              {row.contact}
+            <div className="space-y-1">
+              {hasContactName ? (
+                <div className="text-sm font-medium text-foreground whitespace-pre-wrap break-words">
+                  {row.contact}
+                </div>
+              ) : null}
+
+              {hasContactPhone ? (
+                <div className="text-sm text-foreground whitespace-pre-wrap break-words">
+                  <span className="text-muted-foreground">Phone:</span> {row.contactPhone}
+                </div>
+              ) : null}
+
+              {hasContactEmail ? (
+                <div className="text-sm text-foreground whitespace-pre-wrap break-words">
+                  <span className="text-muted-foreground">E-Mail:</span> {row.contactEmail}
+                </div>
+              ) : null}
             </div>
           </>
         ) : null}
@@ -254,6 +296,8 @@ export default function Customers() {
         r?.receivingNotes,
         r?.distance,
         r?.contact,
+        r?.contactPhone,
+        r?.contactEmail,
         r?.notes,
         r?.dropTrailers,
       ]
@@ -279,6 +323,8 @@ export default function Customers() {
       receivingHours: "",
       receivingNotes: "",
       contact: "",
+      contactPhone: "",
+      contactEmail: "",
       notes: "",
       distance: "",
       dropTrailers: "",
@@ -291,6 +337,9 @@ export default function Customers() {
       ...(draft || {}),
       customer: String(draft?.customer ?? "").trim(),
       address: String(draft?.address ?? "").trim(),
+      contact: String(draft?.contact ?? "").trim(),
+      contactPhone: String(draft?.contactPhone ?? "").trim(),
+      contactEmail: String(draft?.contactEmail ?? "").trim(),
     };
 
     if (!cleaned.customer) return;
