@@ -31,6 +31,27 @@ function norm(v) {
   return String(v ?? "").trim().toLowerCase();
 }
 
+function splitCustomerId(row) {
+  const r = { ...(row || {}) };
+  const s = String(r.customer ?? "").trim();
+  const m = s.match(/^\s*(\d+)\s*[\.-#:\)]?\s*(.+)$/);
+  if (m) {
+    const n = String(m[1]).trim();
+    const name = String(m[2]).trim();
+    if (name) {
+      r.id = String(r.id ?? n).trim() || n;
+      r.customer = name;
+    }
+  }
+
+  // Normalize ids like "il-123" into "123"
+  const idStr = String(r.id ?? "").trim();
+  const mm = idStr.match(/^il-(\d+)$/i);
+  if (mm) r.id = mm[1];
+
+  return r;
+}
+
 function joinParts(...parts) {
   return parts
     .map((p) => String(p ?? "").trim())
@@ -85,6 +106,7 @@ function loadCustomers() {
   if (typeof window === "undefined") return Array.isArray(seedCustomers) ? seedCustomers : [];
 
   const seed = Array.isArray(seedCustomers) ? seedCustomers : [];
+    const normalizedSeed = seed.map((r) => splitCustomerId(r));
 
   const raw = window.localStorage.getItem(STORAGE_KEY);
   const parsed = raw ? safeJsonParse(raw) : null;
@@ -95,12 +117,13 @@ function loadCustomers() {
   // If no saved data, start from seed and persist.
   if (!Array.isArray(parsed)) {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
+      const normalizedSeed = (seed || []).map((r) => splitCustomerId(r));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedSeed));
       window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
     } catch {
       // ignore
     }
-    return seed;
+    return normalizedSeed;
   }
 
   // Migration: if schema changed (new columns like coordinates/dis/eta), rebuild from seed.
@@ -128,7 +151,8 @@ function loadCustomers() {
       const userRow = fromId || fromKey;
 
       // userRow overlays seed so any edits stick, but seed provides new columns.
-      const mergedRow = { ...s, ...(userRow || {}) };
+      let mergedRow = { ...s, ...(userRow || {}) };
+      mergedRow = splitCustomerId(mergedRow);
 
       if (!String(mergedRow.weekendHours ?? "").trim()) {
         const derived = extractWeekendHours(mergedRow.receivingNotes);
@@ -145,6 +169,21 @@ function loadCustomers() {
       // ignore
     }
     return merged;
+  }
+
+  // If someone saved rows with an embedded numeric prefix in the customer name, normalize in-place.
+  const hasEmbedded = parsed.some((r) => /^\s*\d+\s*[\.-#:\)]?\s*\S+/.test(String(r?.customer ?? "")));
+  const hasLegacyId = parsed.some((r) => /^il-\d+$/i.test(String(r?.id ?? "")));
+
+  if (hasEmbedded || hasLegacyId) {
+    const normalized = parsed.map((r) => splitCustomerId(r));
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
+    } catch {
+      // ignore
+    }
+    return normalized;
   }
 
   return parsed;
@@ -305,7 +344,14 @@ function CustomerCard({ row, onEdit, onDelete }) {
           <div className="min-w-0">
             <CardTitle className="text-base sm:text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
               <Building2 className="h-5 w-5 text-amber-600" />
-              <span className="truncate">{title}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                {row?.id ? (
+                  <Badge className="rounded-full bg-black text-amber-400 hover:bg-black shrink-0">
+                    {row.id}
+                  </Badge>
+                ) : null}
+                <span className="truncate">{title}</span>
+              </div>
             </CardTitle>
             {meta ? (
               <div className="mt-1 text-xs text-muted-foreground">{meta}</div>
@@ -502,10 +548,12 @@ export default function Customers() {
 
   const rebuildFromExcel = () => {
     const seed = Array.isArray(seedCustomers) ? seedCustomers : [];
+    const normalizedSeed = seed.map((r) => splitCustomerId(r));
     setQ("");
-    setList(seed);
+    setList(normalizedSeed);
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
+      const normalizedSeed = (seed || []).map((r) => splitCustomerId(r));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedSeed));
       window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
     } catch {
       // ignore
@@ -557,7 +605,14 @@ export default function Customers() {
     if (!cleaned.customer) return;
 
     if (editMode === "new") {
-      const id = cleaned.id ?? `il-${Date.now()}`;
+      const maxId = Math.max(
+        0,
+        ...(list || [])
+          .map((r) => Number(String(r?.id ?? "").trim()))
+          .filter((n) => Number.isFinite(n))
+      );
+
+      const id = String(maxId + 1);
       const next = [{ ...cleaned, id }, ...list];
       setList(next);
       setEditOpen(false);
