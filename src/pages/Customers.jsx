@@ -24,6 +24,8 @@ import {
 import { Building2, Copy, MapPin, ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
 
 const STORAGE_KEY = "customers_il";
+const STORAGE_VERSION_KEY = "customers_il_v";
+const STORAGE_VERSION = 2; // bump when seed schema changes
 
 function norm(v) {
   return String(v ?? "").trim().toLowerCase();
@@ -55,15 +57,70 @@ function safeJsonParse(str) {
 
 function loadCustomers() {
   if (typeof window === "undefined") return Array.isArray(seedCustomers) ? seedCustomers : [];
+
+  const seed = Array.isArray(seedCustomers) ? seedCustomers : [];
+
   const raw = window.localStorage.getItem(STORAGE_KEY);
   const parsed = raw ? safeJsonParse(raw) : null;
-  if (Array.isArray(parsed)) return parsed;
-  return Array.isArray(seedCustomers) ? seedCustomers : [];
+
+  const storedVRaw = window.localStorage.getItem(STORAGE_VERSION_KEY);
+  const storedV = storedVRaw ? Number(storedVRaw) : 0;
+
+  // If no saved data, start from seed and persist.
+  if (!Array.isArray(parsed)) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
+      window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
+    } catch {
+      // ignore
+    }
+    return seed;
+  }
+
+  // Migration: if schema changed (new columns like coordinates/dis/eta), rebuild from seed.
+  // Rebuild if version mismatch or any row is missing the new keys.
+  const needsUpgrade =
+    storedV !== STORAGE_VERSION ||
+    parsed.some((r) => {
+      const hasCust = String(r?.customer ?? "").trim() !== "";
+      if (!hasCust) return false;
+      const hasCoords = Object.prototype.hasOwnProperty.call(r ?? {}, "coordinates");
+      const hasDis = Object.prototype.hasOwnProperty.call(r ?? {}, "dis");
+      const hasEta = Object.prototype.hasOwnProperty.call(r ?? {}, "eta");
+      return !hasCoords || !hasDis || !hasEta;
+    });
+
+  if (needsUpgrade) {
+    // Preserve any user-edited records by merging on (id) first, then customer+address as fallback.
+    const byId = new Map(parsed.map((r, i) => [String(r?.id ?? i), r]));
+    const byKey = new Map(parsed.map((r) => [`${norm(r?.customer)}|${norm(r?.address)}`, r]));
+
+    const merged = seed.map((s) => {
+      const sid = String(s?.id ?? "");
+      const fromId = sid ? byId.get(sid) : null;
+      const fromKey = byKey.get(`${norm(s?.customer)}|${norm(s?.address)}`) || null;
+      const userRow = fromId || fromKey;
+
+      return { ...s, ...(userRow || {}) };
+    });
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
+    } catch {
+      // ignore
+    }
+    return merged;
+  }
+
+  return parsed;
 }
+
 
 function saveCustomers(list) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list ?? []));
+    window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
   } catch {
     // ignore
   }
@@ -399,6 +456,19 @@ export default function Customers() {
     setList(next);
   };
 
+
+  const rebuildFromExcel = () => {
+    const seed = Array.isArray(seedCustomers) ? seedCustomers : [];
+    setQ("");
+    setList(seed);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
+      window.localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
+    } catch {
+      // ignore
+    }
+  };
+
   const openEdit = (row) => {
     setEditMode("edit");
     setActiveRow(row);
@@ -494,6 +564,16 @@ export default function Customers() {
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Customer
+          </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={rebuildFromExcel}
+            className="h-10 rounded-xl"
+            title="Overwrite localStorage with the Excel seed list"
+          >
+            Rebuild from Excel
           </Button>
 
           <div className="flex items-center gap-2">
