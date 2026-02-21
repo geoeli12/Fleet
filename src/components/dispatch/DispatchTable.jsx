@@ -10,8 +10,11 @@ export default function DispatchTable({ logs, onUpdate, onDelete }) {
   const [editData, setEditData] = useState({});
 
   const getRowStatus = (log) => {
-    if (log.delivered_by && log.delivered_by.trim()) return 'dispatched';
-    if (log.trailer_number && log.trailer_number.trim()) return 'loaded';
+    const deliveredVal = String(log.delivered_by ?? "").trim().toLowerCase();
+
+    if (deliveredVal === "no") return 'not_delivered';
+    if (deliveredVal) return 'dispatched';
+    if (log.trailer_number && String(log.trailer_number).trim()) return 'loaded';
     return 'pending';
   };
 
@@ -19,6 +22,9 @@ export default function DispatchTable({ logs, onUpdate, onDelete }) {
     switch (status) {
       case 'dispatched':
         return 'bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-l-red-500';
+      case 'not_delivered':
+        // Light blue fill when Delivered = No
+        return 'bg-gradient-to-r from-sky-50 to-sky-100 border-l-4 border-l-sky-500';
       case 'loaded':
         return 'bg-gradient-to-r from-emerald-50 to-emerald-100 border-l-4 border-l-emerald-500';
       default:
@@ -138,6 +144,10 @@ export default function DispatchTable({ logs, onUpdate, onDelete }) {
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-red-500"></div>
           <span className="text-xs text-slate-600">Dispatched</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-sky-500"></div>
+          <span className="text-xs text-slate-600">Not Delivered</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-slate-300"></div>
