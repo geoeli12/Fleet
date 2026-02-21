@@ -57,6 +57,8 @@ import DriverLog from './pages/DriverLog';
 import Drivers from './pages/Drivers';
 import ShiftHistory from './pages/ShiftHistory';
 import Calendar from './pages/Calendar';
+import Customers from './pages/Customers';
+import CustomersPA from './pages/CustomersPA';
 import Schedule from './pages/Schedule';
 import FuelDashboard from './pages/FuelDashboard';
 import FuelHistory from './pages/FuelHistory';
@@ -72,6 +74,8 @@ export const PAGES = {
     "Drivers": Drivers,
     "ShiftHistory": ShiftHistory,
     "Calendar": Calendar,
+    "Customers": Customers,
+    "CustomersPA": CustomersPA,
     "Schedule": Schedule,
     "DispatchLog": DispatchLog,
     "FuelDashboard": FuelDashboard,
