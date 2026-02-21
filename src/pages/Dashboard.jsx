@@ -152,6 +152,19 @@ export default function Dashboard() {
       icon: Users,
       description: "Add new drivers, and manage driver profiles.",
     },
+    {
+      name: "Customers",
+      to: createPageUrl("Customers"),
+      icon: Users,
+      description: "Lookup customer addresses, receiving hours, and notes (IL list).",
+    },
+    {
+      name: "Customers PA",
+      to: createPageUrl("CustomersPA"),
+      icon: Truck,
+      description: "Lookup customer addresses, hours, ETA, and contacts (PA list).",
+    },
+
   ];
 
   const quick = [
