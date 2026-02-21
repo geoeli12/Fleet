@@ -25,10 +25,26 @@ import { Building2, Copy, MapPin, ArrowRight, Pencil, Plus, Trash2 } from "lucid
 
 const STORAGE_KEY = "customers_il";
 const STORAGE_VERSION_KEY = "customers_il_v";
-const STORAGE_VERSION = 2; // bump when seed schema changes
+const STORAGE_VERSION = 3; // bump when seed schema changes
 
 function norm(v) {
   return String(v ?? "").trim().toLowerCase();
+}
+
+
+function stripLeadingNumber(name) {
+  return String(name ?? "").replace(/^\s*\d+\s+/, "").trim();
+}
+
+function displayCustomerName(name) {
+  const stripped = stripLeadingNumber(name);
+  return stripped || String(name ?? "").trim() || "Unknown customer";
+}
+
+function displayIdNumber(id) {
+  const s = String(id ?? "").trim();
+  const m = s.match(/(\d+)/);
+  return m ? m[1] : s;
 }
 
 function joinParts(...parts) {
@@ -282,7 +298,7 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave }) {
 }
 
 function CustomerCard({ row, onEdit, onDelete }) {
-  const title = row?.customer || "Unknown customer";
+  const title = displayCustomerName(row?.customer);
 
   const hasAddr = !!String(row?.address || "").trim();
   const hasContactName = !!String(row?.contact || "").trim();
@@ -315,7 +331,7 @@ function CustomerCard({ row, onEdit, onDelete }) {
           <div className="flex items-center gap-2">
             {row?.id ? (
               <Badge className="rounded-full border border-black/10 bg-white/80 text-foreground hover:bg-white/80">
-                {row.id}
+                {displayIdNumber(row.id)}
               </Badge>
             ) : null}
 
@@ -457,8 +473,8 @@ export default function Customers() {
   const rows = useMemo(() => {
     const base = (list || []).filter(r => String(r?.customer ?? "").trim() !== "");
     const sorted = [...base].sort((a, b) => {
-      const aa = norm(a?.customer);
-      const bb = norm(b?.customer);
+      const aa = norm(stripLeadingNumber(a?.customer));
+      const bb = norm(stripLeadingNumber(b?.customer));
       return aa.localeCompare(bb);
     });
 
@@ -468,6 +484,9 @@ export default function Customers() {
     return sorted.filter((r) => {
       const hay = [
         r?.customer,
+        stripLeadingNumber(r?.customer),
+        r?.id,
+        displayIdNumber(r?.id),
         r?.address,
         r?.receivingHours,
         r?.receivingNotes,
