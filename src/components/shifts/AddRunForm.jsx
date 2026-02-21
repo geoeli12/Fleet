@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { api } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { MapPin, Building2, Package, Clock, Plus, ArrowRightLeft, TruckIcon, PackageCheck, FileText } from "lucide-react";
+
+import customersIL from "@/data/customers_il.json";
+import customersPA from "@/data/customers_pa.json";
 
 const DEFAULT_LOAD_TYPES = ['scrap', 'occ', 'mix', 'empty'];
 
@@ -25,9 +28,65 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
         departure_time: '',
         notes: ''
     });
+    const [isCustomerFocused, setIsCustomerFocused] = useState(false);
+    const ignoreCustomerBlurRef = useRef(false);
     const [showNewTypeDialog, setShowNewTypeDialog] = useState(false);
     const [newTypeName, setNewTypeName] = useState('');
     const queryClient = useQueryClient();
+
+    const customerDirectory = useMemo(() => {
+        const normalize = (v) => (v ?? '').toString().trim();
+        const withMeta = (rows, region) =>
+            (rows || []).map((r, idx) => ({
+                _key: `${region}-${r.id ?? idx}`,
+                region,
+                customer: normalize(r.customer),
+                address: normalize(r.address),
+                contact: normalize(r.contact),
+                receivingHours: normalize(r.receivingHours),
+                receivingNotes: normalize(r.receivingNotes),
+                notes: normalize(r.notes),
+                dropTrailers: normalize(r.dropTrailers),
+            }));
+
+        return [...withMeta(customersIL, 'IL'), ...withMeta(customersPA, 'PA')].filter(r => r.customer);
+    }, []);
+
+    const parseCityFromAddress = (address) => {
+        if (!address) return '';
+        const parts = address.split(',').map(s => s.trim()).filter(Boolean);
+        if (parts.length >= 2) return parts[1];
+        return '';
+    };
+
+    const customerMatches = useMemo(() => {
+        const q = (formData.customer_name || '').trim().toLowerCase();
+        if (!q) return [];
+        return customerDirectory
+            .filter(r => r.customer.toLowerCase().includes(q))
+            .slice(0, 10);
+    }, [formData.customer_name, customerDirectory]);
+
+    const applyCustomerPick = (row) => {
+        const city = parseCityFromAddress(row.address);
+        setFormData(prev => ({
+            ...prev,
+            customer_name: row.customer,
+            city: city || prev.city,
+        }));
+    };
+
+    const tryAutoFillCityFromCustomer = () => {
+        const q = (formData.customer_name || '').trim().toLowerCase();
+        if (!q) return;
+        const exact =
+            customerDirectory.find(r => r.customer.toLowerCase() === q) ||
+            customerDirectory.find(r => r.customer.toLowerCase().startsWith(q));
+        if (!exact) return;
+        const city = parseCityFromAddress(exact.address);
+        if (!city) return;
+        setFormData(prev => ({ ...prev, city }));
+    };
 
     const { data: customLoadTypes = [] } = useQuery({
         queryKey: ['customLoadTypes'],
@@ -127,19 +186,82 @@ export default function AddRunForm({ shiftId, driverName, onSubmit, isLoading, o
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                                    <MapPin className="h-3.5 w-3.5" /> City
+                                    <Building2 className="h-3.5 w-3.5" /> Customer Name
                                 </Label>
-                                <Input placeholder="Enter city" value={formData.city}
-                                    onChange={(e) => setFormData({...formData, city: e.target.value})}
-                                    className="h-11 border-slate-200 rounded-xl bg-white text-slate-900" required />
+                                <div className="relative">
+                                    <Input
+                                        placeholder="Enter customer"
+                                        value={formData.customer_name}
+                                        onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+                                        onFocus={() => setIsCustomerFocused(true)}
+                                        onBlur={() => {
+                                            if (ignoreCustomerBlurRef.current) return;
+                                            setIsCustomerFocused(false);
+                                            tryAutoFillCityFromCustomer();
+                                        }}
+                                        className="h-11 border-slate-200 rounded-xl bg-white text-slate-900"
+                                        required
+                                        autoComplete="off"
+                                    />
+
+                                    {isCustomerFocused && customerMatches.length > 0 ? (
+                                        <div
+                                            className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+                                            role="listbox"
+                                        >
+                                            <div className="max-h-64 overflow-auto p-1">
+                                                {customerMatches.map((row) => {
+                                                    const city = parseCityFromAddress(row.address);
+                                                    return (
+                                                        <button
+                                                            key={row._key}
+                                                            type="button"
+                                                            onMouseDown={() => {
+                                                                ignoreCustomerBlurRef.current = true;
+                                                            }}
+                                                            onMouseUp={() => {
+                                                                ignoreCustomerBlurRef.current = false;
+                                                            }}
+                                                            onClick={() => {
+                                                                applyCustomerPick(row);
+                                                                setIsCustomerFocused(false);
+                                                            }}
+                                                            className="w-full rounded-xl px-3 py-2 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                                                        >
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <div className="min-w-0">
+                                                                    <div className="truncate text-sm font-medium text-slate-900">{row.customer}</div>
+                                                                    <div className="truncate text-xs text-slate-600">{city ? `${city} · ` : ''}{row.address}</div>
+                                                                </div>
+                                                                <span
+                                                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                                                        row.region === 'PA'
+                                                                            ? 'bg-emerald-100 text-emerald-700'
+                                                                            : 'bg-amber-100 text-amber-700'
+                                                                    }`}
+                                                                >
+                                                                    {row.region}
+                                                                </span>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                                    <Building2 className="h-3.5 w-3.5" /> Customer Name
+                                    <MapPin className="h-3.5 w-3.5" /> City
                                 </Label>
-                                <Input placeholder="Enter customer" value={formData.customer_name}
-                                    onChange={(e) => setFormData({...formData, customer_name: e.target.value})}
-                                    className="h-11 border-slate-200 rounded-xl bg-white text-slate-900" required />
+                                <Input
+                                    placeholder="Enter city"
+                                    value={formData.city}
+                                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                                    className="h-11 border-slate-200 rounded-xl bg-white text-slate-900"
+                                    required
+                                />
                             </div>
                         </div>
 
