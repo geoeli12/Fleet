@@ -23,6 +23,20 @@ function toYMD(value) {
   return format(d, "yyyy-MM-dd");
 }
 
+function ymdToLocalDate(ymd) {
+  // JS Date parsing treats YYYY-MM-DD as UTC, which can break day navigation in negative timezones.
+  // Build a local midnight date instead.
+  if (!ymd) return new Date();
+  const s = String(ymd).slice(0, 10);
+  const parts = s.split("-");
+  if (parts.length !== 3) return new Date(ymd);
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+  if (!y || !m || !d) return new Date(ymd);
+  return new Date(y, m - 1, d);
+}
+
 function unwrapListResult(list) {
   if (Array.isArray(list)) return list;
   if (Array.isArray(list?.data)) return list.data;
@@ -41,6 +55,7 @@ function toUiLog(order) {
     bol: order.bol_number ?? order.bol ?? "",
     item: order.item ?? "",
     delivered_by: order.driver_name ?? order.delivered_by ?? "",
+    _created_at: order.created_at ?? order.createdAt ?? order.inserted_at ?? order.insertedAt ?? null,
   };
 }
 
@@ -101,7 +116,7 @@ export default function DispatchLog() {
 
   const filteredLogs = useMemo(() => {
     const base = Array.isArray(uiLogs) ? uiLogs : [];
-    return base.filter((log) => {
+    const matches = base.filter((log) => {
       if (toYMD(log.date) !== selectedDate) return false;
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
@@ -114,6 +129,33 @@ export default function DispatchLog() {
         log.item?.toLowerCase().includes(search)
       );
     });
+
+    // Keep rows stable:
+    // - Bulk paste should stay in the pasted order
+    // - Editing should not reshuffle the row
+    // Prefer created_at (insertion order). Fall back to numeric id if available.
+    const toSortableTime = (v) => {
+      if (!v) return null;
+      const t = new Date(v).getTime();
+      return Number.isFinite(t) ? t : null;
+    };
+
+    return matches
+      .slice()
+      .sort((a, b) => {
+        const ta = toSortableTime(a._created_at);
+        const tb = toSortableTime(b._created_at);
+        if (ta != null && tb != null && ta !== tb) return ta - tb;
+        if (ta != null && tb == null) return -1;
+        if (ta == null && tb != null) return 1;
+
+        const ia = typeof a.id === "number" ? a.id : Number(a.id);
+        const ib = typeof b.id === "number" ? b.id : Number(b.id);
+        const na = Number.isFinite(ia);
+        const nb = Number.isFinite(ib);
+        if (na && nb && ia !== ib) return ia - ib;
+        return String(a.id).localeCompare(String(b.id));
+      });
   }, [uiLogs, selectedDate, searchTerm]);
 
   return (
@@ -152,7 +194,7 @@ export default function DispatchLog() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSelectedDate(format(subDays(new Date(selectedDate), 1), "yyyy-MM-dd"))}
+            onClick={() => setSelectedDate(format(subDays(ymdToLocalDate(selectedDate), 1), "yyyy-MM-dd"))}
             className="rounded-xl h-12 w-12"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -168,7 +210,7 @@ export default function DispatchLog() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSelectedDate(format(addDays(new Date(selectedDate), 1), "yyyy-MM-dd"))}
+            onClick={() => setSelectedDate(format(addDays(ymdToLocalDate(selectedDate), 1), "yyyy-MM-dd"))}
             className="rounded-xl h-12 w-12"
           >
             <ChevronRight className="h-5 w-5" />
