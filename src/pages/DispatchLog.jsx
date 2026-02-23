@@ -24,25 +24,25 @@ function toYMD(value) {
 }
 
 
-function parseYMDLocal(ymd) {
-  // Avoid new Date("YYYY-MM-DD") because it is parsed as UTC in JS.
-  if (!ymd || typeof ymd !== "string" || ymd.length < 10) return new Date();
+function ymdToLocalDate(ymd) {
+  if (!ymd || typeof ymd !== "string") return new Date();
+  // Parse YYYY-MM-DD as LOCAL date (avoid UTC shift from new Date("YYYY-MM-DD"))
   const y = Number(ymd.slice(0, 4));
   const m = Number(ymd.slice(5, 7));
   const d = Number(ymd.slice(8, 10));
   if (!y || !m || !d) return new Date();
-  return new Date(y, m - 1, d, 0, 0, 0, 0);
+  return new Date(y, m - 1, d);
 }
 
-function cleanNullable(value) {
-  if (value === null || value === undefined) return null;
-  const s = String(value).trim();
-  return s ? s : null;
+function makePendingBolToken(dateYmd) {
+  // bol_number is NOT NULL and has a UNIQUE constraint with day/customer/bol.
+  // For rows without a real BOL yet, generate a unique placeholder token so imports don't collide.
+  const rand = Math.random().toString(36).slice(2, 10);
+  return `__PENDING_BOL__:${dateYmd || "nodate"}:${Date.now()}:${rand}`;
 }
 
-function cleanString(value) {
-  if (value === null || value === undefined) return "";
-  return String(value).trim();
+function isPendingBolToken(value) {
+  return typeof value === "string" && value.startsWith("__PENDING_BOL__:");
 }
 
 function unwrapListResult(list) {
@@ -56,26 +56,28 @@ function toUiLog(order) {
   return {
     id: order.id,
     date: toYMD(order.date),
-    company: cleanString(order.customer ?? order.company),
-    trailer_number: cleanString(order.trailer_number),
-    notes: cleanString(order.notes),
-    dock_hours: cleanString(order.dock_hours),
-    bol: cleanString(order.bol_number ?? order.bol),
-    item: cleanString(order.item),
-    delivered_by: cleanString(order.driver_name ?? order.delivered_by),
+    company: order.customer ?? order.company ?? "",
+    trailer_number: order.trailer_number ?? "",
+    notes: order.notes ?? "",
+    dock_hours: order.dock_hours ?? "",
+    bol: isPendingBolToken(order.bol_number) ? "" : (order.bol_number ?? order.bol ?? ""),
+item: order.item ?? "",
+    delivered_by: order.driver_name ?? order.delivered_by ?? "",
   };
 }
 
 function toDbPayload(ui) {
   return {
     date: ui.date || null,
-    customer: cleanString(ui.company),
-    trailer_number: cleanString(ui.trailer_number),
-    notes: cleanString(ui.notes),
-    dock_hours: cleanString(ui.dock_hours),
-    bol_number: cleanNullable(ui.bol),
-    item: cleanString(ui.item),
-    driver_name: cleanString(ui.delivered_by),
+    customer: ui.company || "",
+    trailer_number: ui.trailer_number || "",
+    notes: ui.notes || "",
+    dock_hours: ui.dock_hours || "",    bol_number: (() => {
+      const b = String(ui.bol ?? "").trim();
+      return b ? b : makePendingBolToken(ui.date);
+    })(),
+    item: ui.item || "",
+    driver_name: ui.delivered_by || "",
   };
 }
 
@@ -168,13 +170,13 @@ export default function DispatchLog() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        <StatusSummary logs={filteredLogs} />
+        <StatusSummary logs={filteredLogs.filter((l) => (l.bol || "").trim() !== "")} />
 
         <div className="flex items-center justify-center gap-4">
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSelectedDate(format(subDays(parseYMDLocal(selectedDate), 1), "yyyy-MM-dd"))}
+            onClick={() => setSelectedDate(format(subDays(ymdToLocalDate(selectedDate), 1), "yyyy-MM-dd"))}
             className="rounded-xl h-12 w-12"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -190,7 +192,7 @@ export default function DispatchLog() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSelectedDate(format(addDays(parseYMDLocal(selectedDate), 1), "yyyy-MM-dd"))}
+            onClick={() => setSelectedDate(format(addDays(ymdToLocalDate(selectedDate), 1), "yyyy-MM-dd"))}
             className="rounded-xl h-12 w-12"
           >
             <ChevronRight className="h-5 w-5" />
