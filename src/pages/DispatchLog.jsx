@@ -12,6 +12,94 @@ import AddDispatchForm from "@/components/dispatch/AddDispatchForm";
 import StatusSummary from "@/components/dispatch/StatusSummary";
 import { toast } from "sonner";
 
+const PENDING_BOL_PREFIX = "__PENDING_BOL__:";
+
+function parseYMDToLocalDate(ymd) {
+  // Avoid `new Date('YYYY-MM-DD')` (UTC parsing) which causes off-by-one in US timezones.
+  if (!ymd || typeof ymd !== "string" || ymd.length < 10) return new Date();
+  const y = Number(ymd.slice(0, 4));
+  const m = Number(ymd.slice(5, 7));
+  const d = Number(ymd.slice(8, 10));
+  if (!y || !m || !d) return new Date();
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
+function looksNumericId(v) {
+  const s = String(v ?? "").trim();
+  return s !== "" && /^\d+$/.test(s);
+}
+
+function isPendingBol(v) {
+  const s = String(v ?? "").trim();
+  return s.startsWith(PENDING_BOL_PREFIX);
+}
+
+function cleanBolForUi(v) {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  if (isPendingBol(s)) return "";
+  return s;
+}
+
+function makePendingBolToken(dateYmd) {
+  // Must be NOT NULL + unique per row (DB has unique constraint with bol in key)
+  const rand = Math.random().toString(16).slice(2);
+  return `${PENDING_BOL_PREFIX}${dateYmd}:${Date.now()}:${rand}`;
+}
+
+function normalizeIncomingUiRow(ui, fallbackDateYmd) {
+  // Defensive normalization for bulk-paste rows.
+  // Common issue: Excel paste includes a leading index column (1,2,3...), shifting everything right.
+  const out = {
+    date: ui?.date || fallbackDateYmd || "",
+    company: String(ui?.company ?? ""),
+    trailer_number: String(ui?.trailer_number ?? ""),
+    notes: String(ui?.notes ?? ""),
+    dock_hours: String(ui?.dock_hours ?? ""),
+    bol: String(ui?.bol ?? ""),
+    item: String(ui?.item ?? ""),
+    delivered_by: String(ui?.delivered_by ?? ""),
+  };
+
+  const companyIsIndex = looksNumericId(out.company);
+  const nextLooksLikeCompany = out.trailer_number && /[A-Za-z]/.test(out.trailer_number);
+  const deliveredLooksLikeItem = out.delivered_by && (/(\d+\s*[xX]\s*\d+)/.test(out.delivered_by) || /baled|occ/i.test(out.delivered_by));
+  const itemIsBlankish = !out.item || out.item.trim() === "-";
+  const bolIsBlankish = !out.bol || out.bol.trim() === "-";
+
+  if (companyIsIndex && nextLooksLikeCompany && deliveredLooksLikeItem && itemIsBlankish && bolIsBlankish) {
+    // Shift left by 1 slot, and treat delivered_by as item.
+    out.company = out.trailer_number;
+    out.trailer_number = out.notes;
+    out.notes = out.dock_hours;
+    out.dock_hours = out.bol;
+    out.bol = out.item;
+    out.item = out.delivered_by;
+    out.delivered_by = "";
+  }
+
+  // Clean up common placeholders
+  const dashToEmpty = (s) => {
+    const t = String(s ?? "").trim();
+    return t === "-" ? "" : t;
+  };
+  out.company = dashToEmpty(out.company);
+  out.trailer_number = dashToEmpty(out.trailer_number);
+  out.notes = dashToEmpty(out.notes);
+  out.dock_hours = dashToEmpty(out.dock_hours);
+  out.bol = dashToEmpty(out.bol);
+  out.item = dashToEmpty(out.item);
+  out.delivered_by = dashToEmpty(out.delivered_by);
+
+  // If BOL is blank, generate a unique placeholder so DB NOT NULL + unique constraint won't crash.
+  if (!out.bol) {
+    const ymd = toYMD(out.date) || fallbackDateYmd || toYMD(new Date());
+    out.bol = makePendingBolToken(ymd);
+  }
+
+  return out;
+}
+
 function toYMD(value) {
   if (!value) return "";
   const s = String(value);
@@ -30,101 +118,31 @@ function unwrapListResult(list) {
   return [];
 }
 
-function parseLocalYMD(ymd) {
-  // Avoid new Date("YYYY-MM-DD") which parses as UTC and can shift a day in local timezones.
-  if (!ymd || typeof ymd !== "string" || ymd.length < 10) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd);
-  if (!m) return null;
-  const y = Number(m[1]);
-  const mo = Number(m[2]);
-  const d = Number(m[3]);
-  if (!y || !mo || !d) return null;
-  return new Date(y, mo - 1, d, 0, 0, 0, 0);
-}
-
-function isPendingBolToken(value) {
-  if (!value) return false;
-  const s = String(value);
-  return s.startsWith("__PENDING_BOL__:");
-}
-
-function normalizeUiForSave(ui) {
-  // Defensive fix for bulk paste that includes a leading index column (1,2,3...) which shifts everything right.
-  // Expected: company, trailer_number, notes, dock_hours, bol, item, delivered_by
-  // Common bad paste: [index], company, trailer, notes, dock, bol, item, delivered_by
-  const companyRaw = (ui?.company ?? "").toString().trim();
-  const trailerRaw = (ui?.trailer_number ?? "").toString().trim();
-  const notesRaw = (ui?.notes ?? "").toString().trim();
-  const dockRaw = (ui?.dock_hours ?? "").toString().trim();
-  const bolRaw = (ui?.bol ?? "").toString().trim();
-  const itemRaw = (ui?.item ?? "").toString().trim();
-  const delivRaw = (ui?.delivered_by ?? "").toString().trim();
-
-  const companyLooksLikeIndex = /^\d+$/.test(companyRaw) && companyRaw.length <= 6;
-  const trailerLooksLikeCompany = trailerRaw.length > 0 && /[A-Za-z]/.test(trailerRaw);
-  const notesLooksLikeTrailer = notesRaw.length > 0 && /^[A-Za-z0-9\- ]+$/.test(notesRaw) && /\d/.test(notesRaw);
-  const dockLooksLikeNotes = dockRaw.length > 0 && /[A-Za-z]/.test(dockRaw) && !/^\d{3,}$/.test(dockRaw);
-  const bolLooksLikeDockHrs = bolRaw.length > 0 && (/\bam\b|\bpm\b/i.test(bolRaw) || bolRaw.includes(":") || bolRaw.toLowerCase().includes("missing") || bolRaw.includes("24/7"));
-
-  // If the first field is an index and the rest look shifted, realign.
-  if (companyLooksLikeIndex && trailerLooksLikeCompany && (notesLooksLikeTrailer || dockLooksLikeNotes || bolLooksLikeDockHrs)) {
-    return {
-      ...ui,
-      company: trailerRaw,
-      trailer_number: notesRaw,
-      notes: dockRaw,
-      dock_hours: bolRaw,
-      bol: itemRaw,
-      item: delivRaw,
-      delivered_by: "",
-    };
-  }
-
-  return ui;
-}
-
-
-
 function toUiLog(order) {
   return {
     id: order.id,
     date: toYMD(order.date),
+    created_at: order.created_at ?? order.inserted_at ?? order.createdAt ?? null,
     company: order.customer ?? order.company ?? "",
     trailer_number: order.trailer_number ?? "",
     notes: order.notes ?? "",
     dock_hours: order.dock_hours ?? "",
-    bol: isPendingBolToken(order.bol_number ?? order.bol ?? "") ? "" : (order.bol_number ?? order.bol ?? ""),
+    bol: cleanBolForUi(order.bol_number ?? order.bol ?? ""),
     item: order.item ?? "",
     delivered_by: order.driver_name ?? order.delivered_by ?? "",
   };
 }
 
 function toDbPayload(ui) {
-  const fixed = normalizeUiForSave(ui || {});
-  const dateYmd = fixed.date || null;
-
-  const company = (fixed.company ?? "").toString().trim();
-  const trailer_number = (fixed.trailer_number ?? "").toString().trim();
-  const notes = (fixed.notes ?? "").toString().trim();
-  const dock_hours = (fixed.dock_hours ?? "").toString().trim();
-
-  const bolIn = (fixed.bol ?? "").toString().trim();
-  const item = (fixed.item ?? "").toString().trim();
-  const driver_name = (fixed.delivered_by ?? "").toString().trim();
-
-  // DB has NOT NULL on bol_number, plus a UNIQUE(day, customer, bol_number) constraint.
-  // To allow multiple "no BOL yet" rows, we save a unique pending token, but display it as blank in UI.
-  const bol_number = bolIn ? bolIn : `__PENDING_BOL__:${dateYmd || "no-date"}:${Date.now()}:${Math.random().toString(16).slice(2)}`;
-
   return {
-    date: dateYmd,
-    customer: company,
-    trailer_number,
-    notes,
-    dock_hours,
-    bol_number,
-    item,
-    driver_name,
+    date: ui.date || null,
+    customer: ui.company || "",
+    trailer_number: ui.trailer_number || "",
+    notes: ui.notes || "",
+    dock_hours: ui.dock_hours || "",
+    bol_number: ui.bol || "",
+    item: ui.item || "",
+    driver_name: ui.delivered_by || "",
   };
 }
 
@@ -172,7 +190,7 @@ export default function DispatchLog() {
 
   const filteredLogs = useMemo(() => {
     const base = Array.isArray(uiLogs) ? uiLogs : [];
-    return base.filter((log) => {
+    const filtered = base.filter((log) => {
       if (toYMD(log.date) !== selectedDate) return false;
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
@@ -185,7 +203,29 @@ export default function DispatchLog() {
         log.item?.toLowerCase().includes(search)
       );
     });
+
+    // Keep displayed order stable and in the same order entries were created (matches paste order).
+    // If created_at isn't available, fall back to id.
+    return filtered
+      .slice()
+      .sort((a, b) => {
+        const at = a.created_at ? new Date(a.created_at).getTime() : NaN;
+        const bt = b.created_at ? new Date(b.created_at).getTime() : NaN;
+        const aHas = Number.isFinite(at);
+        const bHas = Number.isFinite(bt);
+        if (aHas && bHas && at !== bt) return at - bt;
+        const ai = typeof a.id === "number" ? a.id : Number(String(a.id ?? "").replace(/\D/g, ""));
+        const bi = typeof b.id === "number" ? b.id : Number(String(b.id ?? "").replace(/\D/g, ""));
+        if (Number.isFinite(ai) && Number.isFinite(bi) && ai !== bi) return ai - bi;
+        return 0;
+      });
   }, [uiLogs, selectedDate, searchTerm]);
+
+  const logsForSummary = useMemo(() => {
+    // Do NOT count rows without a real BOL in the status summary.
+    // Since we strip pending tokens for UI, "no real bol" means empty string here.
+    return filteredLogs.filter((l) => String(l?.bol ?? "").trim() !== "");
+  }, [filteredLogs]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -217,15 +257,15 @@ export default function DispatchLog() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        <StatusSummary logs={filteredLogs.filter((l) => (l.bol || '').toString().trim().length > 0)} />
+        <StatusSummary logs={logsForSummary} />
 
         <div className="flex items-center justify-center gap-4">
           <Button
             variant="outline"
             size="icon"
             onClick={() => {
-              const d = parseLocalYMD(selectedDate) || new Date();
-              setSelectedDate(format(subDays(d, 1), "yyyy-MM-dd"));
+              const d = subDays(parseYMDToLocalDate(selectedDate), 1);
+              setSelectedDate(format(d, "yyyy-MM-dd"));
             }}
             className="rounded-xl h-12 w-12"
           >
@@ -243,8 +283,8 @@ export default function DispatchLog() {
             variant="outline"
             size="icon"
             onClick={() => {
-              const d = parseLocalYMD(selectedDate) || new Date();
-              setSelectedDate(format(addDays(d, 1), "yyyy-MM-dd"));
+              const d = addDays(parseYMDToLocalDate(selectedDate), 1);
+              setSelectedDate(format(d, "yyyy-MM-dd"));
             }}
             className="rounded-xl h-12 w-12"
           >
@@ -253,7 +293,13 @@ export default function DispatchLog() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          <AddDispatchForm onAdd={createMutation.mutateAsync} defaultDate={selectedDate} />
+          <AddDispatchForm
+            onAdd={async (row) => {
+              const normalized = normalizeIncomingUiRow(row, selectedDate);
+              return createMutation.mutateAsync(normalized);
+            }}
+            defaultDate={selectedDate}
+          />
           <div className="relative w-full md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
