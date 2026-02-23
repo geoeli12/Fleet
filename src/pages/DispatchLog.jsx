@@ -23,18 +23,26 @@ function toYMD(value) {
   return format(d, "yyyy-MM-dd");
 }
 
-function ymdToLocalDate(ymd) {
-  // JS Date parsing treats YYYY-MM-DD as UTC, which can break day navigation in negative timezones.
-  // Build a local midnight date instead.
-  if (!ymd) return new Date();
-  const s = String(ymd).slice(0, 10);
-  const parts = s.split("-");
-  if (parts.length !== 3) return new Date(ymd);
-  const y = Number(parts[0]);
-  const m = Number(parts[1]);
-  const d = Number(parts[2]);
-  if (!y || !m || !d) return new Date(ymd);
-  return new Date(y, m - 1, d);
+
+function parseYMDLocal(ymd) {
+  // Avoid new Date("YYYY-MM-DD") because it is parsed as UTC in JS.
+  if (!ymd || typeof ymd !== "string" || ymd.length < 10) return new Date();
+  const y = Number(ymd.slice(0, 4));
+  const m = Number(ymd.slice(5, 7));
+  const d = Number(ymd.slice(8, 10));
+  if (!y || !m || !d) return new Date();
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
+function cleanNullable(value) {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  return s ? s : null;
+}
+
+function cleanString(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
 }
 
 function unwrapListResult(list) {
@@ -48,27 +56,26 @@ function toUiLog(order) {
   return {
     id: order.id,
     date: toYMD(order.date),
-    company: order.customer ?? order.company ?? "",
-    trailer_number: order.trailer_number ?? "",
-    notes: order.notes ?? "",
-    dock_hours: order.dock_hours ?? "",
-    bol: order.bol_number ?? order.bol ?? "",
-    item: order.item ?? "",
-    delivered_by: order.driver_name ?? order.delivered_by ?? "",
-    _created_at: order.created_at ?? order.createdAt ?? order.inserted_at ?? order.insertedAt ?? null,
+    company: cleanString(order.customer ?? order.company),
+    trailer_number: cleanString(order.trailer_number),
+    notes: cleanString(order.notes),
+    dock_hours: cleanString(order.dock_hours),
+    bol: cleanString(order.bol_number ?? order.bol),
+    item: cleanString(order.item),
+    delivered_by: cleanString(order.driver_name ?? order.delivered_by),
   };
 }
 
 function toDbPayload(ui) {
   return {
     date: ui.date || null,
-    customer: ui.company || "",
-    trailer_number: ui.trailer_number || "",
-    notes: ui.notes || "",
-    dock_hours: ui.dock_hours || "",
-    bol_number: ui.bol || "",
-    item: ui.item || "",
-    driver_name: ui.delivered_by || "",
+    customer: cleanString(ui.company),
+    trailer_number: cleanString(ui.trailer_number),
+    notes: cleanString(ui.notes),
+    dock_hours: cleanString(ui.dock_hours),
+    bol_number: cleanNullable(ui.bol),
+    item: cleanString(ui.item),
+    driver_name: cleanString(ui.delivered_by),
   };
 }
 
@@ -116,7 +123,7 @@ export default function DispatchLog() {
 
   const filteredLogs = useMemo(() => {
     const base = Array.isArray(uiLogs) ? uiLogs : [];
-    const matches = base.filter((log) => {
+    return base.filter((log) => {
       if (toYMD(log.date) !== selectedDate) return false;
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
@@ -129,33 +136,6 @@ export default function DispatchLog() {
         log.item?.toLowerCase().includes(search)
       );
     });
-
-    // Keep rows stable:
-    // - Bulk paste should stay in the pasted order
-    // - Editing should not reshuffle the row
-    // Prefer created_at (insertion order). Fall back to numeric id if available.
-    const toSortableTime = (v) => {
-      if (!v) return null;
-      const t = new Date(v).getTime();
-      return Number.isFinite(t) ? t : null;
-    };
-
-    return matches
-      .slice()
-      .sort((a, b) => {
-        const ta = toSortableTime(a._created_at);
-        const tb = toSortableTime(b._created_at);
-        if (ta != null && tb != null && ta !== tb) return ta - tb;
-        if (ta != null && tb == null) return -1;
-        if (ta == null && tb != null) return 1;
-
-        const ia = typeof a.id === "number" ? a.id : Number(a.id);
-        const ib = typeof b.id === "number" ? b.id : Number(b.id);
-        const na = Number.isFinite(ia);
-        const nb = Number.isFinite(ib);
-        if (na && nb && ia !== ib) return ia - ib;
-        return String(a.id).localeCompare(String(b.id));
-      });
   }, [uiLogs, selectedDate, searchTerm]);
 
   return (
@@ -194,7 +174,7 @@ export default function DispatchLog() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSelectedDate(format(subDays(ymdToLocalDate(selectedDate), 1), "yyyy-MM-dd"))}
+            onClick={() => setSelectedDate(format(subDays(parseYMDLocal(selectedDate), 1), "yyyy-MM-dd"))}
             className="rounded-xl h-12 w-12"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -210,7 +190,7 @@ export default function DispatchLog() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSelectedDate(format(addDays(ymdToLocalDate(selectedDate), 1), "yyyy-MM-dd"))}
+            onClick={() => setSelectedDate(format(addDays(parseYMDLocal(selectedDate), 1), "yyyy-MM-dd"))}
             className="rounded-xl h-12 w-12"
           >
             <ChevronRight className="h-5 w-5" />
