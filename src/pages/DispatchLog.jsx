@@ -23,34 +23,67 @@ function toYMD(value) {
   return format(d, "yyyy-MM-dd");
 }
 
-
-function ymdToLocalDate(ymd) {
-  if (!ymd || typeof ymd !== "string") return new Date();
-  // Parse YYYY-MM-DD as LOCAL date (avoid UTC shift from new Date("YYYY-MM-DD"))
-  const y = Number(ymd.slice(0, 4));
-  const m = Number(ymd.slice(5, 7));
-  const d = Number(ymd.slice(8, 10));
-  if (!y || !m || !d) return new Date();
-  return new Date(y, m - 1, d);
-}
-
-function makePendingBolToken(dateYmd) {
-  // bol_number is NOT NULL and has a UNIQUE constraint with day/customer/bol.
-  // For rows without a real BOL yet, generate a unique placeholder token so imports don't collide.
-  const rand = Math.random().toString(36).slice(2, 10);
-  return `__PENDING_BOL__:${dateYmd || "nodate"}:${Date.now()}:${rand}`;
-}
-
-function isPendingBolToken(value) {
-  return typeof value === "string" && value.startsWith("__PENDING_BOL__:");
-}
-
 function unwrapListResult(list) {
   if (Array.isArray(list)) return list;
   if (Array.isArray(list?.data)) return list.data;
   if (Array.isArray(list?.items)) return list.items;
   return [];
 }
+
+function parseLocalYMD(ymd) {
+  // Avoid new Date("YYYY-MM-DD") which parses as UTC and can shift a day in local timezones.
+  if (!ymd || typeof ymd !== "string" || ymd.length < 10) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (!y || !mo || !d) return null;
+  return new Date(y, mo - 1, d, 0, 0, 0, 0);
+}
+
+function isPendingBolToken(value) {
+  if (!value) return false;
+  const s = String(value);
+  return s.startsWith("__PENDING_BOL__:");
+}
+
+function normalizeUiForSave(ui) {
+  // Defensive fix for bulk paste that includes a leading index column (1,2,3...) which shifts everything right.
+  // Expected: company, trailer_number, notes, dock_hours, bol, item, delivered_by
+  // Common bad paste: [index], company, trailer, notes, dock, bol, item, delivered_by
+  const companyRaw = (ui?.company ?? "").toString().trim();
+  const trailerRaw = (ui?.trailer_number ?? "").toString().trim();
+  const notesRaw = (ui?.notes ?? "").toString().trim();
+  const dockRaw = (ui?.dock_hours ?? "").toString().trim();
+  const bolRaw = (ui?.bol ?? "").toString().trim();
+  const itemRaw = (ui?.item ?? "").toString().trim();
+  const delivRaw = (ui?.delivered_by ?? "").toString().trim();
+
+  const companyLooksLikeIndex = /^\d+$/.test(companyRaw) && companyRaw.length <= 6;
+  const trailerLooksLikeCompany = trailerRaw.length > 0 && /[A-Za-z]/.test(trailerRaw);
+  const notesLooksLikeTrailer = notesRaw.length > 0 && /^[A-Za-z0-9\- ]+$/.test(notesRaw) && /\d/.test(notesRaw);
+  const dockLooksLikeNotes = dockRaw.length > 0 && /[A-Za-z]/.test(dockRaw) && !/^\d{3,}$/.test(dockRaw);
+  const bolLooksLikeDockHrs = bolRaw.length > 0 && (/\bam\b|\bpm\b/i.test(bolRaw) || bolRaw.includes(":") || bolRaw.toLowerCase().includes("missing") || bolRaw.includes("24/7"));
+
+  // If the first field is an index and the rest look shifted, realign.
+  if (companyLooksLikeIndex && trailerLooksLikeCompany && (notesLooksLikeTrailer || dockLooksLikeNotes || bolLooksLikeDockHrs)) {
+    return {
+      ...ui,
+      company: trailerRaw,
+      trailer_number: notesRaw,
+      notes: dockRaw,
+      dock_hours: bolRaw,
+      bol: itemRaw,
+      item: delivRaw,
+      delivered_by: "",
+    };
+  }
+
+  return ui;
+}
+
+
 
 function toUiLog(order) {
   return {
@@ -60,24 +93,38 @@ function toUiLog(order) {
     trailer_number: order.trailer_number ?? "",
     notes: order.notes ?? "",
     dock_hours: order.dock_hours ?? "",
-    bol: isPendingBolToken(order.bol_number) ? "" : (order.bol_number ?? order.bol ?? ""),
-item: order.item ?? "",
+    bol: isPendingBolToken(order.bol_number ?? order.bol ?? "") ? "" : (order.bol_number ?? order.bol ?? ""),
+    item: order.item ?? "",
     delivered_by: order.driver_name ?? order.delivered_by ?? "",
   };
 }
 
 function toDbPayload(ui) {
+  const fixed = normalizeUiForSave(ui || {});
+  const dateYmd = fixed.date || null;
+
+  const company = (fixed.company ?? "").toString().trim();
+  const trailer_number = (fixed.trailer_number ?? "").toString().trim();
+  const notes = (fixed.notes ?? "").toString().trim();
+  const dock_hours = (fixed.dock_hours ?? "").toString().trim();
+
+  const bolIn = (fixed.bol ?? "").toString().trim();
+  const item = (fixed.item ?? "").toString().trim();
+  const driver_name = (fixed.delivered_by ?? "").toString().trim();
+
+  // DB has NOT NULL on bol_number, plus a UNIQUE(day, customer, bol_number) constraint.
+  // To allow multiple "no BOL yet" rows, we save a unique pending token, but display it as blank in UI.
+  const bol_number = bolIn ? bolIn : `__PENDING_BOL__:${dateYmd || "no-date"}:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+
   return {
-    date: ui.date || null,
-    customer: ui.company || "",
-    trailer_number: ui.trailer_number || "",
-    notes: ui.notes || "",
-    dock_hours: ui.dock_hours || "",    bol_number: (() => {
-      const b = String(ui.bol ?? "").trim();
-      return b ? b : makePendingBolToken(ui.date);
-    })(),
-    item: ui.item || "",
-    driver_name: ui.delivered_by || "",
+    date: dateYmd,
+    customer: company,
+    trailer_number,
+    notes,
+    dock_hours,
+    bol_number,
+    item,
+    driver_name,
   };
 }
 
@@ -170,13 +217,16 @@ export default function DispatchLog() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        <StatusSummary logs={filteredLogs.filter((l) => (l.bol || "").trim() !== "")} />
+        <StatusSummary logs={filteredLogs.filter((l) => (l.bol || '').toString().trim().length > 0)} />
 
         <div className="flex items-center justify-center gap-4">
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSelectedDate(format(subDays(ymdToLocalDate(selectedDate), 1), "yyyy-MM-dd"))}
+            onClick={() => {
+              const d = parseLocalYMD(selectedDate) || new Date();
+              setSelectedDate(format(subDays(d, 1), "yyyy-MM-dd"));
+            }}
             className="rounded-xl h-12 w-12"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -192,7 +242,10 @@ export default function DispatchLog() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSelectedDate(format(addDays(ymdToLocalDate(selectedDate), 1), "yyyy-MM-dd"))}
+            onClick={() => {
+              const d = parseLocalYMD(selectedDate) || new Date();
+              setSelectedDate(format(addDays(d, 1), "yyyy-MM-dd"));
+            }}
             className="rounded-xl h-12 w-12"
           >
             <ChevronRight className="h-5 w-5" />
