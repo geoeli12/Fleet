@@ -204,7 +204,15 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
         onClick={() => {
           // Reset example each time the form opens (matches "show one example")
           setBulkCols({ ...exampleRow });
-          setExampleActive(true);
+          setExampleActiveCols({
+            company: true,
+            trailer_number: true,
+            notes: true,
+            dock_hours: true,
+            bol: true,
+            item: true,
+            delivered_by: true,
+          });
           setIsExpanded(true);
         }}
         className="bg-slate-800 hover:bg-slate-700 text-white rounded-xl h-12 px-6 shadow-lg"
@@ -311,14 +319,22 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm text-slate-600">
                   Paste values into any column below. Each line is one order.
-                  {exampleActive ? <span className="text-slate-400"> (click any column to start)</span> : null}
+                  {isExampleActive ? <span className="text-slate-400"> (click any column to start)</span> : null}
                 </div>
                 <Button
                   type="button"
                   variant="ghost"
                   onClick={() => {
                     clearBulk();
-                    setExampleActive(false);
+                    setExampleActiveCols({
+            company: false,
+            trailer_number: false,
+            notes: false,
+            dock_hours: false,
+            bol: false,
+            item: false,
+            delivered_by: false,
+          });
                   }}
                   className="text-slate-500"
                 >
