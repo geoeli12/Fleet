@@ -128,7 +128,7 @@ function toUiLog(order) {
     notes: order.notes ?? "",
     dock_hours: order.dock_hours ?? "",
     bol: cleanBolForUi(order.bol_number ?? order.bol ?? ""),
-    item: order.item ?? "",
+    item: (order.item ?? order.item_description ?? order.item_desc ?? order.item_info ?? order.items ?? ""),
     delivered_by: order.driver_name ?? order.delivered_by ?? "",
   };
 }
@@ -142,6 +142,10 @@ function toDbPayload(ui) {
     dock_hours: ui.dock_hours || "",
     bol_number: ui.bol || "",
     item: ui.item || "",
+    item_description: ui.item || "",
+    item_desc: ui.item || "",
+    item_info: ui.item || "",
+    items: ui.item || "",
     driver_name: ui.delivered_by || "",
   };
 }
