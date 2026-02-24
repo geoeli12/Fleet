@@ -10,6 +10,20 @@ import DispatchTable from "@/components/dispatch/DispatchTable";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
+const PENDING_BOL_PREFIX = "__PENDING_BOL__:";
+
+function isPendingBol(v) {
+  const s = String(v ?? "").trim();
+  return s.startsWith(PENDING_BOL_PREFIX);
+}
+
+function cleanBolForUi(v) {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  if (isPendingBol(s)) return "";
+  return s;
+}
+
 function toYMD(value) {
   if (!value) return "";
   const s = String(value);
@@ -34,20 +48,24 @@ function toUiLog(order) {
     trailer_number: order.trailer_number ?? "",
     notes: order.notes ?? "",
     dock_hours: order.dock_hours ?? "",
-    bol: order.bol_number ?? order.bol ?? "",
+    bol_token: String(order.bol_number ?? order.bol ?? ""),
+    bol: cleanBolForUi(order.bol_number ?? order.bol ?? ""),
     item: order.item ?? "",
     delivered_by: order.driver_name ?? order.delivered_by ?? "",
   };
 }
 
 function toDbPayload(ui) {
+  const uiBol = String(ui?.bol ?? "").trim();
+  const uiBolToken = String(ui?.bol_token ?? ui?.bolToken ?? ui?.bol_number ?? ui?.bolNumber ?? "");
+
   return {
     date: ui.date || null,
     customer: ui.company || "",
     trailer_number: ui.trailer_number || "",
     notes: ui.notes || "",
     dock_hours: ui.dock_hours || "",
-    bol_number: ui.bol || "",
+    bol_number: uiBol || uiBolToken || "",
     item: ui.item || "",
     driver_name: ui.delivered_by || "",
   };

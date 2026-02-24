@@ -127,19 +127,30 @@ function toUiLog(order) {
     trailer_number: order.trailer_number ?? "",
     notes: order.notes ?? "",
     dock_hours: order.dock_hours ?? "",
-    bol: cleanBolForUi(order.bol_number ?? order.bol ?? ""),    item: (order.item ?? order.item_description ?? order.item_desc ?? order.item_info ?? order.items ?? order.item_name ?? order.item_text ?? order.itemText ?? order.load_item ?? order.loadItem ?? order.product ?? order.description ?? ""),
+    // Keep the raw DB value so edits don't accidentally overwrite our
+    // generated pending-token (used to keep rows with blank BOL unique).
+    bol_token: String(order.bol_number ?? order.bol ?? ""),
+    bol: cleanBolForUi(order.bol_number ?? order.bol ?? ""),
+    item: (order.item ?? order.item_description ?? order.item_desc ?? order.item_info ?? order.items ?? order.item_name ?? order.item_text ?? order.itemText ?? order.load_item ?? order.loadItem ?? order.product ?? order.description ?? ""),
     delivered_by: order.driver_name ?? order.delivered_by ?? "",
   };
 }
 
 function toDbPayload(ui) {
+  const uiBol = String(ui?.bol ?? "").trim();
+  const uiBolToken = String(ui?.bol_token ?? ui?.bolToken ?? ui?.bol_number ?? ui?.bolNumber ?? "");
+
   return {
     date: ui.date || null,
     customer: ui.company || "",
     trailer_number: ui.trailer_number || "",
     notes: ui.notes || "",
     dock_hours: ui.dock_hours || "",
-    bol_number: ui.bol || "",
+    // IMPORTANT:
+    // If the DB value was a pending-token, the UI shows it as blank.
+    // On edit (like changing Trailer #), we must NOT overwrite the token with "";
+    // otherwise multiple blank-BOL rows collide with the unique constraint.
+    bol_number: uiBol || uiBolToken || "",
     // Item field name varies across versions; send a wide payload so the server can persist it.
     item: ui.item || "",
     item_name: ui.item || "",
