@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-export default function DispatchTable({ logs, onUpdate, onDelete }) {
+export default function DispatchTable({ logs, onUpdate, onDelete, showDate = false }) {
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
 
@@ -52,7 +52,7 @@ export default function DispatchTable({ logs, onUpdate, onDelete }) {
     setEditData(prev => ({ ...prev, [field]: value }));
   };
 
-  const columns = [
+  const baseColumns = [
     { key: 'company', label: 'Company', width: 'w-40' },
     { key: 'trailer_number', label: 'Trailer #', width: 'w-28' },
     { key: 'notes', label: 'Notes', width: 'flex-1' },
@@ -61,6 +61,10 @@ export default function DispatchTable({ logs, onUpdate, onDelete }) {
     { key: 'item', label: 'Item', width: 'w-24' },
     { key: 'delivered_by', label: 'Delivered', width: 'w-28' },
   ];
+
+  const columns = showDate
+    ? [{ key: 'date', label: 'Date', width: 'w-28' }, ...baseColumns]
+    : baseColumns;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -108,7 +112,7 @@ export default function DispatchTable({ logs, onUpdate, onDelete }) {
                       />
                     ) : (
                       <span className="text-sm text-slate-700">
-                        {log[col.key] || '-'}
+                        {col.key === 'date' ? (log.date ? format(new Date(log.date), 'MM/dd/yyyy') : '-') : (log[col.key] || '-')}
                       </span>
                     )}
                   </div>

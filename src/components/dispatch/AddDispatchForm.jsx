@@ -43,7 +43,15 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
 
   // Bulk Paste (column-based)
   const [bulkCols, setBulkCols] = useState({ ...exampleRow });
-  const [exampleActive, setExampleActive] = useState(true);
+  const [exampleActiveCols, setExampleActiveCols] = useState(() => ({
+    company: true,
+    trailer_number: true,
+    notes: true,
+    dock_hours: true,
+    bol: true,
+    item: true,
+    delivered_by: true,
+  }));
   const shouldRefocus = useRef({ field: null });
 
   useEffect(() => {
@@ -51,6 +59,8 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
       setForm(prev => ({ ...prev, date: defaultDate }));
     }
   }, [defaultDate]);
+
+  const isExampleActive = useMemo(() => Object.values(exampleActiveCols).some(Boolean), [exampleActiveCols]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,6 +79,15 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
       bol: '',
       item: '',
       delivered_by: ''
+    });
+    setExampleActiveCols({
+      company: false,
+      trailer_number: false,
+      notes: false,
+      dock_hours: false,
+      bol: false,
+      item: false,
+      delivered_by: false,
     });
   };
 
@@ -96,7 +115,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
 
   const bulkEntryCount = useMemo(() => {
     // While example is showing, treat it as 0 entries (so you don't accidentally import the sample)
-    if (exampleActive) return 0;
+    if (isExampleActive) return 0;
 
     const { a, maxLen } = bulkArrays;
     let count = 0;
@@ -105,12 +124,12 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
       if (company) count++;
     }
     return count;
-  }, [bulkArrays, exampleActive]);
+  }, [bulkArrays, isExampleActive]);
 
   const handleBulkSubmit = async (e) => {
     e.preventDefault();
 
-    if (exampleActive) return;
+    if (isExampleActive) return;
 
     const { a, maxLen } = bulkArrays;
     if (maxLen === 0) return;
@@ -147,11 +166,11 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
   };
 
   const handleBulkColChange = (field, value) => {
-    if (exampleActive) {
-      // If user types without focusing first (rare), clear example first.
-      setExampleActive(false);
-      clearBulk();
-      // Let the change apply after clear
+    // If the column is still showing the example value, clear just that column first
+    if (exampleActiveCols[field]) {
+      setExampleActiveCols(prev => ({ ...prev, [field]: false }));
+      setBulkCols(prev => ({ ...prev, [field]: "" }));
+      // Let the change apply after the clear
       setTimeout(() => {
         setBulkCols(prev => ({ ...prev, [field]: value }));
       }, 0);
@@ -161,23 +180,23 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
   };
 
   const handleBulkFocus = (field) => {
-    // Clicking into any column should clear the example data
-    if (exampleActive) {
+    // Clicking into a column should clear ONLY that column's example value
+    if (exampleActiveCols[field]) {
       shouldRefocus.current.field = field;
-      setExampleActive(false);
-      clearBulk();
+      setExampleActiveCols(prev => ({ ...prev, [field]: false }));
+      setBulkCols(prev => ({ ...prev, [field]: "" }));
     }
   };
 
   // Try to keep cursor in the clicked textarea after clearing example
   useEffect(() => {
-    if (!exampleActive && shouldRefocus.current.field) {
+    if (shouldRefocus.current.field) {
       const id = `bulk-${shouldRefocus.current.field}`;
       const el = document.getElementById(id);
-      if (el && typeof el.focus === 'function') el.focus();
+      if (el && typeof el.focus === "function") el.focus();
       shouldRefocus.current.field = null;
     }
-  }, [exampleActive]);
+  }, [exampleActiveCols]);
 
   if (!isExpanded) {
     return (
@@ -327,7 +346,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                         onFocus={() => handleBulkFocus('company')}
                         onChange={(e) => handleBulkColChange('company', e.target.value)}
                         placeholder="Company"
-                        className="h-56 font-mono text-sm resize-none"
+                        className={`h-56 font-mono text-sm resize-none ${exampleActiveCols.company ? "text-slate-400" : ""}`}
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
@@ -337,7 +356,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                         onFocus={() => handleBulkFocus('trailer_number')}
                         onChange={(e) => handleBulkColChange('trailer_number', e.target.value)}
                         placeholder="Trailer #"
-                        className="h-56 font-mono text-sm resize-none"
+                        className={`h-56 font-mono text-sm resize-none ${exampleActiveCols.trailer_number ? "text-slate-400" : ""}`}
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
@@ -347,7 +366,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                         onFocus={() => handleBulkFocus('notes')}
                         onChange={(e) => handleBulkColChange('notes', e.target.value)}
                         placeholder="Notes"
-                        className="h-56 font-mono text-sm resize-none"
+                        className={`h-56 font-mono text-sm resize-none ${exampleActiveCols.notes ? "text-slate-400" : ""}`}
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
@@ -357,7 +376,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                         onFocus={() => handleBulkFocus('dock_hours')}
                         onChange={(e) => handleBulkColChange('dock_hours', e.target.value)}
                         placeholder="Dock Hrs"
-                        className="h-56 font-mono text-sm resize-none"
+                        className={`h-56 font-mono text-sm resize-none ${exampleActiveCols.dock_hours ? "text-slate-400" : ""}`}
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
@@ -367,7 +386,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                         onFocus={() => handleBulkFocus('bol')}
                         onChange={(e) => handleBulkColChange('bol', e.target.value)}
                         placeholder="BOL"
-                        className="h-56 font-mono text-sm resize-none"
+                        className={`h-56 font-mono text-sm resize-none ${exampleActiveCols.bol ? "text-slate-400" : ""}`}
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
@@ -377,7 +396,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                         onFocus={() => handleBulkFocus('item')}
                         onChange={(e) => handleBulkColChange('item', e.target.value)}
                         placeholder="Item"
-                        className="h-56 font-mono text-sm resize-none"
+                        className={`h-56 font-mono text-sm resize-none ${exampleActiveCols.item ? "text-slate-400" : ""}`}
                       />
                     </div>
                     <div className="p-2">
@@ -387,7 +406,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                         onFocus={() => handleBulkFocus('delivered_by')}
                         onChange={(e) => handleBulkColChange('delivered_by', e.target.value)}
                         placeholder="Delivered"
-                        className="h-56 font-mono text-sm resize-none"
+                        className={`h-56 font-mono text-sm resize-none ${exampleActiveCols.delivered_by ? "text-slate-400" : ""}`}
                       />
                     </div>
                   </div>
