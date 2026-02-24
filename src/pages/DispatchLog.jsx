@@ -127,8 +127,7 @@ function toUiLog(order) {
     trailer_number: order.trailer_number ?? "",
     notes: order.notes ?? "",
     dock_hours: order.dock_hours ?? "",
-    bol: cleanBolForUi(order.bol_number ?? order.bol ?? ""),
-    item: (order.item ?? order.item_description ?? order.item_desc ?? order.item_info ?? order.items ?? ""),
+    bol: cleanBolForUi(order.bol_number ?? order.bol ?? ""),    item: (order.item ?? order.item_description ?? order.item_desc ?? order.item_info ?? order.items ?? order.item_name ?? order.item_text ?? order.itemText ?? order.load_item ?? order.loadItem ?? order.product ?? order.description ?? ""),
     delivered_by: order.driver_name ?? order.delivered_by ?? "",
   };
 }
@@ -141,12 +140,22 @@ function toDbPayload(ui) {
     notes: ui.notes || "",
     dock_hours: ui.dock_hours || "",
     bol_number: ui.bol || "",
+    // Item field name varies across versions; send a wide payload so the server can persist it.
     item: ui.item || "",
+    item_name: ui.item || "",
+    item_text: ui.item || "",
+    itemText: ui.item || "",
     item_description: ui.item || "",
     item_desc: ui.item || "",
     item_info: ui.item || "",
     items: ui.item || "",
+    load_item: ui.item || "",
+    loadItem: ui.item || "",
+    product: ui.item || "",
+    description: ui.item || "",
+    // Delivered / driver name varies too
     driver_name: ui.delivered_by || "",
+    delivered_by: ui.delivered_by || "", 
   };
 }
 
