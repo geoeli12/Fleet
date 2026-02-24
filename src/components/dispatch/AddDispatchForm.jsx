@@ -6,6 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { format } from 'date-fns';
 
+import customersIL from "@/data/customers_il.json";
+import customersPA from "@/data/customers_pa.json";
+
 const initialForm = {
   date: format(new Date(), 'yyyy-MM-dd'),
   company: '',
@@ -40,6 +43,46 @@ const normalizeLines = (text) => {
 export default function AddDispatchForm({ onAdd, defaultDate }) {
   const [form, setForm] = useState(initialForm);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Company suggestions (same behavior as AddRunForm customer picker)
+  const [isCompanyFocused, setIsCompanyFocused] = useState(false);
+  const ignoreCompanyBlurRef = useRef(false);
+
+  const customerDirectory = useMemo(() => {
+    const normalize = (v) => (v ?? '').toString().trim();
+
+    const safeParse = (raw) => {
+      try { return JSON.parse(raw); } catch { return null; }
+    };
+
+    const getRows = (key, fallback) => {
+      if (typeof window === 'undefined') return fallback || [];
+      const raw = window.localStorage.getItem(key);
+      const parsed = raw ? safeParse(raw) : null;
+      return Array.isArray(parsed) ? parsed : (fallback || []);
+    };
+
+    const ilRows = getRows('customers_il', customersIL);
+    const paRows = getRows('customers_pa', customersPA);
+
+    const withMeta = (rows, region) =>
+      (rows || []).map((r, idx) => ({
+        _key: `${region}-${r.id ?? idx}`,
+        region,
+        customer: normalize(r.customer),
+        address: normalize(r.address),
+      }));
+
+    return [...withMeta(ilRows, 'IL'), ...withMeta(paRows, 'PA')].filter(r => r.customer);
+  }, []);
+
+  const companyMatches = useMemo(() => {
+    const q = (form.company || '').trim().toLowerCase();
+    if (!q) return [];
+    return customerDirectory
+      .filter(r => r.customer.toLowerCase().includes(q))
+      .slice(0, 10);
+  }, [form.company, customerDirectory]);
 
   // Bulk Paste (column-based)
   const [bulkCols, setBulkCols] = useState({ ...exampleRow });
@@ -247,13 +290,60 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
               </div>
               <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">Company *</label>
-                <Input
-                  value={form.company}
-                  onChange={(e) => handleChange('company', e.target.value)}
-                  placeholder="Company name"
-                  className="h-10"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    value={form.company}
+                    onChange={(e) => handleChange('company', e.target.value)}
+                    onFocus={() => setIsCompanyFocused(true)}
+                    onBlur={() => {
+                      if (ignoreCompanyBlurRef.current) return;
+                      setIsCompanyFocused(false);
+                    }}
+                    placeholder="Company name"
+                    className="h-10"
+                    required
+                    autoComplete="off"
+                  />
+
+                  {isCompanyFocused && companyMatches.length > 0 ? (
+                    <div
+                      className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+                      role="listbox"
+                    >
+                      <div className="max-h-64 overflow-auto p-1">
+                        {companyMatches.map((row) => (
+                          <button
+                            key={row._key}
+                            type="button"
+                            onMouseDown={() => { ignoreCompanyBlurRef.current = true; }}
+                            onMouseUp={() => { ignoreCompanyBlurRef.current = false; }}
+                            onClick={() => {
+                              handleChange('company', row.customer);
+                              setIsCompanyFocused(false);
+                            }}
+                            className="w-full rounded-xl px-3 py-2 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium text-slate-900">{row.customer}</div>
+                                <div className="truncate text-xs text-slate-600">{row.address}</div>
+                              </div>
+                              <span
+                                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                  row.region === 'PA'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}
+                              >
+                                {row.region}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">Trailer #</label>
