@@ -71,10 +71,50 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
         region,
         customer: normalize(r.customer),
         address: normalize(r.address),
+        receivingHours: normalize(r.receivingHours),
+        receivingNotes: normalize(r.receivingNotes),
       }));
 
     return [...withMeta(ilRows, 'IL'), ...withMeta(paRows, 'PA')].filter(r => r.customer);
   }, []);
+
+  const normalizeCompanyKey = (v) =>
+    (v ?? '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      // Strip leading numeric IDs like "12 " from customer names
+      .replace(/^\d+\s+/, '')
+      .replace(/^[-–—\s]+/, '')
+      .trim();
+
+  const getDockHoursForCompany = (companyName) => {
+    const q = normalizeCompanyKey(companyName);
+    if (!q) return '';
+
+    const match =
+      customerDirectory.find(r => normalizeCompanyKey(r.customer) === q) ||
+      customerDirectory.find(r => normalizeCompanyKey(r.customer).startsWith(q)) ||
+      customerDirectory.find(r => normalizeCompanyKey(r.customer).includes(q));
+
+    if (!match) return '';
+    return (match.receivingHours || match.receivingNotes || '').trim();
+  };
+
+  const applyCompanyPick = (row) => {
+    const dock = (row?.receivingHours || row?.receivingNotes || '').trim();
+    setForm(prev => ({
+      ...prev,
+      company: row.customer,
+      dock_hours: dock || prev.dock_hours,
+    }));
+  };
+
+  const tryAutoFillDockHoursFromCompany = () => {
+    const dock = getDockHoursForCompany(form.company);
+    if (!dock) return;
+    setForm(prev => ({ ...prev, dock_hours: prev.dock_hours || dock }));
+  };
 
   const companyMatches = useMemo(() => {
     const q = (form.company || '').trim().toLowerCase();
@@ -215,11 +255,84 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
       setBulkCols(prev => ({ ...prev, [field]: "" }));
       // Let the change apply after the clear
       setTimeout(() => {
-        setBulkCols(prev => ({ ...prev, [field]: value }));
+        setBulkCols(prev => {
+          const next = { ...prev, [field]: value };
+          if (field === 'company') {
+            const compLines = normalizeLines(value);
+            const existingDockLines = normalizeLines(next.dock_hours);
+            const maxLen = Math.max(compLines.length, existingDockLines.length);
+            const out = [];
+            let didFill = false;
+
+            for (let i = 0; i < maxLen; i++) {
+              const c = (compLines[i] || '').trim();
+              const d = (existingDockLines[i] || '').trim();
+              if (d) {
+                out.push(d);
+                continue;
+              }
+              if (!c) {
+                out.push('');
+                continue;
+              }
+              const dock = getDockHoursForCompany(c);
+              if (dock) {
+                out.push(dock);
+                didFill = true;
+              } else {
+                out.push('');
+              }
+            }
+
+            if (didFill) {
+              next.dock_hours = out.join('\n');
+              setExampleActiveCols(prevEx => ({ ...prevEx, dock_hours: false }));
+            }
+          }
+          return next;
+        });
       }, 0);
       return;
     }
-    setBulkCols(prev => ({ ...prev, [field]: value }));
+
+    setBulkCols(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'company') {
+        const compLines = normalizeLines(value);
+        const existingDockLines = normalizeLines(next.dock_hours);
+        const maxLen = Math.max(compLines.length, existingDockLines.length);
+        const out = [];
+        let didFill = false;
+
+        for (let i = 0; i < maxLen; i++) {
+          const c = (compLines[i] || '').trim();
+          const d = (existingDockLines[i] || '').trim();
+          if (d) {
+            out.push(d);
+            continue;
+          }
+          if (!c) {
+            out.push('');
+            continue;
+          }
+          const dock = getDockHoursForCompany(c);
+          if (dock) {
+            out.push(dock);
+            didFill = true;
+          } else {
+            out.push('');
+          }
+        }
+
+        if (didFill) {
+          next.dock_hours = out.join('\n');
+          if (exampleActiveCols.dock_hours) {
+            setExampleActiveCols(prevEx => ({ ...prevEx, dock_hours: false }));
+          }
+        }
+      }
+      return next;
+    });
   };
 
   const handleBulkFocus = (field) => {
@@ -297,6 +410,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                     onFocus={() => setIsCompanyFocused(true)}
                     onBlur={() => {
                       if (ignoreCompanyBlurRef.current) return;
+                      tryAutoFillDockHoursFromCompany();
                       setIsCompanyFocused(false);
                     }}
                     placeholder="Company name"
@@ -318,7 +432,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                             onMouseDown={() => { ignoreCompanyBlurRef.current = true; }}
                             onMouseUp={() => { ignoreCompanyBlurRef.current = false; }}
                             onClick={() => {
-                              handleChange('company', row.customer);
+                              applyCompanyPick(row);
                               setIsCompanyFocused(false);
                             }}
                             className="w-full rounded-xl px-3 py-2 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
