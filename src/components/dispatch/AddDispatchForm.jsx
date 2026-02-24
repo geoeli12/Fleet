@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, Table } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,17 @@ const initialForm = {
   delivered_by: ''
 };
 
+// One example row (shows in the grid until the user clicks into any column)
+const exampleRow = {
+  company: 'Uline - U6',
+  trailer_number: '1256',
+  notes: 'Leave at dock 3',
+  dock_hours: '660',
+  bol: '6592',
+  item: '96x48',
+  delivered_by: 'Yes'
+};
+
 const normalizeLines = (text) => {
   const raw = (text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const parts = raw.split('\n').map(l => (l ?? '').toString().trim());
@@ -31,15 +42,9 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Bulk Paste (column-based)
-  const [bulkCols, setBulkCols] = useState({
-    company: '',
-    trailer_number: '',
-    notes: '',
-    dock_hours: '',
-    bol: '',
-    item: '',
-    delivered_by: ''
-  });
+  const [bulkCols, setBulkCols] = useState({ ...exampleRow });
+  const [exampleActive, setExampleActive] = useState(true);
+  const shouldRefocus = useRef({ field: null });
 
   useEffect(() => {
     if (defaultDate) {
@@ -53,6 +58,18 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
     await onAdd(form);
     setForm({ ...initialForm, date: form.date });
     setIsExpanded(false);
+  };
+
+  const clearBulk = () => {
+    setBulkCols({
+      company: '',
+      trailer_number: '',
+      notes: '',
+      dock_hours: '',
+      bol: '',
+      item: '',
+      delivered_by: ''
+    });
   };
 
   const bulkArrays = useMemo(() => {
@@ -78,6 +95,9 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
   }, [bulkCols]);
 
   const bulkEntryCount = useMemo(() => {
+    // While example is showing, treat it as 0 entries (so you don't accidentally import the sample)
+    if (exampleActive) return 0;
+
     const { a, maxLen } = bulkArrays;
     let count = 0;
     for (let i = 0; i < maxLen; i++) {
@@ -85,10 +105,12 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
       if (company) count++;
     }
     return count;
-  }, [bulkArrays]);
+  }, [bulkArrays, exampleActive]);
 
   const handleBulkSubmit = async (e) => {
     e.preventDefault();
+
+    if (exampleActive) return;
 
     const { a, maxLen } = bulkArrays;
     if (maxLen === 0) return;
@@ -114,15 +136,9 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
       await onAdd(entry);
     }
 
-    setBulkCols({
-      company: '',
-      trailer_number: '',
-      notes: '',
-      dock_hours: '',
-      bol: '',
-      item: '',
-      delivered_by: ''
-    });
+    clearBulk();
+    // Reset back to example after import? No — keep it empty.
+    
     setIsExpanded(false);
   };
 
@@ -131,25 +147,47 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
   };
 
   const handleBulkColChange = (field, value) => {
+    if (exampleActive) {
+      // If user types without focusing first (rare), clear example first.
+      setExampleActive(false);
+      clearBulk();
+      // Let the change apply after clear
+      setTimeout(() => {
+        setBulkCols(prev => ({ ...prev, [field]: value }));
+      }, 0);
+      return;
+    }
     setBulkCols(prev => ({ ...prev, [field]: value }));
   };
 
-  const clearBulk = () => {
-    setBulkCols({
-      company: '',
-      trailer_number: '',
-      notes: '',
-      dock_hours: '',
-      bol: '',
-      item: '',
-      delivered_by: ''
-    });
+  const handleBulkFocus = (field) => {
+    // Clicking into any column should clear the example data
+    if (exampleActive) {
+      shouldRefocus.current.field = field;
+      setExampleActive(false);
+      clearBulk();
+    }
   };
+
+  // Try to keep cursor in the clicked textarea after clearing example
+  useEffect(() => {
+    if (!exampleActive && shouldRefocus.current.field) {
+      const id = `bulk-${shouldRefocus.current.field}`;
+      const el = document.getElementById(id);
+      if (el && typeof el.focus === 'function') el.focus();
+      shouldRefocus.current.field = null;
+    }
+  }, [exampleActive]);
 
   if (!isExpanded) {
     return (
       <Button
-        onClick={() => setIsExpanded(true)}
+        onClick={() => {
+          // Reset example each time the form opens (matches "show one example")
+          setBulkCols({ ...exampleRow });
+          setExampleActive(true);
+          setIsExpanded(true);
+        }}
         className="bg-slate-800 hover:bg-slate-700 text-white rounded-xl h-12 px-6 shadow-lg"
       >
         <Plus className="h-5 w-5 mr-2" />
@@ -253,16 +291,24 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm text-slate-600">
-                  Paste values into <span className="font-semibold">any</span> column below. Each line is one order.
+                  Paste values into any column below. Each line is one order.
+                  {exampleActive ? <span className="text-slate-400"> (click any column to start)</span> : null}
                 </div>
-                <Button type="button" variant="ghost" onClick={clearBulk} className="text-slate-500">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    clearBulk();
+                    setExampleActive(false);
+                  }}
+                  className="text-slate-500"
+                >
                   Clear
                 </Button>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
                 <div className="min-w-[980px]">
-                  {/* Header row (matches Dispatch table) */}
                   <div className="grid grid-cols-7 gap-0 border-b border-slate-200 bg-slate-50">
                     <div className="px-3 py-2 text-xs font-semibold text-slate-700 border-r border-slate-200">Company</div>
                     <div className="px-3 py-2 text-xs font-semibold text-slate-700 border-r border-slate-200">Trailer #</div>
@@ -273,61 +319,74 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                     <div className="px-3 py-2 text-xs font-semibold text-slate-700">Delivered</div>
                   </div>
 
-                  {/* Input row */}
                   <div className="grid grid-cols-7 gap-0">
                     <div className="p-2 border-r border-slate-200">
                       <Textarea
+                        id="bulk-company"
                         value={bulkCols.company}
+                        onFocus={() => handleBulkFocus('company')}
                         onChange={(e) => handleBulkColChange('company', e.target.value)}
-                        placeholder={"Uline - U6\nAllen - 19B"}
+                        placeholder="Company"
                         className="h-56 font-mono text-sm resize-none"
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
                       <Textarea
+                        id="bulk-trailer_number"
                         value={bulkCols.trailer_number}
+                        onFocus={() => handleBulkFocus('trailer_number')}
                         onChange={(e) => handleBulkColChange('trailer_number', e.target.value)}
-                        placeholder={"1256\n1299"}
+                        placeholder="Trailer #"
                         className="h-56 font-mono text-sm resize-none"
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
                       <Textarea
+                        id="bulk-notes"
                         value={bulkCols.notes}
+                        onFocus={() => handleBulkFocus('notes')}
                         onChange={(e) => handleBulkColChange('notes', e.target.value)}
-                        placeholder={"Leave at dock 3\nCall ahead"}
+                        placeholder="Notes"
                         className="h-56 font-mono text-sm resize-none"
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
                       <Textarea
+                        id="bulk-dock_hours"
                         value={bulkCols.dock_hours}
+                        onFocus={() => handleBulkFocus('dock_hours')}
                         onChange={(e) => handleBulkColChange('dock_hours', e.target.value)}
-                        placeholder={"660\n1040"}
+                        placeholder="Dock Hrs"
                         className="h-56 font-mono text-sm resize-none"
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
                       <Textarea
+                        id="bulk-bol"
                         value={bulkCols.bol}
+                        onFocus={() => handleBulkFocus('bol')}
                         onChange={(e) => handleBulkColChange('bol', e.target.value)}
-                        placeholder={"6592\n6598"}
+                        placeholder="BOL"
                         className="h-56 font-mono text-sm resize-none"
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
                       <Textarea
+                        id="bulk-item"
                         value={bulkCols.item}
+                        onFocus={() => handleBulkFocus('item')}
                         onChange={(e) => handleBulkColChange('item', e.target.value)}
-                        placeholder={"96x48\n2x4"}
+                        placeholder="Item"
                         className="h-56 font-mono text-sm resize-none"
                       />
                     </div>
                     <div className="p-2">
                       <Textarea
+                        id="bulk-delivered_by"
                         value={bulkCols.delivered_by}
+                        onFocus={() => handleBulkFocus('delivered_by')}
                         onChange={(e) => handleBulkColChange('delivered_by', e.target.value)}
-                        placeholder={"Yes\nNo"}
+                        placeholder="Delivered"
                         className="h-56 font-mono text-sm resize-none"
                       />
                     </div>
@@ -336,7 +395,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
               </div>
 
               <p className="text-xs text-slate-500">
-                Tip: You can paste a vertical selection from Excel directly into any column above. The importer matches lines by row number.
+                Tip: Paste a vertical selection from Excel into any column. The importer matches lines by row number.
               </p>
 
               <div className="flex gap-3">
