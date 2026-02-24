@@ -1,16 +1,11 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, isValid } from "date-fns";
 import { api } from "@/api/apiClient";
 
 import AttendanceCalendar from "@/components/calendar/AttendanceCalendar";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DayDetailModal from "@/components/calendar/DayDetailModal";
+import EditAttendanceModal from "@/components/calendar/EditAttendanceModal";
 
 function normalizeStatus(v) {
   const s = String(v || "").toLowerCase().trim();
@@ -31,14 +26,19 @@ function pickHigherPriority(existing, next) {
 
 function safeISODate(value) {
   if (!value) return "";
-  // value may be YYYY-MM-DD, or date-time
   const s = String(value);
   const iso = s.slice(0, 10);
-  // quick sanity check
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
-
   const d = new Date(s);
   if (isValid(d)) return format(d, "yyyy-MM-dd");
+  return "";
+}
+
+function noteFromShift(shift) {
+  const u = shift?.unit_number;
+  if (typeof u === "string" && u.trim().toUpperCase().startsWith("NOTE:")) {
+    return u.replace(/^NOTE:\s*/i, "");
+  }
   return "";
 }
 
@@ -46,6 +46,11 @@ export default function Calendar() {
   const [selectedDay, setSelectedDay] = useState(null); // Date
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [dayRecords, setDayRecords] = useState([]);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+
+  const queryClient = useQueryClient();
 
   const { data: drivers = [] } = useQuery({
     queryKey: ["drivers"],
@@ -64,41 +69,42 @@ export default function Calendar() {
       .map((d) => ({
         id: String(d.id ?? d.employee_id ?? d.name),
         name: String(d.name),
-        department: d.state ? String(d.state) : "", // DayDetailModal compatibility if used later
+        // we don't truly have dept in this app; keep compatibility with the Base44 UI
+        department: d.state ? String(d.state) : "",
       }));
   }, [drivers]);
 
-  const attendance = useMemo(() => {
-    const completed = (Array.isArray(shifts) ? shifts : []).filter(
+  const completedShifts = useMemo(() => {
+    return (Array.isArray(shifts) ? shifts : []).filter(
       (s) => (s?.status || "").toLowerCase() === "completed"
     );
+  }, [shifts]);
 
-    // date -> driverKey -> { status, record }
-    const byDate = new Map();
+  // Calendar dots: one per employee per date, highest priority status wins.
+  const attendance = useMemo(() => {
+    const byDate = new Map(); // date -> employeeKey -> { status, employee_name }
 
-    for (const s of completed) {
+    for (const s of completedShifts) {
       const driverName = String(s?.driver_name || s?.driver || s?.name || "").trim();
       if (!driverName) continue;
+
+      const matched = employees.find((e) => e.name === driverName);
+      const employeeKey = matched ? matched.id : driverName;
 
       const isPto = !!(s?.is_pto || String(s?.shift_type || "").toLowerCase() === "pto");
       const status = isPto ? "pto" : normalizeStatus(s?.attendance_status || "present");
 
+      const baseDate = safeISODate(s?.date || s?.shift_date || s?.shiftDate || s?.shift_dt);
       const dates = Array.isArray(s?.pto_dates) && s.pto_dates.length
         ? s.pto_dates.map((d) => safeISODate(d)).filter(Boolean)
-        : [safeISODate(s?.date || s?.shift_date || s?.shiftDate || s?.shift_dt)];
+        : [baseDate];
 
       for (const dateStr of dates) {
         if (!dateStr) continue;
         if (!byDate.has(dateStr)) byDate.set(dateStr, new Map());
         const m = byDate.get(dateStr);
-
-        // Prefer matching to a Driver id if possible, but fall back to name
-        const matched = employees.find((e) => e.name === driverName);
-        const employeeKey = matched ? matched.id : driverName;
-
         const existing = m.get(employeeKey);
         const nextStatus = existing ? pickHigherPriority(existing.status, status) : status;
-
         m.set(employeeKey, {
           status: nextStatus,
           employee_name: matched ? matched.name : driverName,
@@ -106,11 +112,11 @@ export default function Calendar() {
       }
     }
 
-    // For each date that has at least one record, mark everyone else absent
     const results = [];
     for (const [dateStr, m] of byDate.entries()) {
       const presentKeys = new Set([...m.keys()]);
 
+      // Absent only makes sense if we have at least one record for that day.
       for (const e of employees) {
         if (!presentKeys.has(e.id)) {
           m.set(e.id, { status: "absent", employee_name: e.name });
@@ -128,86 +134,208 @@ export default function Calendar() {
     }
 
     return results;
-  }, [shifts, employees]);
+  }, [completedShifts, employees]);
+
+  const createShift = useMutation({
+    mutationFn: async (payload) => api.entities.Shift.create(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["allShifts"] });
+    },
+  });
+
+  const updateShift = useMutation({
+    mutationFn: async ({ id, payload }) => api.entities.Shift.update(id, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["allShifts"] });
+    },
+  });
+
+  const deleteShift = useMutation({
+    mutationFn: async (id) => api.entities.Shift.delete(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["allShifts"] });
+    },
+  });
 
   const handleDayClick = useCallback(
-    (day, dayData) => {
+    (day) => {
+      const dateStr = format(day, "yyyy-MM-dd");
+
+      const recs = [];
+      for (const s of completedShifts) {
+        const driverName = String(s?.driver_name || "").trim();
+        if (!driverName) continue;
+
+        const isPto = !!(s?.is_pto || String(s?.shift_type || "").toLowerCase() === "pto");
+        const status = isPto ? "pto" : normalizeStatus(s?.attendance_status || "present");
+
+        const baseDate = safeISODate(s?.date || s?.shift_date || s?.shiftDate || s?.shift_dt);
+        const dates = Array.isArray(s?.pto_dates) && s.pto_dates.length
+          ? s.pto_dates.map((d) => safeISODate(d)).filter(Boolean)
+          : [baseDate];
+
+        if (!dates.includes(dateStr)) continue;
+
+        const matched = employees.find((e) => e.name === driverName);
+
+        recs.push({
+          id: Array.isArray(s?.pto_dates) && s.pto_dates.length ? `${s.id}::${dateStr}` : String(s.id),
+          _shiftId: String(s.id),
+          _virtualDate: dateStr,
+          _isPtoMulti: Array.isArray(s?.pto_dates) && s.pto_dates.length > 1,
+          _ptoDates: Array.isArray(s?.pto_dates) ? s.pto_dates : null,
+
+          date: dateStr,
+          status,
+          attendance_status: status,
+          employee_id: matched ? matched.id : driverName,
+          employee_name: matched ? matched.name : driverName,
+          department: matched?.department || "",
+
+          start_time: s?.start_time || "",
+          end_time: s?.end_time || "",
+          notes: noteFromShift(s),
+        });
+      }
+
+      // Mark absent for everyone else only if the day has any records
+      const hasAny = recs.length > 0;
+      if (hasAny) {
+        const present = new Set(recs.map((r) => String(r.employee_id)));
+        for (const e of employees) {
+          if (!present.has(String(e.id))) {
+            recs.push({
+              id: `${dateStr}::${e.id}`,
+              _shiftId: null,
+              _virtualDate: dateStr,
+              date: dateStr,
+              status: "absent",
+              attendance_status: "absent",
+              employee_id: e.id,
+              employee_name: e.name,
+              department: e.department || "",
+              start_time: "",
+              end_time: "",
+              notes: "",
+            });
+          }
+        }
+      }
+
       setSelectedDay(day);
-      setDayRecords(dayData?.records || []);
+      setDayRecords(recs);
       setDayModalOpen(true);
     },
-    []
+    [completedShifts, employees]
   );
 
-  const selectedSummary = useMemo(() => {
-    if (!selectedDay) return { present: [], late: [], absent: [], pto: [] };
-    const dateStr = format(selectedDay, "yyyy-MM-dd");
-    const records = attendance.filter((r) => r.date === dateStr);
-    return {
-      present: records.filter((r) => r.status === "present"),
-      late: records.filter((r) => r.status === "late"),
-      absent: records.filter((r) => r.status === "absent"),
-      pto: records.filter((r) => r.status === "pto"),
-    };
-  }, [selectedDay, attendance]);
+  const openNewAttendance = useCallback(
+    (employee) => {
+      if (!selectedDay) return;
+      const dateStr = format(selectedDay, "yyyy-MM-dd");
+      setEditingRecord({
+        isNew: true,
+        _shiftId: null,
+        date: dateStr,
+        employee_id: employee.id,
+        employee_name: employee.name,
+        attendance_status: "present",
+        start_time: "",
+        end_time: "",
+        notes: "",
+      });
+      setEditOpen(true);
+    },
+    [selectedDay]
+  );
+
+  const openEditAttendance = useCallback((record) => {
+    setEditingRecord({
+      isNew: false,
+      ...record,
+    });
+    setEditOpen(true);
+  }, []);
+
+  const handleDelete = useCallback(
+    async (record) => {
+      if (!record?._shiftId) return;
+
+      if (record._isPtoMulti && Array.isArray(record._ptoDates)) {
+        const remaining = record._ptoDates
+          .map((d) => safeISODate(d))
+          .filter((d) => d && d !== record._virtualDate);
+        await updateShift.mutateAsync({
+          id: record._shiftId,
+          payload: { pto_dates: remaining },
+        });
+        return;
+      }
+
+      await deleteShift.mutateAsync(record._shiftId);
+    },
+    [deleteShift, updateShift]
+  );
+
+  const handleSave = useCallback(
+    async (form) => {
+      // Map the UI Attendance record onto the existing Shift entity.
+      const status = normalizeStatus(form.attendance_status);
+
+      const payload = {
+        driver_name: form.employee_name,
+        date: form.date,
+        status: "completed",
+        attendance_status: status,
+        is_pto: status === "pto",
+        shift_type: status === "pto" ? "pto" : "day",
+      };
+
+      if (status === "pto") {
+        payload.pto_dates = [form.date];
+      } else {
+        payload.pto_dates = [];
+      }
+
+      if (form.start_time) payload.start_time = form.start_time;
+      if (form.end_time) payload.end_time = form.end_time;
+      if (form.notes) payload.unit_number = `NOTE: ${form.notes}`;
+
+      if (editingRecord?.isNew) {
+        await createShift.mutateAsync(payload);
+      } else if (editingRecord?._shiftId) {
+        await updateShift.mutateAsync({ id: editingRecord._shiftId, payload });
+      }
+
+      setEditOpen(false);
+      setEditingRecord(null);
+    },
+    [createShift, updateShift, editingRecord]
+  );
 
   return (
     <div className="min-h-screen bg-slate-50/50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <AttendanceCalendar
-          attendance={attendance}
+        <AttendanceCalendar attendance={attendance} employees={employees} onDayClick={handleDayClick} />
+
+        <DayDetailModal
+          open={dayModalOpen}
+          onOpenChange={setDayModalOpen}
+          selectedDate={selectedDay}
+          records={dayRecords}
           employees={employees}
-          onDayClick={handleDayClick}
+          onMarkAttendance={openNewAttendance}
+          onEdit={openEditAttendance}
+          onDelete={handleDelete}
         />
 
-        {/* Simple day detail dialog (keeps your app independent of Base44-only edit flows) */}
-        <Dialog open={dayModalOpen} onOpenChange={setDayModalOpen}>
-          <DialogContent className="sm:max-w-xl">
-            <DialogHeader>
-              <DialogTitle>
-                {selectedDay ? format(selectedDay, "EEEE, MMMM d, yyyy") : ""}
-              </DialogTitle>
-            </DialogHeader>
-
-            <Tabs defaultValue="present" className="w-full">
-              <TabsList className="grid grid-cols-4 w-full">
-                <TabsTrigger value="present">Present</TabsTrigger>
-                <TabsTrigger value="late">Late</TabsTrigger>
-                <TabsTrigger value="absent">Absent</TabsTrigger>
-                <TabsTrigger value="pto">PTO</TabsTrigger>
-              </TabsList>
-
-              {(
-                [
-                  ["present", selectedSummary.present],
-                  ["late", selectedSummary.late],
-                  ["absent", selectedSummary.absent],
-                  ["pto", selectedSummary.pto],
-                ]
-              ).map(([key, list]) => (
-                <TabsContent key={key} value={key} className="mt-4">
-                  {list.length ? (
-                    <ul className="space-y-2">
-                      {list
-                        .slice()
-                        .sort((a, b) => String(a.employee_name).localeCompare(String(b.employee_name)))
-                        .map((r) => (
-                          <li
-                            key={r.id}
-                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-                          >
-                            {r.employee_name}
-                          </li>
-                        ))}
-                    </ul>
-                  ) : (
-                    <div className="text-sm text-slate-500">No records</div>
-                  )}
-                </TabsContent>
-              ))}
-            </Tabs>
-          </DialogContent>
-        </Dialog>
+        <EditAttendanceModal
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          employees={employees}
+          record={editingRecord}
+          onSave={handleSave}
+        />
       </div>
     </div>
   );
