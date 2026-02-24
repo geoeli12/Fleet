@@ -75,6 +75,7 @@ const COLLECTIONS = {
       "customer",
       "city",
       "bol_number",
+      "item",
       "notes",
       "dock_hours",
       "trailer_number",
