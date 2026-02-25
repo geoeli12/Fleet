@@ -23,6 +23,7 @@ import {
   Gauge,
   Package,
   DollarSign,
+  FileText,
   ArrowRight,
 } from "lucide-react";
 import {
@@ -189,6 +190,12 @@ export default function Dashboard() {
       to: createPageUrl("CustomerPrices"),
       icon: DollarSign,
       description: "Manage customer pallet pricing and defaults.",
+    },
+    {
+      name: "Invoice",
+      to: createPageUrl("Invoice"),
+      icon: FileText,
+      description: "Print-ready invoice entry (matches the Excel layout).",
     },
 
   ];
