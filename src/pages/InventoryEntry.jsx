@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { api } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Save, Trash2, Calculator } from 'lucide-react';
-import { format } from 'date-fns';
+// NOTE: Keep this page extremely defensive.
+// The app has a global ErrorBoundary; any uncaught error will hard-crash the UI.
+
+function todayYmd() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function unwrapListResult(list) {
+  if (Array.isArray(list)) return list;
+  if (Array.isArray(list?.data)) return list.data;
+  if (Array.isArray(list?.items)) return list.items;
+  return [];
+}
 
 const palletFields = [
   { key: 'pallet_48x40_1', label: '48x40 #1', color: 'bg-yellow-100' },
@@ -34,11 +50,12 @@ const palletFields = [
   { key: 'totes', label: 'Totes', color: 'bg-white' },
 ];
 
-const defaultEntry = {
+function makeDefaultEntry() {
+  return {
   customer_name: '',
   notes: '',
   counted_by: '',
-  date: format(new Date(), 'yyyy-MM-dd'),
+  date: todayYmd(),
   date_count_received: '',
   ash_pallet_ref: '',
   trailer_number: '',
@@ -63,24 +80,36 @@ const defaultEntry = {
   tops: 0,
   ibc_crates: 0,
   totes: 0,
-};
+  };
+}
 
 export default function InventoryEntryPage() {
-  const [newEntry, setNewEntry] = useState(defaultEntry);
+  const [newEntry, setNewEntry] = useState(() => makeDefaultEntry());
   const queryClient = useQueryClient();
 
-  const { data: entries = [], isLoading } = useQuery({
+  const {
+    data: rawEntries,
+    isLoading,
+  } = useQuery({
     queryKey: ['inventoryEntries'],
-    queryFn: () => api.entities.InventoryEntry.list('-created_date'),
+    queryFn: async () => {
+      // If the server returns a non-JSON body (e.g., HTML), apiClient may throw.
+      // React-Query will capture it, but we still return [] so the page renders.
+      try {
+        const res = await api.entities.InventoryEntry.list('-created_date');
+        return unwrapListResult(res);
+      } catch {
+        return [];
+      }
+    },
   });
 
-  
-  const entriesArr = Array.isArray(entries) ? entries : [];
+  const entriesArr = useMemo(() => unwrapListResult(rawEntries), [rawEntries]);
 const createMutation = useMutation({
     mutationFn: (data) => api.entities.InventoryEntry.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventoryEntries'] });
-      setNewEntry(defaultEntry);
+      setNewEntry(makeDefaultEntry());
     },
   });
 

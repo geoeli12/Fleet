@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { api } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,19 +40,32 @@ const defaultCustomer = {
   notes: '',
 };
 
+function unwrapListResult(list) {
+  if (Array.isArray(list)) return list;
+  if (Array.isArray(list?.data)) return list.data;
+  if (Array.isArray(list?.items)) return list.items;
+  return [];
+}
+
 export default function CustomerPricesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [formData, setFormData] = useState(defaultCustomer);
   const queryClient = useQueryClient();
 
-  const { data: customers = [], isLoading } = useQuery({
+  const { data: rawCustomers, isLoading } = useQuery({
     queryKey: ['customerPrices'],
-    queryFn: () => api.entities.CustomerPrice.list('customer_name'),
+    queryFn: async () => {
+      try {
+        const res = await api.entities.CustomerPrice.list('customer_name');
+        return unwrapListResult(res);
+      } catch {
+        return [];
+      }
+    },
   });
 
-  
-  const customersArr = Array.isArray(customers) ? customers : [];
+  const customersArr = useMemo(() => unwrapListResult(rawCustomers), [rawCustomers]);
 const createMutation = useMutation({
     mutationFn: (data) => api.entities.CustomerPrice.create(data),
     onSuccess: () => {

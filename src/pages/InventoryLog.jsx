@@ -1,23 +1,43 @@
-import { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { api } from '@/api/apiClient';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar, Search, Package } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+
+function unwrapListResult(list) {
+  if (Array.isArray(list)) return list;
+  if (Array.isArray(list?.data)) return list.data;
+  if (Array.isArray(list?.items)) return list.items;
+  return [];
+}
+
+function safeYmd(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return s;
+}
 
 export default function InventoryLogPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
-  const { data: entries = [], isLoading } = useQuery({
+  const { data: rawEntries, isLoading } = useQuery({
     queryKey: ['inventoryEntries'],
-    queryFn: () => api.entities.InventoryEntry.list('-date'),
+    queryFn: async () => {
+      try {
+        const res = await api.entities.InventoryEntry.list('-date');
+        return unwrapListResult(res);
+      } catch {
+        return [];
+      }
+    },
   });
 
-  
-  const entriesArr = Array.isArray(entries) ? entries : [];
+  const entriesArr = useMemo(() => unwrapListResult(rawEntries), [rawEntries]);
 const calculate48x40Total = (entry) => {
     return (entry.pallet_48x40_1 || 0) + (entry.pallet_48x40_2 || 0);
   };
@@ -37,8 +57,8 @@ const calculate48x40Total = (entry) => {
   };
 
   // Group entries by date
-  const groupedByDate = entries.reduce((acc, entry) => {
-    const date = entry.date || 'No Date';
+  const groupedByDate = entriesArr.reduce((acc, entry) => {
+    const date = safeYmd(entry?.date) || 'No Date';
     if (!acc[date]) {
       acc[date] = [];
     }
@@ -155,7 +175,19 @@ const calculate48x40Total = (entry) => {
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-blue-600" />
                         <span>
-                          {date === 'No Date' ? 'No Date' : format(parseISO(date), 'EEEE, MMMM d, yyyy')}
+                          {date === 'No Date'
+                            ? 'No Date'
+                            : (() => {
+                                const d = new Date(date + 'T00:00:00');
+                                return Number.isNaN(d.getTime())
+                                  ? date
+                                  : d.toLocaleDateString(undefined, {
+                                      weekday: 'long',
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                    });
+                              })()}
                         </span>
                         <span className="text-sm font-normal text-slate-500">
                           ({dateEntries.length} {dateEntries.length === 1 ? 'entry' : 'entries'})
