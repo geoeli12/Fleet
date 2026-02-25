@@ -21,6 +21,8 @@ import {
   Droplets,
   PlusCircle,
   Gauge,
+  Package,
+  DollarSign,
   ArrowRight,
 } from "lucide-react";
 import {
@@ -169,6 +171,24 @@ export default function Dashboard() {
       to: createPageUrl("CustomersPA"),
       icon: Truck,
       description: "Lookup customer addresses, hours, ETA, and contacts (PA list).",
+    },
+    {
+      name: "Inventory Entry",
+      to: createPageUrl("InventoryEntry"),
+      icon: Package,
+      description: "Enter pallet inventory counts for a customer and trailer.",
+    },
+    {
+      name: "Inventory Log",
+      to: createPageUrl("InventoryLog"),
+      icon: Package,
+      description: "Search and filter all pallet inventory entries.",
+    },
+    {
+      name: "Customer Prices",
+      to: createPageUrl("CustomerPrices"),
+      icon: DollarSign,
+      description: "Manage customer pallet pricing and defaults.",
     },
 
   ];
