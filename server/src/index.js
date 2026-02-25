@@ -16,6 +16,8 @@ import fuelRefills from "./routes/fuelRefills.js";
 import fuelTank from "./routes/fuelTank.js";
 import customersIl from "./routes/customersIl.js";
 import customersPa from "./routes/customersPa.js";
+import inventoryEntries from "./routes/inventoryEntries.js";
+import customerPrices from "./routes/customerPrices.js";
 
 await initDb();
 
@@ -60,6 +62,8 @@ app.use("/api/fuel-refills", fuelRefills);
 app.use("/api/fuel-tank", fuelTank);
 app.use("/api/customers-il", customersIl);
 app.use("/api/customers-pa", customersPa);
+app.use("/api/inventory-entries", inventoryEntries);
+app.use("/api/customer-prices", customerPrices);
 
 // --- Static hosting (so you can use the app by URL) ---
 // In production we serve the Vite build (dist) from the same URL as the API.
