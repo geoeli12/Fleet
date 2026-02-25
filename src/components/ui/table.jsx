@@ -5,11 +5,11 @@ import { cn } from "@/lib/utils"
 
 const Table = React.forwardRef(({ className, ...props }, ref) => (
   <div className="relative w-full overflow-auto">
-    {...props}
     <table
       ref={ref}
       className={cn("w-full caption-bottom text-sm", className)}
-      {...props} />
+      {...props}
+    />
   </div>
 ))
 Table.displayName = "Table"
