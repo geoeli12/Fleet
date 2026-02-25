@@ -57,6 +57,12 @@ export const api = {
     // Customers
     CustomerIL: makeEntity("customers-il"),
     CustomerPA: makeEntity("customers-pa"),
+
+    // Inventory
+    InventoryEntry: makeEntity("inventory-entries"),
+
+    // Customer pricing
+    CustomerPrice: makeEntity("customer-prices"),
   },
 
   custom: {
