@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from "react";
 import { api } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,7 +74,9 @@ export default function InventoryEntryPage() {
     queryFn: () => api.entities.InventoryEntry.list('-created_date'),
   });
 
-  const createMutation = useMutation({
+  
+  const entriesArr = Array.isArray(entries) ? entries : [];
+const createMutation = useMutation({
     mutationFn: (data) => api.entities.InventoryEntry.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventoryEntries'] });
@@ -317,12 +319,12 @@ export default function InventoryEntryPage() {
                   <TableRow>
                     <TableCell colSpan={13} className="text-center py-8 text-slate-500">Loading...</TableCell>
                   </TableRow>
-                ) : entries.length === 0 ? (
+                ) : entriesArr.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={13} className="text-center py-8 text-slate-500">No entries yet</TableCell>
                   </TableRow>
                 ) : (
-                  entries.map((entry) => (
+                  entriesArr.map((entry) => (
                     <TableRow key={entry.id} className="hover:bg-slate-50">
                       <TableCell className="font-medium text-sm">{entry.customer_name}</TableCell>
                       <TableCell className="text-sm">{entry.date}</TableCell>

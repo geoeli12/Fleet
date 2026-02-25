@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from "react";
 import { api } from '@/api/apiClient';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,9 @@ export default function InventoryLogPage() {
     queryFn: () => api.entities.InventoryEntry.list('-date'),
   });
 
-  const calculate48x40Total = (entry) => {
+  
+  const entriesArr = Array.isArray(entries) ? entries : [];
+const calculate48x40Total = (entry) => {
     return (entry.pallet_48x40_1 || 0) + (entry.pallet_48x40_2 || 0);
   };
 
@@ -137,7 +139,7 @@ export default function InventoryLogPage() {
         ) : filteredDates.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-slate-500">
-              {entries.length === 0 ? 'No entries yet' : 'No entries match your filters'}
+              {entriesArr.length === 0 ? 'No entries yet' : 'No entries match your filters'}
             </CardContent>
           </Card>
         ) : (

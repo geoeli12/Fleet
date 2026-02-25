@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from "react";
 import { api } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,7 +51,9 @@ export default function CustomerPricesPage() {
     queryFn: () => api.entities.CustomerPrice.list('customer_name'),
   });
 
-  const createMutation = useMutation({
+  
+  const customersArr = Array.isArray(customers) ? customers : [];
+const createMutation = useMutation({
     mutationFn: (data) => api.entities.CustomerPrice.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customerPrices'] });
@@ -249,12 +251,12 @@ export default function CustomerPricesPage() {
                   <TableRow>
                     <TableCell colSpan={17} className="text-center py-8 text-slate-500">Loading...</TableCell>
                   </TableRow>
-                ) : customers.length === 0 ? (
+                ) : customersArr.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={17} className="text-center py-8 text-slate-500">No customers yet. Add your first customer above.</TableCell>
                   </TableRow>
                 ) : (
-                  customers.map((customer, index) => (
+                  customersArr.map((customer, index) => (
                     <TableRow key={customer.id} className="hover:bg-slate-50">
                       <TableCell className="text-sm font-medium sticky left-0 bg-white">{index + 1}</TableCell>
                       <TableCell className="text-sm font-medium sticky left-8 bg-white">{customer.customer_name}</TableCell>
