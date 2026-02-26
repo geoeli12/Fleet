@@ -76,7 +76,19 @@ export default function Invoice() {
         .no-print { display: none !important; }
         .print-sheet { box-shadow: none !important; border: none !important; }
         .print-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        @page { margin: 0.35in; }
+
+        /* Fit the whole invoice on a single letter page */
+        @page { margin: 0.25in; }
+        .print-compact-header { padding: 0 !important; }
+        .print-compact-content { padding: 0 !important; }
+        .print-title { font-size: 26px !important; line-height: 1.05 !important; }
+        .print-subtitle { font-size: 11px !important; }
+        .print-meta { font-size: 11px !important; }
+        .print-sheet table { font-size: 9px !important; }
+        .print-sheet th { padding: 2px !important; }
+        .print-sheet td { padding: 1px !important; }
+        .print-sheet input { font-size: 9px !important; }
+        .print-sep { margin: 6px 0 !important; }
       }
     `;
     document.head.appendChild(style);
@@ -215,21 +227,21 @@ export default function Invoice() {
         </div>
 
         <Card className="print-sheet rounded-2xl border border-black/10 shadow-sm">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 print-compact-header">
             <CardTitle className="sr-only">Invoice Sheet</CardTitle>
 
             <div className="text-center space-y-1">
-              <div className="text-2xl font-extrabold tracking-wide text-red-600">ASH PALLET MANAGEMENT, INC.</div>
-              <div className="italic text-sm text-neutral-700">
+              <div className="print-title text-2xl font-extrabold tracking-wide text-red-600">ASH PALLET MANAGEMENT, INC.</div>
+              <div className="print-subtitle italic text-sm text-neutral-700">
                 “Where customer service and respect are our highest priorities, second to your bottom line.”
               </div>
-              <div className="text-sm text-neutral-800">61 McMillen Rd., Antioch, IL 60002</div>
-              <div className="text-sm text-neutral-800">
+              <div className="print-meta text-sm text-neutral-800">61 McMillen Rd., Antioch, IL 60002</div>
+              <div className="print-meta text-sm text-neutral-800">
                 Office: (847) 473-5700&nbsp;&nbsp; Fax: (847) 473-5600&nbsp;&nbsp; Email: ap@ashpallet.com
               </div>
             </div>
 
-            <Separator className="my-3" />
+            <Separator className="my-3 print-sep" />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
               <div className="space-y-2">
@@ -316,7 +328,7 @@ export default function Invoice() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-black/10 bg-amber-50/60 p-3 text-xs">
+                <div className="no-print rounded-xl border border-black/10 bg-amber-50/60 p-3 text-xs">
                   <div className="font-semibold text-neutral-800">Pricing loaded from Customer Prices</div>
                   <div className="mt-1 grid grid-cols-2 sm:grid-cols-5 gap-2 text-neutral-700">
                     <div>
@@ -343,7 +355,7 @@ export default function Invoice() {
             </div>
           </CardHeader>
 
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 print-compact-content">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-[11px]">
                 <thead>
