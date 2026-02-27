@@ -66,6 +66,8 @@ import AddReading from './pages/AddReading';
 import AddRefill from './pages/AddRefill';
 import DispatchLog from './pages/DispatchLog';
 import LoadHistory from './pages/LoadHistory';
+import PickUps from './pages/PickUps';
+import PickupHistory from './pages/PickupHistory';
 import InventoryEntry from './pages/InventoryEntry';
 import InventoryLog from './pages/InventoryLog';
 import CustomerPrices from './pages/CustomerPrices';
@@ -84,6 +86,8 @@ export const PAGES = {
     "Schedule": Schedule,
     "DispatchLog": DispatchLog,
     "LoadHistory": LoadHistory,
+    "PickUps": PickUps,
+    "PickupHistory": PickupHistory,
     "InventoryEntry": InventoryEntry,
     "InventoryLog": InventoryLog,
     "CustomerPrices": CustomerPrices,
