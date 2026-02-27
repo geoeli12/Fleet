@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api } from "@/api/apiClient";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Truck, RefreshCw, Search, ChevronLeft, ChevronRight, History } from "lucide-react";
@@ -124,9 +124,11 @@ function hasRealBol(uiLog) {
 }
 
 function toUiLog(order) {
+  const region = (order.region ?? order.state ?? order.location ?? order.site ?? order.area ?? order.market ?? "");
   return {
     id: order.id,
     date: toYMD(order.date),
+    region: String(region || ""),
     created_at: order.created_at ?? order.inserted_at ?? order.createdAt ?? null,
     company: order.customer ?? order.company ?? "",
     trailer_number: order.trailer_number ?? "",
@@ -145,8 +147,16 @@ function toDbPayload(ui) {
   const uiBol = String(ui?.bol ?? "").trim();
   const uiBolToken = String(ui?.bol_token ?? ui?.bolToken ?? ui?.bol_number ?? ui?.bolNumber ?? "");
 
+  const region = String(ui?.region ?? ui?.state ?? ui?.location ?? ui?.site ?? ui?.area ?? ui?.market ?? "");
+
   return {
     date: ui.date || null,
+    region,
+    state: region,
+    location: region,
+    site: region,
+    area: region,
+    market: region,
     customer: ui.company || "",
     trailer_number: ui.trailer_number || "",
     notes: ui.notes || "",
@@ -178,6 +188,21 @@ function toDbPayload(ui) {
 export default function DispatchLog() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [region, setRegion] = useState(() => {
+    try {
+      return localStorage.getItem("dispatch_region") || "IL";
+    } catch {
+      return "IL";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("dispatch_region", region);
+    } catch {
+      // ignore
+    }
+  }, [region]);
   const queryClient = useQueryClient();
 
   const {
@@ -221,6 +246,7 @@ export default function DispatchLog() {
     const base = Array.isArray(uiLogs) ? uiLogs : [];
     const filtered = base.filter((log) => {
       if (toYMD(log.date) !== selectedDate) return false;
+      if (region && String(log.region || "").toUpperCase() !== String(region).toUpperCase()) return false;
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
       return (
@@ -254,7 +280,7 @@ export default function DispatchLog() {
         if (Number.isFinite(ai) && Number.isFinite(bi) && ai !== bi) return ai - bi;
         return 0;
       });
-  }, [uiLogs, selectedDate, searchTerm]);
+  }, [uiLogs, selectedDate, searchTerm, region]);
 
   const logsForSummary = useMemo(() => {
     // Do NOT count rows without a real BOL in the status summary.
@@ -328,13 +354,34 @@ export default function DispatchLog() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          <AddDispatchForm
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant={region?.toUpperCase() === "IL" ? "default" : "outline"}
+                onClick={() => setRegion("IL")}
+                className="rounded-xl h-12 px-4"
+              >
+                IL
+              </Button>
+              <Button
+                type="button"
+                variant={region?.toUpperCase() === "PA" ? "default" : "outline"}
+                onClick={() => setRegion("PA")}
+                className="rounded-xl h-12 px-4"
+              >
+                PA
+              </Button>
+            </div>
+            <AddDispatchForm
             onAdd={async (row) => {
               const normalized = normalizeIncomingUiRow(row, selectedDate);
+              normalized.region = region;
               return createMutation.mutateAsync(normalized);
             }}
             defaultDate={selectedDate}
           />
+          </div>
           <div className="relative w-full md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
