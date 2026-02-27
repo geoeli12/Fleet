@@ -71,6 +71,14 @@ function toDbPayload(ui) {
   };
 }
 
+function formatDateHeader(ymd) {
+  // ymd is "yyyy-MM-dd"
+  if (!ymd) return "No date";
+  const d = new Date(`${ymd}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return ymd;
+  return format(d, "MMM d, yyyy");
+}
+
 export default function LoadHistory() {
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
@@ -83,6 +91,7 @@ export default function LoadHistory() {
     queryKey: ["dispatchOrders"],
     queryFn: async () => {
       try {
+        // This is pulling your Supabase-backed DispatchOrder entity (dispatch_orders)
         const list = await api.entities.DispatchOrder.list("-date");
         return unwrapListResult(list);
       } catch (e) {
@@ -122,6 +131,33 @@ export default function LoadHistory() {
       );
     });
   }, [uiLogs, searchTerm]);
+
+  // ✅ Group by date (newest first), "No date" last
+  const groupedByDate = useMemo(() => {
+    const groups = new Map(); // key -> logs[]
+    for (const log of filteredLogs) {
+      const key = (log.date || "").trim() || "NO_DATE";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(log);
+    }
+
+    const keys = Array.from(groups.keys());
+
+    keys.sort((a, b) => {
+      if (a === "NO_DATE" && b === "NO_DATE") return 0;
+      if (a === "NO_DATE") return 1; // NO_DATE last
+      if (b === "NO_DATE") return -1;
+      // ymd strings sort correctly descending lexicographically
+      return a < b ? 1 : a > b ? -1 : 0;
+    });
+
+    return keys.map((k) => ({
+      key: k,
+      title: k === "NO_DATE" ? "No date" : formatDateHeader(k),
+      dateYmd: k === "NO_DATE" ? "" : k,
+      logs: groups.get(k) || [],
+    }));
+  }, [filteredLogs]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -173,12 +209,27 @@ export default function LoadHistory() {
             <RefreshCw className="h-8 w-8 animate-spin text-slate-400 mx-auto mb-3" />
             <p className="text-slate-500">Loading history...</p>
           </div>
+        ) : groupedByDate.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
+            <p className="text-slate-500">No history found.</p>
+          </div>
         ) : (
-          <DispatchTable
-            logs={filteredLogs}
-            onUpdate={(id, data) => updateMutation.mutateAsync({ id, data })}
-            onDelete={(id) => deleteMutation.mutateAsync(id)}
-          />
+          <div className="space-y-8">
+            {groupedByDate.map((group) => (
+              <section key={group.key} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-slate-800 font-bold text-lg">{group.title}</div>
+                  <div className="text-slate-500 text-sm">{group.logs.length} entries</div>
+                </div>
+
+                <DispatchTable
+                  logs={group.logs}
+                  onUpdate={(id, data) => updateMutation.mutateAsync({ id, data })}
+                  onDelete={(id) => deleteMutation.mutateAsync(id)}
+                />
+              </section>
+            ))}
+          </div>
         )}
       </main>
     </div>
