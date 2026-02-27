@@ -136,7 +136,19 @@ export default function PickUps() {
   const filteredLogs = useMemo(() => {
     const base = Array.isArray(uiLogs) ? uiLogs : [];
     const filtered = base.filter((log) => {
-      if (toYMD(log.date_called_out) !== selectedDate) return false;
+      const called = toYMD(log.date_called_out);
+
+      // Show entries created for the selected day
+      const isForSelectedDay = called === selectedDate;
+
+      // Carry-over rule:
+      // If an entry is still open (no P/U date) AND no driver has been assigned,
+      // keep showing it on the next day(s) as well.
+      const hasPuDate = Boolean(toYMD(log.date_picked_up));
+      const hasDriver = Boolean(String(log.driver || "").trim());
+      const isCarryOver = Boolean(called && called < selectedDate && !hasPuDate && !hasDriver);
+
+      if (!isForSelectedDay && !isCarryOver) return false;
       if (region && String(log.region || "").toUpperCase() !== String(region).toUpperCase()) return false;
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
