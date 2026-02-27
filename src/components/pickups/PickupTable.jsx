@@ -42,11 +42,10 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
       { key: "company", label: "Company", width: "w-44" },
       { key: "dk_trl", label: "Dk/TRL#", width: "w-32" },
       { key: "location", label: "Location", width: "flex-1" },
-      { key: "date_called_out", label: "Date Called out", width: "w-32" },
-      { key: "days_open", label: "# of D", width: "w-20" },
-      { key: "date_picked_up", label: "Date Picked Up", width: "w-32" },
+      { key: "days_open", label: "Days old", width: "w-20" },
+      { key: "date_picked_up", label: "P/U Date", width: "w-32" },
       { key: "driver", label: "Driver", width: "w-28" },
-      { key: "shift_code", label: "S/L/B", width: "w-20" },
+      { key: "shift_code", label: "Type", width: "w-24" },
       { key: "notes", label: "Notes", width: "w-[340px]" },
     ],
     []
@@ -110,7 +109,7 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
                   const value = log[col.key] ?? "";
 
                   // These fields must be DATE inputs when editing
-                  const isDateField = col.key === "date_called_out" || col.key === "date_picked_up";
+                  const isDateField = col.key === "date_picked_up";
 
                   return (
                     <div key={col.key} className={cn(col.width)}>

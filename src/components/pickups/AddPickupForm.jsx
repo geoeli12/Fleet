@@ -30,7 +30,7 @@ const exampleRow = {
   company: "Uline - U6",
   dk_trl: "31489",
   location: "1141 S. 10th St., Watertown, WI 53094",
-  shift_code: "S",
+  shift_code: "Pickup",
   notes: "Out of service / Broken Axel",
 };
 
@@ -265,26 +265,16 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="md:col-span-1">
-                  <label className="text-xs font-semibold text-slate-600">Date Called out</label>
-                  <Input
-                    type="date"
-                    value={form.date_called_out}
-                    onChange={(e) => setForm((p) => ({ ...p, date_called_out: e.target.value }))}
-                    className="h-11 rounded-xl"
-                  />
-                </div>
-
-                <div className="md:col-span-1">
-                  <label className="text-xs font-semibold text-slate-600">Shift</label>
+                  <label className="text-xs font-semibold text-slate-600">Type</label>
                   <Input
                     value={form.shift_code}
                     onChange={(e) => setForm((p) => ({ ...p, shift_code: e.target.value }))}
-                    placeholder="S"
+                    placeholder="Pickup"
                     className="h-11 rounded-xl"
                   />
                 </div>
 
-                <div className="md:col-span-2" />
+                <div className="md:col-span-3" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -376,25 +366,12 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
               </div>
 
               <div className="text-xs text-slate-500">
-                <span className="font-semibold">Note:</span> Date Picked Up and Driver are entered when you edit the row.
+                <span className="font-semibold">Note:</span> P/U Date and Driver are entered when you edit the row.
               </div>
             </form>
           </TabsContent>
 
           <TabsContent value="bulk" className="mt-5">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-600">Date Called out</label>
-                <Input
-                  type="date"
-                  value={form.date_called_out}
-                  onChange={(e) => setForm((p) => ({ ...p, date_called_out: e.target.value }))}
-                  className="h-11 rounded-xl"
-                />
-              </div>
-              <div className="md:col-span-3" />
-            </div>
-
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
               <div className="text-sm font-semibold text-slate-700 mb-3">Paste values into any column</div>
 
@@ -403,7 +380,7 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
                   { key: "company", label: "Company" },
                   { key: "dk_trl", label: "Dk/TRL#" },
                   { key: "location", label: "Location" },
-                  { key: "shift_code", label: "Shift" },
+                  { key: "shift_code", label: "Type" },
                   { key: "notes", label: "Notes" },
                 ].map((c) => (
                   <div key={c.key}>
@@ -434,7 +411,7 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
               </div>
 
               <div className="text-xs text-slate-500 mt-3">
-                Bulk rows are created with the selected <span className="font-semibold">Date Called out</span>. Date Picked Up and Driver are added when editing.
+                Bulk rows use the current page date. P/U Date and Driver are added when editing.
               </div>
             </div>
           </TabsContent>
