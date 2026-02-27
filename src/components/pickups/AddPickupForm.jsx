@@ -10,6 +10,34 @@ import { format } from "date-fns";
 import customersIL from "@/data/customers_il.json";
 import customersPA from "@/data/customers_pa.json";
 
+const DEFAULT_TYPE_OPTIONS = ["S", "LL", "BT", "DT"];
+
+function loadTypeOptions() {
+  if (typeof window === "undefined") return DEFAULT_TYPE_OPTIONS;
+  try {
+    const raw = window.localStorage.getItem("pickup_types");
+    const parsed = raw ? JSON.parse(raw) : null;
+    const list = Array.isArray(parsed) ? parsed : [];
+    const cleaned = list
+      .map((x) => (x ?? "").toString().trim())
+      .filter(Boolean)
+      .slice(0, 25);
+    const merged = Array.from(new Set([...DEFAULT_TYPE_OPTIONS, ...cleaned]));
+    return merged.length ? merged : DEFAULT_TYPE_OPTIONS;
+  } catch {
+    return DEFAULT_TYPE_OPTIONS;
+  }
+}
+
+function saveTypeOptions(opts) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem("pickup_types", JSON.stringify(opts));
+  } catch {
+    // ignore
+  }
+}
+
 const getInitialForm = (calledOutDate, regionValue) => ({
   region: (regionValue || "").toString().trim().toUpperCase(),
   date_called_out: calledOutDate || format(new Date(), "yyyy-MM-dd"),
@@ -30,7 +58,7 @@ const exampleRow = {
   company: "Uline - U6",
   dk_trl: "31489",
   location: "1141 S. 10th St., Watertown, WI 53094",
-  shift_code: "Pickup",
+  shift_code: "S",
   notes: "Out of service / Broken Axel",
 };
 
@@ -45,6 +73,7 @@ const normalizeLines = (text) => {
 export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
   const [form, setForm] = useState(() => getInitialForm(defaultCalledOutDate, region));
   const [isExpanded, setIsExpanded] = useState(false);
+  const [typeOptions, setTypeOptions] = useState(() => loadTypeOptions());
 
   // Company suggestions
   const [isCompanyFocused, setIsCompanyFocused] = useState(false);
@@ -93,13 +122,26 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
       .replace(/^[-–—\s]+/, "")
       .trim();
 
+  const findCustomer = (companyValue) => {
+    const key = normalizeCompanyKey(companyValue);
+    if (!key) return null;
+
+    const regionUpper = (region || "").toString().trim().toUpperCase();
+    const candidates = customerDirectory.filter((r) => normalizeCompanyKey(r.customer) === key);
+    if (!candidates.length) return null;
+
+    // Prefer current region
+    const preferred = candidates.find((c) => c.region === regionUpper);
+    return preferred || candidates[0];
+  };
+
   const companyMatches = useMemo(() => {
     const q = (form.company || "").trim().toLowerCase();
     if (!q) return [];
     const regionUpper = (region || "").toString().trim().toUpperCase();
 
     // Prefer matches from the currently selected region, but allow cross-region matches too.
-    const matches = customerDirectory
+    return customerDirectory
       .filter((r) => r.customer.toLowerCase().includes(q))
       .sort((a, b) => {
         const aPref = a.region === regionUpper ? 0 : 1;
@@ -107,17 +149,31 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
         return aPref - bPref;
       })
       .slice(0, 10);
-
-    return matches;
   }, [form.company, customerDirectory, region]);
 
   const applyCompanyPick = (row) => {
     setForm((prev) => ({
       ...prev,
       company: row.customer,
-      // Optional: If you want auto-fill location from customer address, uncomment:
-      // location: prev.location || row.address,
+      // Geo wants: clicking a customer suggestion should pull the address into Location
+      location: row.address || prev.location,
     }));
+  };
+
+  const handleTypeChange = (value) => {
+    if (value === "__ADD_NEW__") {
+      const next = (window.prompt("Add new Type (S, LL, BT, DT, etc.)") || "").trim();
+      if (!next) return;
+      setTypeOptions((prev) => {
+        const merged = Array.from(new Set([...(prev || []), next]));
+        saveTypeOptions(merged);
+        return merged;
+      });
+      setForm((p) => ({ ...p, shift_code: next }));
+      return;
+    }
+
+    setForm((p) => ({ ...p, shift_code: value }));
   };
 
   // Bulk Paste
@@ -145,9 +201,12 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
     e.preventDefault();
     if (!form.company.trim()) return;
 
+    const picked = findCustomer(form.company);
+
     await onAdd({
       ...form,
       region: (region || form.region || "").toString().trim().toUpperCase(),
+      location: (form.location || "").trim() || (picked?.address || ""),
 
       // New pickup form should NOT set these.
       date_picked_up: "",
@@ -200,12 +259,16 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
     for (const row of bulkArrays) {
       // require company at minimum
       if (!String(row.company || "").trim()) continue;
+
+      // if location is blank, try to auto-fill from customer address
+      const picked = row.location ? null : findCustomer(row.company);
+
       await onAdd({
         region: r,
         date_called_out: baseDate,
         company: row.company,
         dk_trl: row.dk_trl,
-        location: row.location,
+        location: row.location || (picked?.address || ""),
         shift_code: row.shift_code,
         notes: row.notes,
 
@@ -263,22 +326,9 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
 
           <TabsContent value="single" className="mt-5">
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Cleaner layout: Company + Dk/TRL# + Type on one row, Location under it */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="md:col-span-1">
-                  <label className="text-xs font-semibold text-slate-600">Type</label>
-                  <Input
-                    value={form.shift_code}
-                    onChange={(e) => setForm((p) => ({ ...p, shift_code: e.target.value }))}
-                    placeholder="Pickup"
-                    className="h-11 rounded-xl"
-                  />
-                </div>
-
-                <div className="md:col-span-3" />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="md:col-span-1 relative">
+                <div className="md:col-span-2 relative">
                   <label className="text-xs font-semibold text-slate-600">Company</label>
                   <Input
                     value={form.company}
@@ -288,6 +338,13 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
                     onFocus={() => setIsCompanyFocused(true)}
                     onBlur={() => {
                       if (ignoreCompanyBlurRef.current) return;
+
+                      // If they typed a customer and Location is blank, try to pull address automatically
+                      const picked = !String(form.location || "").trim() ? findCustomer(form.company) : null;
+                      if (picked?.address) {
+                        setForm((p) => ({ ...p, location: p.location || picked.address }));
+                      }
+
                       setIsCompanyFocused(false);
                     }}
                   />
@@ -338,6 +395,23 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
                 </div>
 
                 <div className="md:col-span-1">
+                  <label className="text-xs font-semibold text-slate-600">Type</label>
+                  <select
+                    value={(form.shift_code || "").toString()}
+                    onChange={(e) => handleTypeChange(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                  >
+                    <option value="">Select…</option>
+                    {typeOptions.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                    <option value="__ADD_NEW__">Add new…</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-4">
                   <label className="text-xs font-semibold text-slate-600">Location</label>
                   <Input
                     value={form.location}
