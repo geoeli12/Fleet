@@ -309,17 +309,22 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
                         // prevent blur while clicking
                         ignoreCompanyBlurRef.current = true;
                       }}
-                      onMouseUp={() => {
-                        ignoreCompanyBlurRef.current = false;
-                        setIsCompanyFocused(false);
-                      }}
                     >
                       {companyMatches.map((r) => (
                         <button
                           key={r._key}
                           type="button"
                           className="w-full text-left px-3 py-2 hover:bg-slate-50"
-                          onClick={() => applyCompanyPick(r)}
+                          // Use onMouseDown so the selection happens BEFORE the input blur closes the menu.
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            applyCompanyPick(r);
+                            setIsCompanyFocused(false);
+                            // allow normal blur behavior again
+                            window.setTimeout(() => {
+                              ignoreCompanyBlurRef.current = false;
+                            }, 0);
+                          }}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="text-sm text-slate-800 truncate">{r.customer}</div>
