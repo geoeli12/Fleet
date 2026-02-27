@@ -72,6 +72,7 @@ const COLLECTIONS = {
     allowed: [
       "id",
       "date",
+      "region",
       "customer",
       "city",
       "bol_number",
