@@ -132,6 +132,18 @@ export default function Dashboard() {
       description: "Browse all dispatch records across dates.",
     },
     {
+      name: "Pick Ups",
+      to: createPageUrl("PickUps"),
+      icon: Package,
+      description: "Track trailer doors/call-outs and picked up dates.",
+    },
+    {
+      name: "Pick Up History",
+      to: createPageUrl("PickupHistory"),
+      icon: History,
+      description: "Browse all pick up records across dates.",
+    },
+    {
       name: "Create a Schedule",
       to: createPageUrl("Schedule"),
       icon: Gauge,
