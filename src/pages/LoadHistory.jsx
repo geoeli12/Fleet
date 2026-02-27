@@ -44,6 +44,7 @@ function toUiLog(order) {
   return {
     id: order.id,
     date: toYMD(order.date),
+    region: String(order.region ?? '').toUpperCase(),
     company: order.customer ?? order.company ?? "",
     trailer_number: order.trailer_number ?? "",
     notes: order.notes ?? "",
@@ -61,6 +62,7 @@ function toDbPayload(ui) {
 
   return {
     date: ui.date || null,
+    region: (ui.region || '').toUpperCase(),
     customer: ui.company || "",
     trailer_number: ui.trailer_number || "",
     notes: ui.notes || "",
@@ -81,6 +83,7 @@ function formatDateHeader(ymd) {
 
 export default function LoadHistory() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [regionFilter, setRegionFilter] = useState("ALL");
   const queryClient = useQueryClient();
 
   const {
@@ -117,9 +120,16 @@ export default function LoadHistory() {
 
   const filteredLogs = useMemo(() => {
     const base = Array.isArray(uiLogs) ? uiLogs : [];
-    if (!searchTerm) return base;
+
+    // Region filter (ALL / IL / PA)
+    const regioned =
+      regionFilter === "ALL" ? base : base.filter((log) => (log.region || "").toUpperCase() === regionFilter);
+
+    // Text search
+    if (!searchTerm) return regioned;
     const search = searchTerm.toLowerCase();
-    return base.filter((log) => {
+
+    return regioned.filter((log) => {
       return (
         log.company?.toLowerCase().includes(search) ||
         log.trailer_number?.toLowerCase().includes(search) ||
@@ -130,7 +140,7 @@ export default function LoadHistory() {
         log.date?.includes(search)
       );
     });
-  }, [uiLogs, searchTerm]);
+  }, [uiLogs, searchTerm, regionFilter]);
 
   // ✅ Group by date (newest first), "No date" last
   const groupedByDate = useMemo(() => {
@@ -190,8 +200,28 @@ export default function LoadHistory() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
         <div className="flex justify-between items-center">
-          <div className="text-slate-600">
-            <span className="font-semibold text-2xl">{filteredLogs.length}</span> total entries
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant={regionFilter === "IL" ? "default" : "outline"}
+                className="rounded-xl px-4"
+                onClick={() => setRegionFilter((prev) => (prev === "IL" ? "ALL" : "IL"))}
+              >
+                IL
+              </Button>
+              <Button
+                type="button"
+                variant={regionFilter === "PA" ? "default" : "outline"}
+                className="rounded-xl px-4"
+                onClick={() => setRegionFilter((prev) => (prev === "PA" ? "ALL" : "PA"))}
+              >
+                PA
+              </Button>
+            </div>
+            <div className="text-slate-600">
+              <span className="font-semibold text-2xl">{filteredLogs.length}</span> total entries
+            </div>
           </div>
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
