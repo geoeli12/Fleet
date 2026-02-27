@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
 
 import customersIL from "@/data/customers_il.json";
 import customersPA from "@/data/customers_pa.json";
 
-const getInitialForm = (dateValue) => ({
+const getInitialForm = (dateValue, regionValue) => ({
   date: dateValue || format(new Date(), 'yyyy-MM-dd'),
+  region: (regionValue || '').toString().trim().toUpperCase(),
   company: '',
   trailer_number: '',
   notes: '',
@@ -40,8 +42,8 @@ const normalizeLines = (text) => {
   return parts.slice(0, end);
 };
 
-export default function AddDispatchForm({ onAdd, defaultDate }) {
-  const [form, setForm] = useState(() => getInitialForm(defaultDate));
+export default function AddDispatchForm({ onAdd, defaultDate, region }) {
+  const [form, setForm] = useState(() => getInitialForm(defaultDate, region));
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Company suggestions (same behavior as AddRunForm customer picker)
@@ -143,9 +145,15 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
     }
   }, [defaultDate]);
 
+  useEffect(() => {
+    // Keep region in sync with the IL/PA toggle (outside this form)
+    const r = (region || '').toString().trim().toUpperCase();
+    setForm(prev => ({ ...prev, region: r }));
+  }, [region]);
+
   const resetFormAndBulk = (opts = { keepExpanded: false }) => {
     // Single-entry form
-    setForm(getInitialForm(defaultDate));
+    setForm(getInitialForm(defaultDate, region));
     setIsCompanyFocused(false);
     ignoreCompanyBlurRef.current = false;
 
@@ -169,8 +177,8 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.company.trim()) return;
-    await onAdd(form);
-    setForm(getInitialForm(form.date));
+    await onAdd({ ...form, region: (region || form.region || '').toString().trim().toUpperCase() });
+    setForm(getInitialForm(form.date, region));
     setIsExpanded(false);
   };
 
@@ -245,6 +253,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
 
       entries.push({
         date: form.date,
+        region: (region || form.region || '').toString().trim().toUpperCase(),
         company,
         trailer_number: (a.trailer_number[i] || '').trim(),
         notes: (a.notes[i] || '').trim(),
@@ -380,7 +389,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
       <Button
         onClick={() => {
           // Always open with a clean form (Cancel should not leave stale data)
-          setForm(getInitialForm(defaultDate));
+          setForm(getInitialForm(defaultDate, region));
           setIsCompanyFocused(false);
           ignoreCompanyBlurRef.current = false;
 
@@ -408,7 +417,19 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-      <h3 className="text-lg font-semibold text-slate-800 mb-4">Add Dispatch Entry</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-slate-800">Add Dispatch Entry</h3>
+        <Badge
+          className={`rounded-full px-3 py-1 text-xs font-semibold border-0 ${
+            (region || form.region || '').toString().trim().toUpperCase() === 'PA'
+              ? 'bg-emerald-100 text-emerald-700'
+              : 'bg-amber-100 text-amber-700'
+          }`}
+          variant="secondary"
+        >
+          {(region || form.region || '').toString().trim().toUpperCase() || 'IL'}
+        </Badge>
+      </div>
 
       <Tabs defaultValue="single" className="w-full">
         <TabsList className="mb-4">
