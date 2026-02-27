@@ -393,6 +393,7 @@ export default function DispatchLog() {
               return createMutation.mutateAsync(normalized);
             }}
             defaultDate={selectedDate}
+            region={region}
           />
           </div>
           <div className="relative w-full md:w-72">
