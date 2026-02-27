@@ -147,10 +147,10 @@ function toDbPayload(ui) {
   const uiBol = String(ui?.bol ?? "").trim();
   const uiBolToken = String(ui?.bol_token ?? ui?.bolToken ?? ui?.bol_number ?? ui?.bolNumber ?? "");
 
-  const region = String(ui?.region ?? ui?.state ?? ui?.location ?? ui?.site ?? ui?.area ?? ui?.market ?? "");
+  const region = String(ui?.region ?? ui?.state ?? ui?.location ?? ui?.site ?? ui?.area ?? ui?.market ?? "").trim().toUpperCase();
 
   return {
-    date: ui.date || null,
+    date: toYMD(ui.date) || null,
     region,
     state: region,
     location: region,
@@ -226,7 +226,20 @@ export default function DispatchLog() {
 
   const createMutation = useMutation({
     mutationFn: async (uiData) => api.entities.DispatchOrder.create(toDbPayload(uiData)),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dispatchOrders"] }),
+    onSuccess: (created, variables) => {
+      // Optimistically put the new row into the cache so it appears immediately,
+      // even if the list endpoint is slightly delayed.
+      queryClient.setQueryData(["dispatchOrders"], (old) => {
+        const arr = unwrapListResult(old);
+        if (!created) return arr;
+        // Prevent duplicates if invalidate refetch returns the same row
+        const createdId = created.id ?? created?.data?.id;
+        const exists = createdId != null && arr.some((x) => (x?.id ?? x?.data?.id) === createdId);
+        return exists ? arr : [created, ...arr];
+      });
+      queryClient.invalidateQueries({ queryKey: ["dispatchOrders"] });
+      toast.success("Entry added");
+    },
     onError: (e) => toast.error(e?.message || "Failed to add entry"),
   });
 
@@ -374,15 +387,13 @@ export default function DispatchLog() {
               </Button>
             </div>
             <AddDispatchForm
-              region={region}
-              onAdd={async (row) => {
-                const normalized = normalizeIncomingUiRow(row, selectedDate);
-                // Region toggle lives outside the form — force it onto every new row.
-                normalized.region = region;
-                return createMutation.mutateAsync(normalized);
-              }}
-              defaultDate={selectedDate}
-            />
+            onAdd={async (row) => {
+              const normalized = normalizeIncomingUiRow(row, selectedDate);
+              normalized.region = region;
+              return createMutation.mutateAsync(normalized);
+            }}
+            defaultDate={selectedDate}
+          />
           </div>
           <div className="relative w-full md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
