@@ -9,8 +9,8 @@ import { format } from 'date-fns';
 import customersIL from "@/data/customers_il.json";
 import customersPA from "@/data/customers_pa.json";
 
-const initialForm = {
-  date: format(new Date(), 'yyyy-MM-dd'),
+const getInitialForm = (dateValue) => ({
+  date: dateValue || format(new Date(), 'yyyy-MM-dd'),
   company: '',
   trailer_number: '',
   notes: '',
@@ -18,7 +18,7 @@ const initialForm = {
   bol: '',
   item: '',
   delivered_by: ''
-};
+});
 
 // One example row (shows in the grid until the user clicks into any column)
 const exampleRow = {
@@ -41,7 +41,7 @@ const normalizeLines = (text) => {
 };
 
 export default function AddDispatchForm({ onAdd, defaultDate }) {
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(() => getInitialForm(defaultDate));
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Company suggestions (same behavior as AddRunForm customer picker)
@@ -143,13 +143,34 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
     }
   }, [defaultDate]);
 
+  const resetFormAndBulk = (opts = { keepExpanded: false }) => {
+    // Single-entry form
+    setForm(getInitialForm(defaultDate));
+    setIsCompanyFocused(false);
+    ignoreCompanyBlurRef.current = false;
+
+    // Bulk paste example (so it shows the hint again next time)
+    setBulkCols({ ...exampleRow });
+    setExampleActiveCols({
+      company: true,
+      trailer_number: true,
+      notes: true,
+      dock_hours: true,
+      bol: true,
+      item: true,
+      delivered_by: true,
+    });
+
+    if (!opts.keepExpanded) setIsExpanded(false);
+  };
+
   const isExampleActive = useMemo(() => Object.values(exampleActiveCols).some(Boolean), [exampleActiveCols]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.company.trim()) return;
     await onAdd(form);
-    setForm({ ...initialForm, date: form.date });
+    setForm(getInitialForm(form.date));
     setIsExpanded(false);
   };
 
@@ -358,6 +379,11 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
     return (
       <Button
         onClick={() => {
+          // Always open with a clean form (Cancel should not leave stale data)
+          setForm(getInitialForm(defaultDate));
+          setIsCompanyFocused(false);
+          ignoreCompanyBlurRef.current = false;
+
           // Reset example each time the form opens (matches "show one example")
           setBulkCols({ ...exampleRow });
           setExampleActiveCols({
@@ -369,6 +395,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
             item: true,
             delivered_by: true,
           });
+
           setIsExpanded(true);
         }}
         className="bg-slate-800 hover:bg-slate-700 text-white rounded-xl h-12 px-6 shadow-lg"
@@ -510,7 +537,12 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                 <Plus className="h-4 w-4 mr-2" />
                 Add Entry
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setIsExpanded(false)} className="text-slate-500">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => resetFormAndBulk()}
+                className="text-slate-500"
+              >
                 Cancel
               </Button>
             </div>
@@ -646,7 +678,12 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
                   <Table className="h-4 w-4 mr-2" />
                   Import {bulkEntryCount} {bulkEntryCount === 1 ? 'Entry' : 'Entries'}
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => setIsExpanded(false)} className="text-slate-500">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => resetFormAndBulk()}
+                  className="text-slate-500"
+                >
                   Cancel
                 </Button>
               </div>
