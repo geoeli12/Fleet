@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { api } from "@/api/apiClient";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Truck, RefreshCw, Search, ChevronLeft, ChevronRight, History } from "lucide-react";
@@ -124,11 +124,9 @@ function hasRealBol(uiLog) {
 }
 
 function toUiLog(order) {
-  const region = (order.region ?? order.state ?? order.location ?? order.site ?? order.area ?? order.market ?? "");
   return {
     id: order.id,
     date: toYMD(order.date),
-    region: String(region || ""),
     created_at: order.created_at ?? order.inserted_at ?? order.createdAt ?? null,
     company: order.customer ?? order.company ?? "",
     trailer_number: order.trailer_number ?? "",
@@ -147,16 +145,8 @@ function toDbPayload(ui) {
   const uiBol = String(ui?.bol ?? "").trim();
   const uiBolToken = String(ui?.bol_token ?? ui?.bolToken ?? ui?.bol_number ?? ui?.bolNumber ?? "");
 
-  const region = String(ui?.region ?? ui?.state ?? ui?.location ?? ui?.site ?? ui?.area ?? ui?.market ?? "");
-
   return {
     date: ui.date || null,
-    region,
-    state: region,
-    location: region,
-    site: region,
-    area: region,
-    market: region,
     customer: ui.company || "",
     trailer_number: ui.trailer_number || "",
     notes: ui.notes || "",
@@ -195,6 +185,7 @@ export default function DispatchLog() {
       return "IL";
     }
   });
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     try {
@@ -203,7 +194,6 @@ export default function DispatchLog() {
       // ignore
     }
   }, [region]);
-  const queryClient = useQueryClient();
 
   const {
     data: rawOrders,
@@ -246,7 +236,15 @@ export default function DispatchLog() {
     const base = Array.isArray(uiLogs) ? uiLogs : [];
     const filtered = base.filter((log) => {
       if (toYMD(log.date) !== selectedDate) return false;
-      if (region && String(log.region || "").toUpperCase() !== String(region).toUpperCase()) return false;
+
+      // Region filter: only show rows for the currently selected IL/PA bucket
+      // (this is an operational split, not derived from customer city)
+      const logRegion = String(log.region ?? "").trim().toUpperCase();
+      const activeRegion = String(region ?? "").trim().toUpperCase();
+      if (activeRegion && logRegion && logRegion !== activeRegion) return false;
+      // Hide legacy rows that have no region once the system is in region mode
+      if (activeRegion && !logRegion) return false;
+
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
       return (
@@ -354,33 +352,36 @@ export default function DispatchLog() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant={region?.toUpperCase() === "IL" ? "default" : "outline"}
-                onClick={() => setRegion("IL")}
-                className="rounded-xl h-12 px-4"
-              >
-                IL
-              </Button>
-              <Button
-                type="button"
-                variant={region?.toUpperCase() === "PA" ? "default" : "outline"}
-                onClick={() => setRegion("PA")}
-                className="rounded-xl h-12 px-4"
-              >
-                PA
-              </Button>
-            </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant={region === "IL" ? "default" : "outline"}
+              className="rounded-xl h-12 w-12 px-0"
+              onClick={() => setRegion("IL")}
+            >
+              IL
+            </Button>
+            <Button
+              variant={region === "PA" ? "default" : "outline"}
+              className="rounded-xl h-12 w-12 px-0"
+              onClick={() => setRegion("PA")}
+            >
+              PA
+            </Button>
+
             <AddDispatchForm
-            onAdd={async (row) => {
-              const normalized = normalizeIncomingUiRow(row, selectedDate);
-              normalized.region = region;
-              return createMutation.mutateAsync(normalized);
-            }}
-            defaultDate={selectedDate}
-          />
+              onAdd={async (row) => {
+                const normalized = normalizeIncomingUiRow(
+                  {
+                    ...row,
+                    // Force the operational region based on the active toggle
+                    region,
+                  },
+                  selectedDate
+                );
+                return createMutation.mutateAsync(normalized);
+              }}
+              defaultDate={selectedDate}
+            />
           </div>
           <div className="relative w-full md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
