@@ -86,6 +86,24 @@ const COLLECTIONS = {
     ],
   },
 
+  pickup_orders: {
+    table: "pickup_orders",
+    primaryKey: "id",
+    allowed: [
+      "id",
+      "date_called_out",
+      "date_picked_up",
+      "region",
+      "company",
+      "dk_trl",
+      "location",
+      "driver",
+      "shift_code",
+      "notes",
+      "created_at",
+    ],
+  },
+
   customLoadTypes: {
     table: "custom_load_types",
     primaryKey: "id",
@@ -339,6 +357,26 @@ export function normalizePayload(collectionKey, payload) {
     delete p.trl_number;
     delete p.trl;
     delete p.driver;
+
+    return pickAllowed(collectionKey, p);
+  }
+
+  // ---- PICKUP ORDERS ----
+  if (collectionKey === "pickup_orders") {
+    // Friendly UI aliases
+    if (p.called_out_date !== undefined && p.date_called_out === undefined) p.date_called_out = p.called_out_date;
+    if (p.picked_up_date !== undefined && p.date_picked_up === undefined) p.date_picked_up = p.picked_up_date;
+    if (p.dk_trl_number !== undefined && p.dk_trl === undefined) p.dk_trl = p.dk_trl_number;
+    if (p.dk_trl_no !== undefined && p.dk_trl === undefined) p.dk_trl = p.dk_trl_no;
+    if (p.driver_name !== undefined && p.driver === undefined) p.driver = p.driver_name;
+    if (p.shift !== undefined && p.shift_code === undefined) p.shift_code = p.shift;
+
+    delete p.called_out_date;
+    delete p.picked_up_date;
+    delete p.dk_trl_number;
+    delete p.dk_trl_no;
+    delete p.driver_name;
+    delete p.shift;
 
     return pickAllowed(collectionKey, p);
   }
