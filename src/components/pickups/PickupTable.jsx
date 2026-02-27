@@ -87,7 +87,8 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
     () => [
       { key: "company", label: "Company", width: "w-44" },
       { key: "dk_trl", label: "Dk/TRL#", width: "w-32" },
-      { key: "location", label: "Location", width: "flex-1" },
+      // NOTE: min-w-0 is required for truncation in a flex row
+      { key: "location", label: "Location", width: "flex-1 min-w-0" },
       { key: "days_open", label: "Days old", width: "w-20" },
       // moved Type right after Days old
       { key: "shift_code", label: "Type", width: "w-24" },
@@ -186,7 +187,16 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
                           />
                         )
                       ) : (
-                        <span className="text-sm text-slate-700">{value ? value : "-"}</span>
+                        col.key === "location" ? (
+                          <span
+                            className="text-sm text-slate-700 block truncate whitespace-nowrap overflow-hidden"
+                            title={value || ""}
+                          >
+                            {value ? value : "-"}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-slate-700">{value ? value : "-"}</span>
+                        )
                       )}
                     </div>
                   );
