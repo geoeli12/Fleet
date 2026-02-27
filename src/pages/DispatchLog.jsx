@@ -118,6 +118,11 @@ function unwrapListResult(list) {
   return [];
 }
 
+function hasRealBol(uiLog) {
+  // UI already strips pending BOL tokens, so "real" BOL = non-empty string.
+  return String(uiLog?.bol ?? "").trim() !== "";
+}
+
 function toUiLog(order) {
   return {
     id: order.id,
@@ -228,11 +233,17 @@ export default function DispatchLog() {
       );
     });
 
-    // Keep displayed order stable and in the same order entries were created (matches paste order).
-    // If created_at isn't available, fall back to id.
+    // ORDERING RULE (per Geo's workflow):
+    // 1) Rows WITH a real BOL stay together (top section)
+    // 2) Rows WITHOUT a real BOL stay together (bottom section)
+    // 3) Within each section, keep the order stable by created_at (or id as fallback)
     return filtered
       .slice()
       .sort((a, b) => {
+        const aBol = hasRealBol(a);
+        const bBol = hasRealBol(b);
+        if (aBol !== bBol) return aBol ? -1 : 1;
+
         const at = a.created_at ? new Date(a.created_at).getTime() : NaN;
         const bt = b.created_at ? new Date(b.created_at).getTime() : NaN;
         const aHas = Number.isFinite(at);
