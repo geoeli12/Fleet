@@ -374,13 +374,15 @@ export default function DispatchLog() {
               </Button>
             </div>
             <AddDispatchForm
-            onAdd={async (row) => {
-              const normalized = normalizeIncomingUiRow(row, selectedDate);
-              normalized.region = region;
-              return createMutation.mutateAsync(normalized);
-            }}
-            defaultDate={selectedDate}
-          />
+              region={region}
+              onAdd={async (row) => {
+                const normalized = normalizeIncomingUiRow(row, selectedDate);
+                // Region toggle lives outside the form — force it onto every new row.
+                normalized.region = region;
+                return createMutation.mutateAsync(normalized);
+              }}
+              defaultDate={selectedDate}
+            />
           </div>
           <div className="relative w-full md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
