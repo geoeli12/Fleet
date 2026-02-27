@@ -9,8 +9,9 @@ import { format } from 'date-fns';
 import customersIL from "@/data/customers_il.json";
 import customersPA from "@/data/customers_pa.json";
 
-const getInitialForm = (dateValue) => ({
+const getInitialForm = (dateValue, regionValue) => ({
   date: dateValue || format(new Date(), 'yyyy-MM-dd'),
+  region: (regionValue || '').toString().trim(),
   company: '',
   trailer_number: '',
   notes: '',
@@ -40,8 +41,8 @@ const normalizeLines = (text) => {
   return parts.slice(0, end);
 };
 
-export default function AddDispatchForm({ onAdd, defaultDate }) {
-  const [form, setForm] = useState(() => getInitialForm(defaultDate));
+export default function AddDispatchForm({ onAdd, defaultDate, region }) {
+  const [form, setForm] = useState(() => getInitialForm(defaultDate, region));
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Company suggestions (same behavior as AddRunForm customer picker)
@@ -143,9 +144,14 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
     }
   }, [defaultDate]);
 
+  useEffect(() => {
+    // Region toggle lives outside the form; keep it synced so every saved row gets it.
+    setForm(prev => ({ ...prev, region: (region || '').toString().trim() }));
+  }, [region]);
+
   const resetFormAndBulk = (opts = { keepExpanded: false }) => {
     // Single-entry form
-    setForm(getInitialForm(defaultDate));
+    setForm(getInitialForm(defaultDate, region));
     setIsCompanyFocused(false);
     ignoreCompanyBlurRef.current = false;
 
@@ -169,8 +175,8 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.company.trim()) return;
-    await onAdd(form);
-    setForm(getInitialForm(form.date));
+    await onAdd({ ...form, region: (region || form.region || '').toString().trim() });
+    setForm(getInitialForm(form.date, region));
     setIsExpanded(false);
   };
 
@@ -245,6 +251,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
 
       entries.push({
         date: form.date,
+        region: (region || form.region || '').toString().trim(),
         company,
         trailer_number: (a.trailer_number[i] || '').trim(),
         notes: (a.notes[i] || '').trim(),
@@ -380,7 +387,7 @@ export default function AddDispatchForm({ onAdd, defaultDate }) {
       <Button
         onClick={() => {
           // Always open with a clean form (Cancel should not leave stale data)
-          setForm(getInitialForm(defaultDate));
+          setForm(getInitialForm(defaultDate, region));
           setIsCompanyFocused(false);
           ignoreCompanyBlurRef.current = false;
 
