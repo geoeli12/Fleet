@@ -105,7 +105,7 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
         _key: `${rgn}-${r.id ?? idx}`,
         region: rgn,
         customer: normalize(r.customer),
-        address: normalize(r.address),
+        address: normalize(r.address ?? r.location ?? r.address1 ?? r.addr ?? r.full_address ?? r.site ?? ""),
         receivingHours: normalize(r.receivingHours),
         receivingNotes: normalize(r.receivingNotes),
       }));
@@ -156,7 +156,7 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
       ...prev,
       company: row.customer,
       // Geo wants: clicking a customer suggestion should pull the address into Location
-      location: row.address || prev.location,
+      location: (row.address || row.location || "").trim() || prev.location,
     }));
   };
 
