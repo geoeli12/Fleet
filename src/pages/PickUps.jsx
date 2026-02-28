@@ -246,6 +246,8 @@ export default function PickUps() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+
+        <StatusSummary logs={statsLogs} variant="pickups" selectedDate={selectedDate} />
         <div className="flex items-center justify-center gap-4">
           <Button
             variant="outline"
@@ -319,9 +321,6 @@ export default function PickUps() {
             />
           </div>
         </div>
-
-        <StatusSummary logs={statsLogs} variant="pickups" />
-
         {isLoading ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
             <RefreshCw className="h-8 w-8 animate-spin text-slate-400 mx-auto mb-3" />
