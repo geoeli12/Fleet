@@ -88,14 +88,14 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
       { key: "company", label: "Company", width: "w-44" },
       { key: "dk_trl", label: "Dk/TRL#", width: "w-32" },
       // Location stays between DK/TRL# and Days old.
-      // NOTE: min-w-0 is required for truncation in a flex row.
-      { key: "location", label: "Location", width: "flex-1 min-w-0" },
+      // Make it wide enough for a full address on one row, with truncation + tooltip.
+      { key: "location", label: "Location", width: "w-[420px] min-w-[320px]" },
       { key: "days_open", label: "Days old", width: "w-24 text-center" },
       // Type right after Days old
       { key: "shift_code", label: "Type", width: "w-24 text-center" },
       { key: "date_picked_up", label: "P/U Date", width: "w-32 text-center" },
       { key: "driver", label: "Driver", width: "w-28" },
-      { key: "notes", label: "Notes", width: "w-[340px] min-w-[220px]" },
+      { key: "notes", label: "Notes", width: "flex-1 min-w-[220px]" },
     ],
     []
   );
