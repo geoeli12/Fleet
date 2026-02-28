@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 import AddPickupForm from "@/components/pickups/AddPickupForm";
 import PickupTable from "@/components/pickups/PickupTable";
-import StatusSummary from "@/components/StatusSummary";
+import StatusSummary from "../components/pickups/StatusSummary";
 
 function parseYMDToLocalDate(ymd) {
   if (!ymd || typeof ymd !== "string" || ymd.length < 10) return new Date();
