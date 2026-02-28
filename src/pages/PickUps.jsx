@@ -137,14 +137,18 @@ export default function PickUps() {
     const base = Array.isArray(uiLogs) ? uiLogs : [];
     const filtered = base.filter((log) => {
       const called = toYMD(log.date_called_out);
+      const picked = toYMD(log.date_picked_up);
 
-      // Show entries created for the selected day
-      const isForSelectedDay = called === selectedDate;
+      // IMPORTANT:
+      // - Open items are grouped by the day they were called out (date_called_out)
+      // - Once picked up (date_picked_up exists), they must group by the pickup day
+      const effectiveDay = picked || called;
+      const isForSelectedDay = effectiveDay === selectedDate;
 
       // Carry-over rule:
       // If an entry is still open (no P/U date) AND no driver has been assigned,
       // keep showing it on the next day(s) as well.
-      const hasPuDate = Boolean(toYMD(log.date_picked_up));
+      const hasPuDate = Boolean(picked);
       const hasDriver = Boolean(String(log.driver || "").trim());
       const isCarryOver = Boolean(called && called < selectedDate && !hasPuDate && !hasDriver);
 
