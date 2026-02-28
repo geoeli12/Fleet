@@ -70,7 +70,6 @@ import PickUps from './pages/PickUps';
 import PickupHistory from './pages/PickupHistory';
 import InventoryEntry from './pages/InventoryEntry';
 import InventoryLog from './pages/InventoryLog';
-import CustomerPrices from './pages/CustomerPrices';
 import Invoice from './pages/Invoice';
 import __Layout from './Layout.jsx';
 
@@ -90,7 +89,6 @@ export const PAGES = {
     "PickupHistory": PickupHistory,
     "InventoryEntry": InventoryEntry,
     "InventoryLog": InventoryLog,
-    "CustomerPrices": CustomerPrices,
     "Invoice": Invoice,
     "FuelDashboard": FuelDashboard,
     "FuelHistory": FuelHistory,
