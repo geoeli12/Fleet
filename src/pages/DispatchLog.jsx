@@ -56,6 +56,7 @@ function normalizeIncomingUiRow(ui, fallbackDateYmd) {
     trailer_number: String(ui?.trailer_number ?? ""),
     notes: String(ui?.notes ?? ""),
     dock_hours: String(ui?.dock_hours ?? ""),
+        eta: String(ui?.eta ?? \"\"),
     bol: String(ui?.bol ?? ""),
     item: String(ui?.item ?? ""),
     delivered_by: String(ui?.delivered_by ?? ""),
@@ -72,7 +73,8 @@ function normalizeIncomingUiRow(ui, fallbackDateYmd) {
     out.company = out.trailer_number;
     out.trailer_number = out.notes;
     out.notes = out.dock_hours;
-    out.dock_hours = out.bol;
+    out.dock_hours = out.eta;
+    out.eta = out.bol;
     out.bol = out.item;
     out.item = out.delivered_by;
     out.delivered_by = "";
@@ -87,6 +89,7 @@ function normalizeIncomingUiRow(ui, fallbackDateYmd) {
   out.trailer_number = dashToEmpty(out.trailer_number);
   out.notes = dashToEmpty(out.notes);
   out.dock_hours = dashToEmpty(out.dock_hours);
+  out.eta = dashToEmpty(out.eta);
   out.bol = dashToEmpty(out.bol);
   out.item = dashToEmpty(out.item);
   out.delivered_by = dashToEmpty(out.delivered_by);
@@ -134,6 +137,7 @@ function toUiLog(order) {
     trailer_number: order.trailer_number ?? "",
     notes: order.notes ?? "",
     dock_hours: order.dock_hours ?? "",
+    eta: order.eta ?? order.ETA ?? \"\",
     // Keep the raw DB value so edits don't accidentally overwrite our
     // generated pending-token (used to keep rows with blank BOL unique).
     bol_token: String(order.bol_number ?? order.bol ?? ""),
@@ -161,6 +165,7 @@ function toDbPayload(ui) {
     trailer_number: ui.trailer_number || "",
     notes: ui.notes || "",
     dock_hours: ui.dock_hours || "",
+    eta: ui.eta || \"\",
     // IMPORTANT:
     // If the DB value was a pending-token, the UI shows it as blank.
     // On edit (like changing Trailer #), we must NOT overwrite the token with "";
