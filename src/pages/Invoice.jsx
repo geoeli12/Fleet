@@ -95,19 +95,17 @@ export default function Invoice() {
   }, []);
 
   const { data: rawCustomers } = useQuery({
-    queryKey: ["customers_il"],
+    queryKey: ["customersIL"],
     queryFn: async () => {
       try {
-        // Base44 entity naming typically camel-cases the table name: customers_il -> CustomersIl
-        const res = await api.entities.CustomersIl.list("customer");
+        // Pull from Supabase customers_il table via the server entity route
+        const res = await api.entities.CustomerIL.list("customer");
         return unwrapListResult(res);
-      } catch (e) {
-        // If your entity is named differently, search/replace CustomersIl accordingly.
+      } catch {
         return [];
       }
     },
   });
-
 
   const customers = useMemo(() => unwrapListResult(rawCustomers), [rawCustomers]);
 
@@ -132,11 +130,11 @@ export default function Invoice() {
   const getUnitPrices = () => {
     const c = selectedCustomer || {};
     return {
-      p48x40_1: safeNum(c.price48x40_1 ?? c.price_48x40_1),
-      p48x40_2: safeNum(c.price48x40_2 ?? c.price_48x40_2),
-      pLargeOdd: safeNum(c.priceLargeOdd ?? c.price_large_odd),
-      pSmallOdd: safeNum(c.priceSmallOdd ?? c.price_small_odd),
-      pBaledOcc: safeNum(c.priceBailedCardboard ?? c.price_bailed_cardboard),
+      p48x40_1: safeNum(c.price48x40_1),
+      p48x40_2: safeNum(c.price48x40_2),
+      pLargeOdd: safeNum(c.priceLargeOdd),
+      pSmallOdd: safeNum(c.priceSmallOdd),
+      pBaledOcc: safeNum(c.priceBailedCardboard),
     };
   };
 
@@ -204,18 +202,16 @@ export default function Invoice() {
   };
 
   const onPickCustomer = (cust) => {
-    if (!cust) return;
-    // customers_il schema:
-    // id (bigint), customer (text), address (text), price48x40_1, price48x40_2, priceLargeOdd, priceSmallOdd, priceBailedCardboard, etc.
-    setCustomerNo(cust.id != null ? String(cust.id) : "");
-    setCustomerName(cust.customer || "");
+    const name = String(cust?.customer || "");
+    const no = cust?.id ?? "";
+    const addrRaw = String(cust?.address || "");
+    // keep address on one line (no regex literals to avoid build issues)
+    const addrOneLine = addrRaw.replaceAll("\r", " ").replaceAll("\n", " ").replaceAll("  ", " ").trim();
 
-    const addr = cust.address || "";
-    const parts = String(addr).split(/?
-/).map((s) => s.trim()).filter(Boolean);
-    setCustomerAddress1(parts[0] || String(addr));
-    setCustomerAddress2(parts.slice(1).join(" ") || "");
-
+    setCustomerNo(String(no));
+    setCustomerName(name);
+    setCustomerAddress1(addrOneLine);
+    setCustomerAddress2("");
     setCustomerFocused(false);
   };
 
@@ -295,11 +291,11 @@ export default function Invoice() {
                       {customerMatches.map((c) => (
                         <button
                           type="button"
-                          key={c.id ?? c.customer_name}
+                          key={c.id ?? c.customer}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50"
                           onClick={() => onPickCustomer(c)}
                         >
-                          {c.customer_name}
+                          {c.customer}
                         </button>
                       ))}
                     </div>
@@ -343,7 +339,7 @@ export default function Invoice() {
                 </div>
 
                 <div className="no-print rounded-xl border border-black/10 bg-amber-50/60 p-3 text-xs">
-                  <div className="font-semibold text-neutral-800">Pricing loaded from Customers</div>
+                  <div className="font-semibold text-neutral-800">Pricing loaded from Customer Prices</div>
                   <div className="mt-1 grid grid-cols-2 sm:grid-cols-5 gap-2 text-neutral-700">
                     <div>
                       48x40 #1: <span className="font-semibold">{money(unitPrices.p48x40_1)}</span>
