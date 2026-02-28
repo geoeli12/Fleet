@@ -4,6 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
+function normalizeYMD(v) {
+  if (!v) return "";
+  if (typeof v === "string") return v.split("T")[0];
+  try {
+    return new Date(v).toISOString().slice(0, 10);
+  } catch {
+    return "";
+  }
+}
+
 function daysBetween(fromYmd, toYmd) {
   if (!fromYmd) return "";
   const a = new Date(`${fromYmd}T00:00:00`);
@@ -42,7 +52,7 @@ function saveTypeOptions(opts) {
   }
 }
 
-export default function PickupTable({ logs, onUpdate, onDelete }) {
+export default function PickupTable({ viewDate, logs, onUpdate, onDelete }) {
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
   const [typeOptions, setTypeOptions] = useState(() => loadTypeOptions());
@@ -101,11 +111,17 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
   );
 
 
-  const getRowStyle = (log) => {
-    const days = Number(daysBetween(log.date_called_out, log.date_picked_up));
+  const getRowStyle = (log, viewDateYmd) => {
+    const pickedYmd = normalizeYMD(log.date_picked_up);
+    const endForDays = pickedYmd && viewDateYmd && viewDateYmd >= pickedYmd ? pickedYmd : viewDateYmd;
+    const days = Number(daysBetween(log.date_called_out, endForDays));
+
 
     // If picked up date exists -> completed (soft green)
-    if (log.date_picked_up) return "bg-gradient-to-r from-emerald-50 to-emerald-100 border-l-4 border-l-emerald-500";
+    // Only show "picked up" styling ON the actual pickup day (for earlier carry-over days, keep it looking open)
+    if (pickedYmd && viewDateYmd && viewDateYmd >= pickedYmd) {
+      return "bg-gradient-to-r from-emerald-50 to-emerald-100 border-l-4 border-l-emerald-500";
+    }
 
     // If days open is high -> attention (soft red)
     if (Number.isFinite(days) && days >= 10) return "bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-l-red-500";
@@ -135,7 +151,10 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
         ) : (
           logs.map((log) => {
             const isEditing = editingId === log.id;
-            const days = daysBetween(log.date_called_out, log.date_picked_up);
+            const viewDateYmd = normalizeYMD(viewDate || "");
+            const pickedYmd = normalizeYMD(log.date_picked_up);
+            const endForDays = pickedYmd && viewDateYmd && viewDateYmd >= pickedYmd ? pickedYmd : viewDateYmd;
+            const days = daysBetween(log.date_called_out, endForDays);
 
             return (
               <div
@@ -143,7 +162,7 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
                 onClick={() => !isEditing && startEdit(log)}
                 className={cn(
                   "flex items-center px-4 py-3 gap-2 transition-all duration-200 hover:shadow-md cursor-pointer",
-                  getRowStyle(log),
+                  getRowStyle(log, viewDateYmd),
                   isEditing && "cursor-default"
                 )}
               >
@@ -157,6 +176,7 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
                   }
 
                   const value = log[col.key] ?? "";
+                  const isCarryOverView = Boolean(pickedYmd && viewDateYmd && viewDateYmd < pickedYmd);
 
                   // These fields must be DATE inputs when editing
                   const isDateField = col.key === "date_picked_up";
@@ -189,16 +209,20 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
                           />
                         )
                       ) : (
-                        col.key === "location" ? (
+                        (() => {
+                          let displayValue = value;
+                          if (isCarryOverView && (col.key === "driver" || col.key === "date_picked_up")) displayValue = "";
+                          return col.key === "location" ? (
                           <span
                             className="text-sm text-slate-700 block truncate whitespace-nowrap overflow-hidden"
-                            title={value || ""}
+                            title={displayValue || ""}
                           >
-                            {value ? value : "-"}
+                            {displayValue ? displayValue : "-"}
                           </span>
                         ) : (
-                          <span className="text-sm text-slate-700">{value ? value : "-"}</span>
-                        )
+                          <span className="text-sm text-slate-700">{displayValue ? displayValue : "-"}</span>
+                        );
+                        })()
                       )}
                     </div>
                   );
