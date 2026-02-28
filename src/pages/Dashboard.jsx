@@ -15,7 +15,7 @@ import {
   Droplets,
   Gauge,
   Package,
-  DollarSign,
+  
   FileText,
   ArrowRight,
   Palette,
@@ -273,12 +273,7 @@ export default function Dashboard() {
       icon: Package,
       description: "Search and filter all pallet inventory entries.",
     },
-    {
-      name: "Customer Prices",
-      to: createPageUrl("CustomerPrices"),
-      icon: DollarSign,
-      description: "Manage customer pallet pricing and defaults.",
-    },
+    
     {
       name: "Invoice",
       to: createPageUrl("Invoice"),
