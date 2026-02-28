@@ -216,6 +216,14 @@ export default function PickUps() {
       });
   }, [uiLogs, selectedDate, searchTerm, region]);
 
+  const dayLabel = useMemo(() => {
+    try {
+      return format(parseYMDToLocalDate(selectedDate), "EEEE").toUpperCase();
+    } catch {
+      return "";
+    }
+  }, [selectedDate]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
@@ -248,38 +256,6 @@ export default function PickUps() {
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
 
         <StatusSummary logs={statsLogs} variant="pickups" selectedDate={selectedDate} />
-        <div className="flex items-center justify-center gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              const d = subDays(parseYMDToLocalDate(selectedDate), 1);
-              setSelectedDate(format(d, "yyyy-MM-dd"));
-            }}
-            className="rounded-xl h-12 w-12"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-3">
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="border-0 p-0 h-8 text-lg font-semibold text-center w-40"
-            />
-          </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              const d = addDays(parseYMDToLocalDate(selectedDate), 1);
-              setSelectedDate(format(d, "yyyy-MM-dd"));
-            }}
-            className="rounded-xl h-12 w-12"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
@@ -309,6 +285,48 @@ export default function PickUps() {
               defaultCalledOutDate={selectedDate}
               region={region}
             />
+          </div>
+
+          <div className="w-full md:w-auto flex items-center justify-center">
+            <div className="flex flex-col items-center">
+              {dayLabel ? (
+                <div className="text-slate-700 font-extrabold tracking-wide text-xl leading-none mb-2">
+                  {dayLabel}
+                </div>
+              ) : null}
+              <div className="flex items-center justify-center gap-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const d = subDays(parseYMDToLocalDate(selectedDate), 1);
+                    setSelectedDate(format(d, "yyyy-MM-dd"));
+                  }}
+                  className="rounded-xl h-12 w-12"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-3">
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="border-0 p-0 h-8 text-lg font-semibold text-center w-40"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const d = addDays(parseYMDToLocalDate(selectedDate), 1);
+                    setSelectedDate(format(d, "yyyy-MM-dd"));
+                  }}
+                  className="rounded-xl h-12 w-12"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
           </div>
 
           <div className="relative w-full md:w-72">

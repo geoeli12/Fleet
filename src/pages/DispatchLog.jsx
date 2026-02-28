@@ -301,6 +301,14 @@ export default function DispatchLog() {
     return filteredLogs.filter((l) => String(l?.bol ?? "").trim() !== "");
   }, [filteredLogs]);
 
+  const dayLabel = useMemo(() => {
+    try {
+      return format(parseYMDToLocalDate(selectedDate), "EEEE").toUpperCase();
+    } catch {
+      return "";
+    }
+  }, [selectedDate]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
@@ -333,41 +341,9 @@ export default function DispatchLog() {
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
         <StatusSummary logs={logsForSummary} />
 
-        <div className="flex items-center justify-center gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              const d = subDays(parseYMDToLocalDate(selectedDate), 1);
-              setSelectedDate(format(d, "yyyy-MM-dd"));
-            }}
-            className="rounded-xl h-12 w-12"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-3">
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="border-0 p-0 h-8 text-lg font-semibold text-center w-40"
-            />
-          </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              const d = addDays(parseYMDToLocalDate(selectedDate), 1);
-              setSelectedDate(format(d, "yyyy-MM-dd"));
-            }}
-            className="rounded-xl h-12 w-12"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
+          {/* Left: Region + Add */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto order-1">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
@@ -387,16 +363,61 @@ export default function DispatchLog() {
               </Button>
             </div>
             <AddDispatchForm
-            onAdd={async (row) => {
-              const normalized = normalizeIncomingUiRow(row, selectedDate);
-              normalized.region = region;
-              return createMutation.mutateAsync(normalized);
-            }}
-            defaultDate={selectedDate}
-            region={region}
-          />
+              onAdd={async (row) => {
+                const normalized = normalizeIncomingUiRow(row, selectedDate);
+                normalized.region = region;
+                return createMutation.mutateAsync(normalized);
+              }}
+              defaultDate={selectedDate}
+              region={region}
+            />
           </div>
-          <div className="relative w-full md:w-72">
+
+          {/* Middle: Day label + Date picker (moved down + aligned with Add row) */}
+          <div className="w-full lg:flex-1 order-3 lg:order-2">
+            <div className="flex items-center justify-center gap-4 mt-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const d = subDays(parseYMDToLocalDate(selectedDate), 1);
+                  setSelectedDate(format(d, "yyyy-MM-dd"));
+                }}
+                className="rounded-xl h-12 w-12"
+                aria-label="Previous day"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-3">
+                <div className="text-center leading-none">
+                  <div className="text-2xl font-extrabold tracking-wide text-slate-800">{dayLabel}</div>
+                </div>
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="border-0 p-0 h-8 text-lg font-semibold text-center w-44 mt-1"
+                />
+              </div>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const d = addDays(parseYMDToLocalDate(selectedDate), 1);
+                  setSelectedDate(format(d, "yyyy-MM-dd"));
+                }}
+                className="rounded-xl h-12 w-12"
+                aria-label="Next day"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Right: Search */}
+          <div className="relative w-full lg:w-72 order-2 lg:order-3">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Search entries..."
