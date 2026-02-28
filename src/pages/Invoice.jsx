@@ -16,6 +16,26 @@ function unwrapListResult(list) {
   return [];
 }
 
+function pickFirst(obj, keys) {
+  for (const k of keys) {
+    const v = obj?.[k];
+    if (v !== null && typeof v !== "undefined" && String(v).trim() !== "") return v;
+  }
+  return "";
+}
+
+function getCustomerName(c) {
+  return String(pickFirst(c, ["customer_name", "name", "customer", "customerName"])).trim();
+}
+
+function buildAddressLine2(c) {
+  const city = String(pickFirst(c, ["city", "customer_city"])).trim();
+  const state = String(pickFirst(c, ["state", "st", "customer_state"])).trim();
+  const zip = String(pickFirst(c, ["zip", "zip_code", "postal", "postal_code", "customer_zip"])).trim();
+  const parts = [city, state].filter(Boolean).join(", ");
+  return [parts, zip].filter(Boolean).join(" ").trim();
+}
+
 const money = (n) => {
   const v = Number(n || 0);
   return `$${v.toFixed(2)}`;
@@ -94,46 +114,77 @@ export default function Invoice() {
     document.head.appendChild(style);
   }, []);
 
-  const { data: rawPrices } = useQuery({
-    queryKey: ["customerPrices"],
+  const { data: rawCustomers } = useQuery({
+    queryKey: ["customersForInvoice"],
     queryFn: async () => {
-      try {
-        const res = await api.entities.CustomerPrice.list("customer_name");
+      // The app has had a few naming variations over time; try the common ones.
+      const tryList = async (entityName, orderBy) => {
+        const ent = api?.entities?.[entityName];
+        if (!ent?.list) return null;
+        const res = await ent.list(orderBy);
         return unwrapListResult(res);
+      };
+
+      try {
+        const a = await tryList("Customer", "name");
+        if (a) return a;
       } catch {
-        return [];
+        // ignore
       }
+      try {
+        const b = await tryList("Customers", "name");
+        if (b) return b;
+      } catch {
+        // ignore
+      }
+      // Fallback: some builds used CustomerPrice, but the goal is Customers.
+      try {
+        const c = await tryList("CustomerPrice", "customer_name");
+        if (c) return c;
+      } catch {
+        // ignore
+      }
+      return [];
     },
   });
 
-  const prices = useMemo(() => unwrapListResult(rawPrices), [rawPrices]);
+  const customers = useMemo(() => unwrapListResult(rawCustomers), [rawCustomers]);
 
   const customerMatches = useMemo(() => {
     const q = (customerName || "").trim().toLowerCase();
     if (!q) return [];
-    return prices
-      .filter((c) => String(c?.customer_name || "").toLowerCase().includes(q))
+    return customers
+      .filter((c) => getCustomerName(c).toLowerCase().includes(q))
       .slice(0, 10);
-  }, [customerName, prices]);
+  }, [customerName, customers]);
 
   const selectedCustomer = useMemo(() => {
     const q = (customerName || "").trim().toLowerCase();
     if (!q) return null;
     return (
-      prices.find((c) => String(c?.customer_name || "").toLowerCase() === q) ||
-      prices.find((c) => String(c?.customer_name || "").toLowerCase().startsWith(q)) ||
+      customers.find((c) => getCustomerName(c).toLowerCase() === q) ||
+      customers.find((c) => getCustomerName(c).toLowerCase().startsWith(q)) ||
       null
     );
-  }, [customerName, prices]);
+  }, [customerName, customers]);
 
   const getUnitPrices = () => {
     const c = selectedCustomer || {};
+    // Accept multiple possible field names to match the Customers page.
+    const num = (keys) => safeNum(pickFirst(c, keys));
     return {
-      p48x40_1: safeNum(c.price_48x40_1),
-      p48x40_2: safeNum(c.price_48x40_2),
-      pLargeOdd: safeNum(c.price_large_odd),
-      pSmallOdd: safeNum(c.price_small_odd),
-      pBaledOcc: safeNum(c.price_bailed_cardboard),
+      p48x40_1: num(["price_48x40_1", "price48x40_1", "pallet_48x40_1", "p48x40_1", "rate_48x40_1"]),
+      p48x40_2: num(["price_48x40_2", "price48x40_2", "pallet_48x40_2", "p48x40_2", "rate_48x40_2"]),
+      pLargeOdd: num(["price_large_odd", "priceLargeOdd", "large_odd", "pLargeOdd", "rate_large_odd"]),
+      pSmallOdd: num(["price_small_odd", "priceSmallOdd", "small_odd", "pSmallOdd", "rate_small_odd"]),
+      pBaledOcc: num([
+        "price_baled_cardboard",
+        "price_baled_occ",
+        "priceBaledOcc",
+        "baled_occ",
+        "pBaledOcc",
+        "rate_baled_occ",
+      ]),
     };
   };
 
@@ -201,9 +252,59 @@ export default function Invoice() {
   };
 
   const onPickCustomer = (cust) => {
-    setCustomerName(cust?.customer_name || "");
+    setCustomerName(getCustomerName(cust));
+    setCustomerNo(
+      String(
+        pickFirst(cust, ["customer_no", "customer_number", "customer_id", "customerId", "id", "cust_no"]) || ""
+      )
+    );
+
+    const line1 = String(
+      pickFirst(cust, [
+        "address1",
+        "address_1",
+        "address_line_1",
+        "address_line1",
+        "address",
+        "street",
+        "location",
+      ])
+    ).trim();
+    const line2Raw = String(
+      pickFirst(cust, ["address2", "address_2", "address_line_2", "address_line2"]) || ""
+    ).trim();
+    const line2 = line2Raw || buildAddressLine2(cust);
+
+    setCustomerAddress1(line1);
+    setCustomerAddress2(line2);
     setCustomerFocused(false);
   };
+
+  // If the user types an exact customer name, auto-fill the related fields (without overwriting edits).
+  useEffect(() => {
+    if (!selectedCustomer) return;
+    if (!customerNo) {
+      const no = pickFirst(selectedCustomer, ["customer_no", "customer_number", "customer_id", "customerId", "id", "cust_no"]);
+      if (no !== "") setCustomerNo(String(no));
+    }
+    if (!customerAddress1) {
+      const line1 = pickFirst(selectedCustomer, [
+        "address1",
+        "address_1",
+        "address_line_1",
+        "address_line1",
+        "address",
+        "street",
+        "location",
+      ]);
+      if (line1 !== "") setCustomerAddress1(String(line1).trim());
+    }
+    if (!customerAddress2) {
+      const line2Raw = pickFirst(selectedCustomer, ["address2", "address_2", "address_line_2", "address_line2"]);
+      const line2 = String(line2Raw || buildAddressLine2(selectedCustomer)).trim();
+      if (line2) setCustomerAddress2(line2);
+    }
+  }, [selectedCustomer, customerNo, customerAddress1, customerAddress2]);
 
   const unitPrices = useMemo(() => getUnitPrices(), [selectedCustomer]);
 
@@ -281,11 +382,11 @@ export default function Invoice() {
                       {customerMatches.map((c) => (
                         <button
                           type="button"
-                          key={c.id ?? c.customer_name}
+                          key={c.id ?? c.customer_id ?? c.customer_no ?? getCustomerName(c)}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50"
                           onClick={() => onPickCustomer(c)}
                         >
-                          {c.customer_name}
+                          {getCustomerName(c)}
                         </button>
                       ))}
                     </div>
@@ -329,7 +430,7 @@ export default function Invoice() {
                 </div>
 
                 <div className="no-print rounded-xl border border-black/10 bg-amber-50/60 p-3 text-xs">
-                  <div className="font-semibold text-neutral-800">Pricing loaded from Customer Prices</div>
+                  <div className="font-semibold text-neutral-800">Pricing loaded from Customers</div>
                   <div className="mt-1 grid grid-cols-2 sm:grid-cols-5 gap-2 text-neutral-700">
                     <div>
                       48x40 #1: <span className="font-semibold">{money(unitPrices.p48x40_1)}</span>
