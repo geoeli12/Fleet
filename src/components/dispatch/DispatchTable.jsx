@@ -57,6 +57,7 @@ export default function DispatchTable({ logs, onUpdate, onDelete, showDate = fal
     { key: 'trailer_number', label: 'Trailer #', width: 'w-28' },
     { key: 'notes', label: 'Notes', width: 'flex-1' },
     { key: 'dock_hours', label: 'Dock Hrs', width: 'w-28' },
+    { key: 'eta', label: 'ETA', width: 'w-24' },
     { key: 'bol', label: 'BOL', width: 'w-28' },
     { key: 'item', label: 'Item', width: 'w-24' },
     { key: 'delivered_by', label: 'Delivered', width: 'w-28' },

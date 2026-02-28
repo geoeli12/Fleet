@@ -7,8 +7,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
 
-import customersIL from "@/data/customers_il.json";
-import customersPA from "@/data/customers_pa.json";
+import { api } from "@/api/apiClient";
+
+const unwrapListResult = (list) => {
+  if (Array.isArray(list)) return list;
+  if (!list) return [];
+  if (Array.isArray(list.data)) return list.data;
+  if (Array.isArray(list.rows)) return list.rows;
+  return [];
+};
 
 const getInitialForm = (dateValue, regionValue) => ({
   date: dateValue || format(new Date(), 'yyyy-MM-dd'),
@@ -17,6 +24,7 @@ const getInitialForm = (dateValue, regionValue) => ({
   trailer_number: '',
   notes: '',
   dock_hours: '',
+  eta: '',
   bol: '',
   item: '',
   delivered_by: ''
@@ -28,6 +36,7 @@ const exampleRow = {
   trailer_number: '1256',
   notes: 'Leave at dock 3',
   dock_hours: '660',
+  eta: '28 min',
   bol: '6592',
   item: '96x48',
   delivered_by: 'Yes'
@@ -50,35 +59,48 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
   const [isCompanyFocused, setIsCompanyFocused] = useState(false);
   const ignoreCompanyBlurRef = useRef(false);
 
+  // Customers from Supabase (via server entity routes)
+  const [customersIL, setCustomersIL] = useState([]);
+  const [customersPA, setCustomersPA] = useState([]);
+
+  useEffect(() => {
+    let alive = true;
+
+    const load = async () => {
+      try {
+        const [il, pa] = await Promise.all([
+          api.entities.CustomerIL.list('customer').catch(() => []),
+          api.entities.CustomerPA.list('customer').catch(() => [])
+        ]);
+
+        if (!alive) return;
+        setCustomersIL(unwrapListResult(il));
+        setCustomersPA(unwrapListResult(pa));
+      } catch {
+        // ignore
+      }
+    };
+
+    load();
+    return () => { alive = false; };
+  }, []);
+
   const customerDirectory = useMemo(() => {
     const normalize = (v) => (v ?? '').toString().trim();
 
-    const safeParse = (raw) => {
-      try { return JSON.parse(raw); } catch { return null; }
-    };
-
-    const getRows = (key, fallback) => {
-      if (typeof window === 'undefined') return fallback || [];
-      const raw = window.localStorage.getItem(key);
-      const parsed = raw ? safeParse(raw) : null;
-      return Array.isArray(parsed) ? parsed : (fallback || []);
-    };
-
-    const ilRows = getRows('customers_il', customersIL);
-    const paRows = getRows('customers_pa', customersPA);
-
     const withMeta = (rows, region) =>
       (rows || []).map((r, idx) => ({
-        _key: `${region}-${r.id ?? idx}`,
+        _key: `${region}-${r?.id ?? idx}`,
         region,
-        customer: normalize(r.customer),
-        address: normalize(r.address),
-        receivingHours: normalize(r.receivingHours),
-        receivingNotes: normalize(r.receivingNotes),
+        customer: normalize(r?.customer),
+        address: normalize(r?.address),
+        receivingHours: normalize(r?.receivingHours),
+        receivingNotes: normalize(r?.receivingNotes),
+        eta: normalize(r?.eta),
       }));
 
-    return [...withMeta(ilRows, 'IL'), ...withMeta(paRows, 'PA')].filter(r => r.customer);
-  }, []);
+    return [...withMeta(customersIL, 'IL'), ...withMeta(customersPA, 'PA')].filter(r => r.customer);
+  }, [customersIL, customersPA]);
 
   const normalizeCompanyKey = (v) =>
     (v ?? '')
@@ -90,17 +112,28 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
       .replace(/^[-–—\s]+/, '')
       .trim();
 
-  const getDockHoursForCompany = (companyName) => {
+  const findCompanyMatch = (companyName) => {
     const q = normalizeCompanyKey(companyName);
-    if (!q) return '';
+    if (!q) return null;
 
-    const match =
+    return (
       customerDirectory.find(r => normalizeCompanyKey(r.customer) === q) ||
       customerDirectory.find(r => normalizeCompanyKey(r.customer).startsWith(q)) ||
-      customerDirectory.find(r => normalizeCompanyKey(r.customer).includes(q));
+      customerDirectory.find(r => normalizeCompanyKey(r.customer).includes(q)) ||
+      null
+    );
+  };
 
+  const getDockHoursForCompany = (companyName) => {
+    const match = findCompanyMatch(companyName);
     if (!match) return '';
     return (match.receivingHours || match.receivingNotes || '').trim();
+  };
+
+  const getEtaForCompany = (companyName) => {
+    const match = findCompanyMatch(companyName);
+    if (!match) return '';
+    return (match.eta || '').trim();
   };
 
   const applyCompanyPick = (row) => {
@@ -109,6 +142,7 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
       ...prev,
       company: row.customer,
       dock_hours: dock || prev.dock_hours,
+      eta: (row?.eta || '').trim() || prev.eta,
     }));
   };
 
@@ -118,13 +152,29 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
     setForm(prev => ({ ...prev, dock_hours: prev.dock_hours || dock }));
   };
 
+  const tryAutoFillEtaFromCompany = () => {
+    const eta = getEtaForCompany(form.company);
+    if (!eta) return;
+    setForm(prev => ({ ...prev, eta: prev.eta || eta }));
+  };
+
   const companyMatches = useMemo(() => {
     const q = (form.company || '').trim().toLowerCase();
     if (!q) return [];
-    return customerDirectory
-      .filter(r => r.customer.toLowerCase().includes(q))
-      .slice(0, 10);
-  }, [form.company, customerDirectory]);
+
+    // If a region toggle is selected, prefer that region first, but still allow cross-region matches.
+    const activeRegion = (region || form.region || '').toString().trim().toUpperCase();
+
+    const matches = customerDirectory.filter(r => r.customer.toLowerCase().includes(q));
+    matches.sort((a, b) => {
+      const aPri = (a.region === activeRegion) ? 0 : 1;
+      const bPri = (b.region === activeRegion) ? 0 : 1;
+      if (aPri !== bPri) return aPri - bPri;
+      return a.customer.localeCompare(b.customer, undefined, { sensitivity: 'base' });
+    });
+
+    return matches.slice(0, 10);
+  }, [form.company, customerDirectory, region, form.region]);
 
   // Bulk Paste (column-based)
   const [bulkCols, setBulkCols] = useState({ ...exampleRow });
@@ -133,6 +183,7 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
     trailer_number: true,
     notes: true,
     dock_hours: true,
+    eta: true,
     bol: true,
     item: true,
     delivered_by: true,
@@ -164,6 +215,7 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
       trailer_number: true,
       notes: true,
       dock_hours: true,
+      eta: true,
       bol: true,
       item: true,
       delivered_by: true,
@@ -188,6 +240,7 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
       trailer_number: '',
       notes: '',
       dock_hours: '',
+      eta: '',
       bol: '',
       item: '',
       delivered_by: ''
@@ -197,6 +250,7 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
       trailer_number: false,
       notes: false,
       dock_hours: false,
+      eta: false,
       bol: false,
       item: false,
       delivered_by: false,
@@ -209,6 +263,7 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
       trailer_number: normalizeLines(bulkCols.trailer_number),
       notes: normalizeLines(bulkCols.notes),
       dock_hours: normalizeLines(bulkCols.dock_hours),
+      eta: normalizeLines(bulkCols.eta),
       bol: normalizeLines(bulkCols.bol),
       item: normalizeLines(bulkCols.item),
       delivered_by: normalizeLines(bulkCols.delivered_by),
@@ -218,6 +273,7 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
       a.trailer_number.length,
       a.notes.length,
       a.dock_hours.length,
+      a.eta.length,
       a.bol.length,
       a.item.length,
       a.delivered_by.length
@@ -258,6 +314,7 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
         trailer_number: (a.trailer_number[i] || '').trim(),
         notes: (a.notes[i] || '').trim(),
         dock_hours: (a.dock_hours[i] || '').trim(),
+        eta: (a.eta[i] || '').trim(),
         bol: (a.bol[i] || '').trim(),
         item: (a.item[i] || '').trim(),
         delivered_by: (a.delivered_by[i] || '').trim()
@@ -269,8 +326,6 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
     }
 
     clearBulk();
-    // Reset back to example after import? No — keep it empty.
-    
     setIsExpanded(false);
   };
 
@@ -290,33 +345,56 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
           if (field === 'company') {
             const compLines = normalizeLines(value);
             const existingDockLines = normalizeLines(next.dock_hours);
-            const maxLen = Math.max(compLines.length, existingDockLines.length);
-            const out = [];
-            let didFill = false;
+            const existingEtaLines = normalizeLines(next.eta);
+            const maxLen = Math.max(compLines.length, existingDockLines.length, existingEtaLines.length);
+            const dockOut = [];
+            const etaOut = [];
+            let didFillDock = false;
+            let didFillEta = false;
 
             for (let i = 0; i < maxLen; i++) {
               const c = (compLines[i] || '').trim();
               const d = (existingDockLines[i] || '').trim();
+              const e = (existingEtaLines[i] || '').trim();
+
+              // Dock Hours
               if (d) {
-                out.push(d);
-                continue;
-              }
-              if (!c) {
-                out.push('');
-                continue;
-              }
-              const dock = getDockHoursForCompany(c);
-              if (dock) {
-                out.push(dock);
-                didFill = true;
+                dockOut.push(d);
+              } else if (!c) {
+                dockOut.push('');
               } else {
-                out.push('');
+                const dock = getDockHoursForCompany(c);
+                if (dock) {
+                  dockOut.push(dock);
+                  didFillDock = true;
+                } else {
+                  dockOut.push('');
+                }
+              }
+
+              // ETA
+              if (e) {
+                etaOut.push(e);
+              } else if (!c) {
+                etaOut.push('');
+              } else {
+                const eta = getEtaForCompany(c);
+                if (eta) {
+                  etaOut.push(eta);
+                  didFillEta = true;
+                } else {
+                  etaOut.push('');
+                }
               }
             }
 
-            if (didFill) {
-              next.dock_hours = out.join('\n');
+            if (didFillDock) {
+              next.dock_hours = dockOut.join('\n');
               setExampleActiveCols(prevEx => ({ ...prevEx, dock_hours: false }));
+            }
+            if (didFillEta) {
+              next.eta = etaOut.join('\n');
+              setExampleActiveCols(prevEx => ({ ...prevEx, eta: false }));
             }
           }
           return next;
@@ -330,34 +408,59 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
       if (field === 'company') {
         const compLines = normalizeLines(value);
         const existingDockLines = normalizeLines(next.dock_hours);
-        const maxLen = Math.max(compLines.length, existingDockLines.length);
-        const out = [];
-        let didFill = false;
+        const existingEtaLines = normalizeLines(next.eta);
+        const maxLen = Math.max(compLines.length, existingDockLines.length, existingEtaLines.length);
+        const dockOut = [];
+        const etaOut = [];
+        let didFillDock = false;
+        let didFillEta = false;
 
         for (let i = 0; i < maxLen; i++) {
           const c = (compLines[i] || '').trim();
           const d = (existingDockLines[i] || '').trim();
+          const e = (existingEtaLines[i] || '').trim();
+
+          // Dock Hours
           if (d) {
-            out.push(d);
-            continue;
-          }
-          if (!c) {
-            out.push('');
-            continue;
-          }
-          const dock = getDockHoursForCompany(c);
-          if (dock) {
-            out.push(dock);
-            didFill = true;
+            dockOut.push(d);
+          } else if (!c) {
+            dockOut.push('');
           } else {
-            out.push('');
+            const dock = getDockHoursForCompany(c);
+            if (dock) {
+              dockOut.push(dock);
+              didFillDock = true;
+            } else {
+              dockOut.push('');
+            }
+          }
+
+          // ETA
+          if (e) {
+            etaOut.push(e);
+          } else if (!c) {
+            etaOut.push('');
+          } else {
+            const eta = getEtaForCompany(c);
+            if (eta) {
+              etaOut.push(eta);
+              didFillEta = true;
+            } else {
+              etaOut.push('');
+            }
           }
         }
 
-        if (didFill) {
-          next.dock_hours = out.join('\n');
+        if (didFillDock) {
+          next.dock_hours = dockOut.join('\n');
           if (exampleActiveCols.dock_hours) {
             setExampleActiveCols(prevEx => ({ ...prevEx, dock_hours: false }));
+          }
+        }
+        if (didFillEta) {
+          next.eta = etaOut.join('\n');
+          if (exampleActiveCols.eta) {
+            setExampleActiveCols(prevEx => ({ ...prevEx, eta: false }));
           }
         }
       }
@@ -400,6 +503,7 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
             trailer_number: true,
             notes: true,
             dock_hours: true,
+            eta: true,
             bol: true,
             item: true,
             delivered_by: true,
@@ -459,6 +563,7 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
                     onBlur={() => {
                       if (ignoreCompanyBlurRef.current) return;
                       tryAutoFillDockHoursFromCompany();
+                      tryAutoFillEtaFromCompany();
                       setIsCompanyFocused(false);
                     }}
                     placeholder="Company name"
@@ -544,6 +649,15 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
                 />
               </div>
               <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">ETA</label>
+                <Input
+                  value={form.eta}
+                  onChange={(e) => handleChange('eta', e.target.value)}
+                  placeholder="e.g. 28 min"
+                  className="h-10"
+                />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">Item</label>
                 <Input
                   value={form.item}
@@ -584,14 +698,15 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
                   onClick={() => {
                     clearBulk();
                     setExampleActiveCols({
-            company: false,
-            trailer_number: false,
-            notes: false,
-            dock_hours: false,
-            bol: false,
-            item: false,
-            delivered_by: false,
-          });
+                      company: false,
+                      trailer_number: false,
+                      notes: false,
+                      dock_hours: false,
+                      eta: false,
+                      bol: false,
+                      item: false,
+                      delivered_by: false,
+                    });
                   }}
                   className="text-slate-500"
                 >
@@ -600,18 +715,19 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
-                <div className="min-w-[980px]">
-                  <div className="grid grid-cols-7 gap-0 border-b border-slate-200 bg-slate-50">
+                <div className="min-w-[1100px]">
+                  <div className="grid grid-cols-8 gap-0 border-b border-slate-200 bg-slate-50">
                     <div className="px-3 py-2 text-xs font-semibold text-slate-700 border-r border-slate-200">Company</div>
                     <div className="px-3 py-2 text-xs font-semibold text-slate-700 border-r border-slate-200">Trailer #</div>
                     <div className="px-3 py-2 text-xs font-semibold text-slate-700 border-r border-slate-200">Notes</div>
                     <div className="px-3 py-2 text-xs font-semibold text-slate-700 border-r border-slate-200">Dock Hrs</div>
+                    <div className="px-3 py-2 text-xs font-semibold text-slate-700 border-r border-slate-200">ETA</div>
                     <div className="px-3 py-2 text-xs font-semibold text-slate-700 border-r border-slate-200">BOL</div>
                     <div className="px-3 py-2 text-xs font-semibold text-slate-700 border-r border-slate-200">Item</div>
                     <div className="px-3 py-2 text-xs font-semibold text-slate-700">Delivered</div>
                   </div>
 
-                  <div className="grid grid-cols-7 gap-0">
+                  <div className="grid grid-cols-8 gap-0">
                     <div className="p-2 border-r border-slate-200">
                       <Textarea
                         id="bulk-company"
@@ -650,6 +766,16 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
                         onChange={(e) => handleBulkColChange('dock_hours', e.target.value)}
                         placeholder="Dock Hrs"
                         className={`h-56 font-mono text-sm resize-none ${exampleActiveCols.dock_hours ? "text-slate-400" : ""}`}
+                      />
+                    </div>
+                    <div className="p-2 border-r border-slate-200">
+                      <Textarea
+                        id="bulk-eta"
+                        value={bulkCols.eta}
+                        onFocus={() => handleBulkFocus('eta')}
+                        onChange={(e) => handleBulkColChange('eta', e.target.value)}
+                        placeholder="ETA"
+                        className={`h-56 font-mono text-sm resize-none ${exampleActiveCols.eta ? "text-slate-400" : ""}`}
                       />
                     </div>
                     <div className="p-2 border-r border-slate-200">
