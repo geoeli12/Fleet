@@ -87,17 +87,19 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
     () => [
       { key: "company", label: "Company", width: "w-44" },
       { key: "dk_trl", label: "Dk/TRL#", width: "w-32" },
-      // NOTE: min-w-0 is required for truncation in a flex row
+      // Location stays between DK/TRL# and Days old.
+      // NOTE: min-w-0 is required for truncation in a flex row.
       { key: "location", label: "Location", width: "flex-1 min-w-0" },
-      { key: "days_open", label: "Days old", width: "w-20" },
-      // moved Type right after Days old
-      { key: "shift_code", label: "Type", width: "w-24" },
-      { key: "date_picked_up", label: "P/U Date", width: "w-32" },
+      { key: "days_open", label: "Days old", width: "w-24 text-center" },
+      // Type right after Days old
+      { key: "shift_code", label: "Type", width: "w-24 text-center" },
+      { key: "date_picked_up", label: "P/U Date", width: "w-32 text-center" },
       { key: "driver", label: "Driver", width: "w-28" },
-      { key: "notes", label: "Notes", width: "w-[340px]" },
+      { key: "notes", label: "Notes", width: "w-[340px] min-w-[220px]" },
     ],
     []
   );
+
 
   const getRowStyle = (log) => {
     const days = Number(daysBetween(log.date_called_out, log.date_picked_up));
@@ -118,7 +120,7 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
       <div className="bg-slate-800 text-white">
         <div className="flex items-center px-4 py-3 gap-2">
           {columns.map((col) => (
-            <div key={col.key} className={cn("text-xs font-semibold uppercase tracking-wider min-w-0 truncate whitespace-nowrap overflow-hidden", col.width)}>
+            <div key={col.key} className={cn("text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis truncate", col.width)}>
               {col.label}
             </div>
           ))}
