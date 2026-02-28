@@ -13,7 +13,6 @@ import {
   Truck,
   Fuel,
   Droplets,
-  PlusCircle,
   Gauge,
   Package,
   DollarSign,
@@ -33,12 +32,10 @@ const Section = ({ title, subtitle, children }) => (
   <section className="space-y-4">
     <div className="flex items-end justify-between gap-4">
       <div className="min-w-0">
-        <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-slate-900">
           {title}
         </h2>
-        {subtitle ? (
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
-        ) : null}
+        {subtitle ? <p className="text-sm text-slate-600">{subtitle}</p> : null}
       </div>
     </div>
     {children}
@@ -49,7 +46,7 @@ const StatPill = ({ label, value, className }) => (
   <div
     className={[
       "relative overflow-hidden rounded-2xl px-4 py-3 sm:px-5 sm:py-4",
-      "bg-white/8 backdrop-blur-xl ring-1 ring-white/12 shadow-[0_10px_40px_-18px_rgba(0,0,0,0.65)]",
+      "bg-white/8 backdrop-blur-xl ring-1 ring-white/12 shadow-[0_10px_40px_-18px_rgba(0,0,0,0.35)]",
       "text-white",
       className || "",
     ].join(" ")}
@@ -68,9 +65,9 @@ const Tile = ({ to, icon: Icon, title, description, pill }) => (
     className={[
       "group relative overflow-hidden rounded-3xl p-4 sm:p-5",
       "bg-white/7 backdrop-blur-xl ring-1 ring-white/12",
-      "shadow-[0_18px_60px_-28px_rgba(0,0,0,0.85)]",
+      "shadow-[0_18px_60px_-28px_rgba(0,0,0,0.45)]",
       "transition-all duration-200",
-      "hover:-translate-y-0.5 hover:ring-amber-400/35 hover:shadow-[0_22px_70px_-28px_rgba(0,0,0,0.9)]",
+      "hover:-translate-y-0.5 hover:ring-amber-400/35 hover:shadow-[0_22px_70px_-28px_rgba(0,0,0,0.55)]",
       "focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
     ].join(" ")}
   >
@@ -88,7 +85,7 @@ const Tile = ({ to, icon: Icon, title, description, pill }) => (
           className={[
             "grid h-12 w-12 place-items-center rounded-2xl",
             "bg-gradient-to-br from-white/12 to-white/4 ring-1 ring-white/10",
-            "shadow-[0_12px_40px_-24px_rgba(0,0,0,0.9)]",
+            "shadow-[0_12px_40px_-24px_rgba(0,0,0,0.6)]",
             "transition-transform duration-200 group-hover:scale-[1.03]",
           ].join(" ")}
         >
@@ -240,23 +237,6 @@ export default function Dashboard() {
     },
   ];
 
-  const quick = [
-    {
-      name: "Add Refill",
-      to: createPageUrl("AddRefill"),
-      icon: PlusCircle,
-      description: "Log a tank refill fast (with invoice # when needed).",
-      pill: "Quick add",
-    },
-    {
-      name: "Add Reading",
-      to: createPageUrl("AddReading"),
-      icon: PlusCircle,
-      description: "Enter a fuel reading to keep consumption accurate.",
-      pill: "Quick add",
-    },
-  ];
-
   const dispatchQuery = useQuery({
     queryKey: ["dispatchOrders"],
     queryFn: async () => {
@@ -310,39 +290,42 @@ export default function Dashboard() {
   }, [dispatchQuery.data]);
 
   return (
-    <div className="min-h-screen text-white bg-[#0B1220]">
-      {/* futuristic background */}
+    <div className="min-h-screen bg-[#F3EFE7]">
+      {/* warm dashboard background (match DriverLog vibe) */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_0%,rgba(245,158,11,0.14),transparent_55%),radial-gradient(60%_55%_at_0%_35%,rgba(59,130,246,0.12),transparent_55%),radial-gradient(60%_55%_at_100%_60%,rgba(236,72,153,0.08),transparent_55%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.04),transparent_22%,rgba(255,255,255,0.02))]" />
-        <div className="absolute inset-0 opacity-[0.18] [background-image:radial-gradient(rgba(255,255,255,0.12)_1px,transparent_1px)] [background-size:22px_22px]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/25 to-black/35" />
+        <div className="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_0%,rgba(245,158,11,0.12),transparent_55%),radial-gradient(65%_60%_at_0%_35%,rgba(120,113,108,0.12),transparent_58%),radial-gradient(65%_60%_at_100%_60%,rgba(180,83,9,0.08),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.55),transparent_22%,rgba(0,0,0,0.04))]" />
+        <div className="absolute inset-0 opacity-[0.08] [background-image:radial-gradient(rgba(0,0,0,0.18)_1px,transparent_1px)] [background-size:24px_24px]" />
       </div>
 
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-8">
         <div className="flex items-start gap-4">
-          <div className="mt-1 h-12 w-12 shrink-0 rounded-2xl bg-white/10 backdrop-blur-xl ring-1 ring-white/12 grid place-items-center shadow-[0_18px_60px_-30px_rgba(0,0,0,0.9)]">
+          <div className="mt-1 h-12 w-12 shrink-0 rounded-2xl bg-black/75 backdrop-blur-xl ring-1 ring-black/15 grid place-items-center shadow-[0_18px_60px_-30px_rgba(0,0,0,0.45)]">
             <LayoutGrid className="h-6 w-6 text-amber-300" />
           </div>
 
           <div className="min-w-0">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
               Transport Dash
             </h1>
-            <p className="mt-1 text-sm text-white/70">
+            <p className="mt-1 text-sm text-slate-700">
               Pick where you want to go — everything is one click away.
             </p>
 
             <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <StatPill label="Today" value={counts.todayCount} className="md:col-span-1" />
-              <StatPill label="Remaining (no driver)" value={counts.remainNoDriver} className="md:col-span-1" />
+              <StatPill
+                label="Remaining (no driver)"
+                value={counts.remainNoDriver}
+                className="md:col-span-1"
+              />
               <StatPill label="This week" value={counts.weekCount} className="md:col-span-1" />
               <StatPill label="This month" value={counts.monthCount} className="md:col-span-1" />
             </div>
           </div>
         </div>
 
-        <div className="mt-10 space-y-12">
+        <div className="mt-10 space-y-10">
           <Section
             title="Main Pages"
             subtitle="Your daily workflow — shift log, schedule, dispatch, and fuel."
@@ -361,25 +344,7 @@ export default function Dashboard() {
             </div>
           </Section>
 
-          <Section
-            title="Quick Actions"
-            subtitle="Jump straight into common data entry screens."
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {quick.map((x) => (
-                <Tile
-                  key={x.name}
-                  to={x.to}
-                  icon={x.icon}
-                  title={x.name}
-                  description={x.description}
-                  pill={x.pill}
-                />
-              ))}
-            </div>
-          </Section>
-
-          <div className="pb-6 text-xs text-white/60">
+          <div className="pb-6 text-xs text-slate-600">
             Tip: this is your home base — use the Back buttons to return here fast.
           </div>
         </div>
