@@ -54,9 +54,7 @@ export default function Invoice() {
   const [customerNo, setCustomerNo] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerAddress1, setCustomerAddress1] = useState("");
-  const [customerAddress2, setCustomerAddress2] = useState("");
-
-  const [customerFocused, setCustomerFocused] = useState(false);
+const [customerFocused, setCustomerFocused] = useState(false);
   const ignoreCustomerBlurRef = useRef(false);
 
   const [rows, setRows] = useState(() => Array.from({ length: 26 }, blankRow));
@@ -211,8 +209,7 @@ export default function Invoice() {
     setCustomerNo(String(no));
     setCustomerName(name);
     setCustomerAddress1(addrOneLine);
-    setCustomerAddress2("");
-    setCustomerFocused(false);
+setCustomerFocused(false);
   };
 
   const unitPrices = useMemo(() => getUnitPrices(), [selectedCustomer]);
@@ -254,7 +251,7 @@ export default function Invoice() {
             <Separator className="my-3 print-sep" />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <div className="flex items-center gap-2">
                   <Label className="w-24">Customer #:</Label>
                   <Input value={customerNo} onChange={(e) => setCustomerNo(e.target.value)} className="h-8" />
@@ -307,22 +304,13 @@ export default function Invoice() {
                   <Input
                     value={customerAddress1}
                     onChange={(e) => setCustomerAddress1(e.target.value)}
-                    className="h-8"
-                    placeholder="Address line 1"
+                    className="h-9 w-full"
+                    placeholder="Address"
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Label className="w-24" />
-                  <Input
-                    value={customerAddress2}
-                    onChange={(e) => setCustomerAddress2(e.target.value)}
-                    className="h-8"
-                    placeholder="Address line 2"
-                  />
-                </div>
-              </div>
+</div>
 
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2 md:col-span-1">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
                   <div className="sm:col-span-2 flex items-center gap-2 justify-end">
                     <Label className="whitespace-nowrap">Month</Label>
