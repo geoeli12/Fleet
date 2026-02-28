@@ -118,7 +118,7 @@ export default function PickupTable({ logs, onUpdate, onDelete }) {
       <div className="bg-slate-800 text-white">
         <div className="flex items-center px-4 py-3 gap-2">
           {columns.map((col) => (
-            <div key={col.key} className={cn("text-xs font-semibold uppercase tracking-wider", col.width)}>
+            <div key={col.key} className={cn("text-xs font-semibold uppercase tracking-wider min-w-0 truncate whitespace-nowrap overflow-hidden", col.width)}>
               {col.label}
             </div>
           ))}
