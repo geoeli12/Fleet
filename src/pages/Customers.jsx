@@ -145,7 +145,8 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave, isSa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+      {/* Wider modal for Add/Edit Customer (more room for the 2-col layout + pricing fields) */}
+      <DialogContent className="w-[96vw] sm:max-w-3xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
