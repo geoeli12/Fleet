@@ -16,26 +16,6 @@ function unwrapListResult(list) {
   return [];
 }
 
-function pickFirst(obj, keys) {
-  for (const k of keys) {
-    const v = obj?.[k];
-    if (v !== null && typeof v !== "undefined" && String(v).trim() !== "") return v;
-  }
-  return "";
-}
-
-function getCustomerName(c) {
-  return String(pickFirst(c, ["customer_name", "name", "customer", "customerName"])).trim();
-}
-
-function buildAddressLine2(c) {
-  const city = String(pickFirst(c, ["city", "customer_city"])).trim();
-  const state = String(pickFirst(c, ["state", "st", "customer_state"])).trim();
-  const zip = String(pickFirst(c, ["zip", "zip_code", "postal", "postal_code", "customer_zip"])).trim();
-  const parts = [city, state].filter(Boolean).join(", ");
-  return [parts, zip].filter(Boolean).join(" ").trim();
-}
-
 const money = (n) => {
   const v = Number(n || 0);
   return `$${v.toFixed(2)}`;
@@ -115,35 +95,35 @@ export default function Invoice() {
   }, []);
 
   const { data: rawCustomers } = useQuery({
-    queryKey: ["customersForInvoice"],
+    queryKey: ["customers_il"],
     queryFn: async () => {
-      // The app has had a few naming variations over time; try the common ones.
-      const tryList = async (entityName, orderBy) => {
-        const ent = api?.entities?.[entityName];
-        if (!ent?.list) return null;
-        const res = await ent.list(orderBy);
-        return unwrapListResult(res);
-      };
+      // Primary: Supabase table customers_il
+      try {
+        if (api?.supabase?.from) {
+          const { data, error } = await api.supabase.from("customers_il").select("*").order("customer");
+          if (error) throw error;
+          return data || [];
+        }
+        if (api?.from) {
+          const { data, error } = await api.from("customers_il").select("*").order("customer");
+          if (error) throw error;
+          return data || [];
+        }
+      } catch {
+        // ignore
+      }
 
+      // Fallbacks for different apiClient shapes
       try {
-        const a = await tryList("Customer", "name");
-        if (a) return a;
+        const ent = api?.entities?.customers_il || api?.entities?.CustomersIL || api?.entities?.CustomersIl || api?.entities?.CustomerIL || api?.entities?.CustomerIl;
+        if (ent?.list) {
+          const res = await ent.list("customer");
+          return unwrapListResult(res);
+        }
       } catch {
         // ignore
       }
-      try {
-        const b = await tryList("Customers", "name");
-        if (b) return b;
-      } catch {
-        // ignore
-      }
-      // Fallback: some builds used CustomerPrice, but the goal is Customers.
-      try {
-        const c = await tryList("CustomerPrice", "customer_name");
-        if (c) return c;
-      } catch {
-        // ignore
-      }
+
       return [];
     },
   });
@@ -154,7 +134,7 @@ export default function Invoice() {
     const q = (customerName || "").trim().toLowerCase();
     if (!q) return [];
     return customers
-      .filter((c) => getCustomerName(c).toLowerCase().includes(q))
+      .filter((c) => String(c?.customer || "").toLowerCase().includes(q))
       .slice(0, 10);
   }, [customerName, customers]);
 
@@ -162,29 +142,21 @@ export default function Invoice() {
     const q = (customerName || "").trim().toLowerCase();
     if (!q) return null;
     return (
-      customers.find((c) => getCustomerName(c).toLowerCase() === q) ||
-      customers.find((c) => getCustomerName(c).toLowerCase().startsWith(q)) ||
+      customers.find((c) => String(c?.customer || "").toLowerCase() === q) ||
+      customers.find((c) => String(c?.customer || "").toLowerCase().startsWith(q)) ||
       null
     );
   }, [customerName, customers]);
 
   const getUnitPrices = () => {
     const c = selectedCustomer || {};
-    // Accept multiple possible field names to match the Customers page.
-    const num = (keys) => safeNum(pickFirst(c, keys));
     return {
-      p48x40_1: num(["price_48x40_1", "price48x40_1", "pallet_48x40_1", "p48x40_1", "rate_48x40_1"]),
-      p48x40_2: num(["price_48x40_2", "price48x40_2", "pallet_48x40_2", "p48x40_2", "rate_48x40_2"]),
-      pLargeOdd: num(["price_large_odd", "priceLargeOdd", "large_odd", "pLargeOdd", "rate_large_odd"]),
-      pSmallOdd: num(["price_small_odd", "priceSmallOdd", "small_odd", "pSmallOdd", "rate_small_odd"]),
-      pBaledOcc: num([
-        "price_baled_cardboard",
-        "price_baled_occ",
-        "priceBaledOcc",
-        "baled_occ",
-        "pBaledOcc",
-        "rate_baled_occ",
-      ]),
+      p48x40_1: safeNum(c.price48x40_1),
+      p48x40_2: safeNum(c.price48x40_2),
+      pLargeOdd: safeNum(c.priceLargeOdd),
+      pSmallOdd: safeNum(c.priceSmallOdd),
+      // Invoice shows "Baled OCC" but Customers table stores it as "priceBailedCardboard"
+      pBaledOcc: safeNum(c.priceBailedCardboard),
     };
   };
 
@@ -252,59 +224,22 @@ export default function Invoice() {
   };
 
   const onPickCustomer = (cust) => {
-    setCustomerName(getCustomerName(cust));
-    setCustomerNo(
-      String(
-        pickFirst(cust, ["customer_no", "customer_number", "customer_id", "customerId", "id", "cust_no"]) || ""
-      )
-    );
+    const name = cust?.customer || "";
+    const addr = cust?.address || "";
+    const idVal = cust?.id;
 
-    const line1 = String(
-      pickFirst(cust, [
-        "address1",
-        "address_1",
-        "address_line_1",
-        "address_line1",
-        "address",
-        "street",
-        "location",
-      ])
-    ).trim();
-    const line2Raw = String(
-      pickFirst(cust, ["address2", "address_2", "address_line_2", "address_line2"]) || ""
-    ).trim();
-    const line2 = line2Raw || buildAddressLine2(cust);
+    setCustomerNo(idVal !== undefined && idVal !== null ? String(idVal) : "");
+    setCustomerName(name);
 
-    setCustomerAddress1(line1);
-    setCustomerAddress2(line2);
+    // address is stored as a single field in customers_il
+    // If it contains a newline, split it into line1/line2 for nicer layout.
+    const parts = String(addr || "").split(/?
+/).filter(Boolean);
+    setCustomerAddress1(parts[0] || String(addr || ""));
+    setCustomerAddress2(parts.slice(1).join(" ") || "");
+
     setCustomerFocused(false);
   };
-
-  // If the user types an exact customer name, auto-fill the related fields (without overwriting edits).
-  useEffect(() => {
-    if (!selectedCustomer) return;
-    if (!customerNo) {
-      const no = pickFirst(selectedCustomer, ["customer_no", "customer_number", "customer_id", "customerId", "id", "cust_no"]);
-      if (no !== "") setCustomerNo(String(no));
-    }
-    if (!customerAddress1) {
-      const line1 = pickFirst(selectedCustomer, [
-        "address1",
-        "address_1",
-        "address_line_1",
-        "address_line1",
-        "address",
-        "street",
-        "location",
-      ]);
-      if (line1 !== "") setCustomerAddress1(String(line1).trim());
-    }
-    if (!customerAddress2) {
-      const line2Raw = pickFirst(selectedCustomer, ["address2", "address_2", "address_line_2", "address_line2"]);
-      const line2 = String(line2Raw || buildAddressLine2(selectedCustomer)).trim();
-      if (line2) setCustomerAddress2(line2);
-    }
-  }, [selectedCustomer, customerNo, customerAddress1, customerAddress2]);
 
   const unitPrices = useMemo(() => getUnitPrices(), [selectedCustomer]);
 
@@ -382,11 +317,11 @@ export default function Invoice() {
                       {customerMatches.map((c) => (
                         <button
                           type="button"
-                          key={c.id ?? c.customer_id ?? c.customer_no ?? getCustomerName(c)}
+                          key={c.id ?? c.customer}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50"
                           onClick={() => onPickCustomer(c)}
                         >
-                          {getCustomerName(c)}
+                          {c.customer}
                         </button>
                       ))}
                     </div>
