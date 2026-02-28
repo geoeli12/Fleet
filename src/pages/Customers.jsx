@@ -126,6 +126,23 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave, isSa
   const normalizeEmail = (v) => String(v ?? "").trim();
   const normalizePhone = (v) => String(v ?? "").trim();
 
+  const pricingFields = [
+    { key: "pricePayMixed", label: "Pay Mixed?", placeholder: "" },
+    { key: "priceFlatRate", label: "Flat Rate", placeholder: "" },
+    { key: "price48x40_1", label: "48x40 #1", placeholder: "" },
+    { key: "price48x40_2", label: "48x40 #2", placeholder: "" },
+    { key: "priceLargeOdd", label: "Large Odd", placeholder: "" },
+    { key: "priceSmallOdd", label: "Small Odd", placeholder: "" },
+    { key: "priceTrash", label: "Trash", placeholder: "" },
+    { key: "priceChepPeco", label: "CHEP/PECO", placeholder: "" },
+    { key: "priceExpendable", label: "Expendable", placeholder: "" },
+    { key: "priceScrapFullTruck", label: "Scrap - full truck", placeholder: "" },
+    { key: "priceBailedCardboard", label: "Bailed Cardboard", placeholder: "" },
+    { key: "priceMisc", label: "Misc.", placeholder: "" },
+    { key: "priceFreight", label: "Freight", placeholder: "" },
+    { key: "priceNotes", label: "Notes", placeholder: "" },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -213,6 +230,32 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave, isSa
             <Label>Drop Trailers</Label>
             <Input value={form.dropTrailers || ""} onChange={set("dropTrailers")} className="rounded-xl" />
           </div>
+
+          <div className="sm:col-span-2">
+            <Separator className="my-2 bg-black/10" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold">Pricing</div>
+              <div className="text-xs text-muted-foreground">(optional)</div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pricingFields.map((f) => (
+                <div key={f.key} className={f.key === "priceNotes" ? "space-y-2 sm:col-span-2 lg:col-span-3" : "space-y-2"}>
+                  <Label>{f.label}</Label>
+                  {f.key === "priceNotes" ? (
+                    <Textarea
+                      value={form[f.key] || ""}
+                      onChange={set(f.key)}
+                      className="min-h-[70px] rounded-xl"
+                      placeholder={f.placeholder}
+                    />
+                  ) : (
+                    <Input value={form[f.key] || ""} onChange={set(f.key)} className="rounded-xl" placeholder={f.placeholder} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="mt-4">
@@ -257,6 +300,31 @@ function CustomerCard({ row, onEdit, onDelete, onCopy }) {
   const hasCoords = !!String(row?.coordinates || "").trim();
   const hasDis = !!String(row?.dis || "").trim();
   const hasEta = !!String(row?.eta || "").trim();
+
+  const pricingKeys = [
+    "pricePayMixed",
+    "priceFlatRate",
+    "price48x40_1",
+    "price48x40_2",
+    "priceLargeOdd",
+    "priceSmallOdd",
+    "priceTrash",
+    "priceChepPeco",
+    "priceExpendable",
+    "priceScrapFullTruck",
+    "priceBailedCardboard",
+    "priceMisc",
+    "priceFreight",
+    "priceNotes",
+  ];
+
+  const hasAnyPricing = pricingKeys.some((k) => !!String(row?.[k] || "").trim());
+  const pricingSummary = [
+    row?.priceFlatRate ? `Flat: ${row.priceFlatRate}` : "",
+    row?.price48x40_1 ? `48x40 #1: ${row.price48x40_1}` : "",
+    row?.price48x40_2 ? `48x40 #2: ${row.price48x40_2}` : "",
+    row?.priceFreight ? `Freight: ${row.priceFreight}` : "",
+  ].filter(Boolean);
 
   const mapsUrl = hasAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.address)}` : null;
 
@@ -399,6 +467,23 @@ function CustomerCard({ row, onEdit, onDelete, onCopy }) {
             </>
           ) : null}
 
+          {hasAnyPricing ? (
+            <>
+              <Separator className="bg-black/10" />
+              <div className="text-sm">
+                <div className="text-muted-foreground">Pricing</div>
+                {pricingSummary.length ? (
+                  <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    {pricingSummary.map((t) => (
+                      <div key={t}>{t}</div>
+                    ))}
+                  </div>
+                ) : null}
+                {row?.priceNotes ? <div className="mt-1 whitespace-pre-wrap">{row.priceNotes}</div> : null}
+              </div>
+            </>
+          ) : null}
+
           {hasNotes ? (
             <>
               <Separator className="bg-black/10" />
@@ -526,6 +611,20 @@ export default function Customers() {
             r?.dis,
             r?.eta,
             r?.weekendHours,
+            r?.pricePayMixed,
+            r?.priceFlatRate,
+            r?.price48x40_1,
+            r?.price48x40_2,
+            r?.priceLargeOdd,
+            r?.priceSmallOdd,
+            r?.priceTrash,
+            r?.priceChepPeco,
+            r?.priceExpendable,
+            r?.priceScrapFullTruck,
+            r?.priceBailedCardboard,
+            r?.priceMisc,
+            r?.priceFreight,
+            r?.priceNotes,
           ]
             .map(norm)
             .join(" | ");
@@ -564,6 +663,20 @@ export default function Customers() {
       coordinates: "",
       dis: "",
       eta: "",
+      pricePayMixed: "",
+      priceFlatRate: "",
+      price48x40_1: "",
+      price48x40_2: "",
+      priceLargeOdd: "",
+      priceSmallOdd: "",
+      priceTrash: "",
+      priceChepPeco: "",
+      priceExpendable: "",
+      priceScrapFullTruck: "",
+      priceBailedCardboard: "",
+      priceMisc: "",
+      priceFreight: "",
+      priceNotes: "",
     });
     setEditOpen(true);
   };
@@ -585,6 +698,20 @@ export default function Customers() {
       coordinates: String(draft?.coordinates ?? "").trim(),
       dis: String(draft?.dis ?? "").trim(),
       eta: String(draft?.eta ?? "").trim(),
+      pricePayMixed: String(draft?.pricePayMixed ?? "").trim(),
+      priceFlatRate: String(draft?.priceFlatRate ?? "").trim(),
+      price48x40_1: String(draft?.price48x40_1 ?? "").trim(),
+      price48x40_2: String(draft?.price48x40_2 ?? "").trim(),
+      priceLargeOdd: String(draft?.priceLargeOdd ?? "").trim(),
+      priceSmallOdd: String(draft?.priceSmallOdd ?? "").trim(),
+      priceTrash: String(draft?.priceTrash ?? "").trim(),
+      priceChepPeco: String(draft?.priceChepPeco ?? "").trim(),
+      priceExpendable: String(draft?.priceExpendable ?? "").trim(),
+      priceScrapFullTruck: String(draft?.priceScrapFullTruck ?? "").trim(),
+      priceBailedCardboard: String(draft?.priceBailedCardboard ?? "").trim(),
+      priceMisc: String(draft?.priceMisc ?? "").trim(),
+      priceFreight: String(draft?.priceFreight ?? "").trim(),
+      priceNotes: String(draft?.priceNotes ?? "").trim(),
     };
 
     if (!cleaned.customer) return;
