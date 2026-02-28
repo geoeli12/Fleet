@@ -145,12 +145,11 @@ export default function PickUps() {
       const effectiveDay = picked || called;
       const isForSelectedDay = effectiveDay === selectedDate;
 
-      // Carry-over rule:
-      // If an entry is still open (no P/U date) AND no driver has been assigned,
-      // keep showing it on the next day(s) as well.
+      // Carry-over rule (duplicate, don't "move"):
+      // Any open item (no P/U date yet) should continue showing up on each later day
+      // until it is picked up. This applies whether or not a driver has been assigned.
       const hasPuDate = Boolean(picked);
-      const hasDriver = Boolean(String(log.driver || "").trim());
-      const isCarryOver = Boolean(called && called < selectedDate && !hasPuDate && !hasDriver);
+      const isCarryOver = Boolean(called && called < selectedDate && !hasPuDate);
 
       if (!isForSelectedDay && !isCarryOver) return false;
       if (region && String(log.region || "").toUpperCase() !== String(region).toUpperCase()) return false;
