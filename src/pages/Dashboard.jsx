@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { api } from "@/api/apiClient";
@@ -18,6 +18,7 @@ import {
   DollarSign,
   FileText,
   ArrowRight,
+  Palette,
 } from "lucide-react";
 import {
   endOfMonth,
@@ -46,12 +47,22 @@ const StatPill = ({ label, value, className }) => (
   <div
     className={[
       "relative overflow-hidden rounded-2xl px-4 py-3 sm:px-5 sm:py-4",
-      "bg-white/8 backdrop-blur-xl ring-1 ring-white/12 shadow-[0_10px_40px_-18px_rgba(0,0,0,0.35)]",
+      "backdrop-blur-xl ring-1 shadow-[0_10px_40px_-18px_rgba(0,0,0,0.35)]",
       "text-white",
       className || "",
     ].join(" ")}
+    style={{
+      backgroundColor: "var(--dash-tile-bg)",
+      borderColor: "var(--dash-tile-ring)",
+    }}
   >
-    <div className="absolute inset-0 bg-[radial-gradient(80%_120%_at_10%_0%,rgba(245,158,11,0.22),transparent_55%)]" />
+    <div
+      className="absolute inset-0 opacity-70"
+      style={{
+        background:
+          "radial-gradient(80% 120% at 10% 0%, rgba(245,158,11,0.22), transparent 55%)",
+      }}
+    />
     <div className="relative flex items-center justify-between gap-3">
       <div className="text-xs sm:text-sm text-white/70">{label}</div>
       <div className="text-lg sm:text-xl font-semibold tracking-tight">{value}</div>
@@ -64,12 +75,16 @@ const Tile = ({ to, icon: Icon, title, description, pill }) => (
     to={to}
     className={[
       "group relative overflow-hidden rounded-3xl p-4 sm:p-5",
-      "bg-white/7 backdrop-blur-xl ring-1 ring-white/12",
+      "backdrop-blur-xl ring-1",
       "shadow-[0_18px_60px_-28px_rgba(0,0,0,0.45)]",
       "transition-all duration-200",
       "hover:-translate-y-0.5 hover:ring-amber-400/35 hover:shadow-[0_22px_70px_-28px_rgba(0,0,0,0.55)]",
       "focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
     ].join(" ")}
+    style={{
+      backgroundColor: "var(--dash-tile-bg)",
+      borderColor: "var(--dash-tile-ring)",
+    }}
   >
     {/* glow / sheen */}
     <div className="pointer-events-none absolute -inset-24 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
@@ -79,17 +94,18 @@ const Tile = ({ to, icon: Icon, title, description, pill }) => (
       <div className="absolute -left-1/2 top-0 h-full w-1/2 rotate-12 bg-gradient-to-r from-transparent via-white/18 to-transparent blur-sm" />
     </div>
 
-    <div className="relative flex items-start gap-4">
-      <div className="relative">
+    <div className="relative flex items-start gap-3 sm:gap-4">
+      <div className="relative shrink-0">
         <div
           className={[
-            "grid h-12 w-12 place-items-center rounded-2xl",
+            "grid place-items-center rounded-2xl",
             "bg-gradient-to-br from-white/12 to-white/4 ring-1 ring-white/10",
             "shadow-[0_12px_40px_-24px_rgba(0,0,0,0.6)]",
             "transition-transform duration-200 group-hover:scale-[1.03]",
+            "h-10 w-10 sm:h-12 sm:w-12",
           ].join(" ")}
         >
-          <Icon className="h-6 w-6 text-amber-300" />
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-amber-300" />
         </div>
 
         {pill ? (
@@ -102,14 +118,17 @@ const Tile = ({ to, icon: Icon, title, description, pill }) => (
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-3">
-          <div className="truncate text-sm sm:text-base font-semibold text-white">
-            {title}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-sm sm:text-base font-semibold text-white">
+              {title}
+            </div>
           </div>
-          <ArrowRight className="h-4 w-4 shrink-0 text-white/50 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-white/70" />
+          <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-white/50 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-white/70" />
         </div>
 
-        <div className="mt-1 line-clamp-2 text-xs sm:text-sm text-white/70">
+        {/* IMPORTANT: no line-clamp, allow wrapping so nothing gets cut off */}
+        <div className="mt-1 whitespace-normal break-words text-xs sm:text-sm leading-snug text-white/70">
           {description}
         </div>
       </div>
@@ -129,6 +148,37 @@ function safeParseISO(d) {
 function dateOnlyLocal(dt) {
   if (!dt) return null;
   return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+
+const THEME_STORAGE_KEY = "apm_dashboard_theme_v1";
+const COLOR_STORAGE_KEY = "apm_dashboard_colors_v1";
+
+const PRESET_THEMES = [
+  {
+    id: "warm",
+    name: "Warm",
+    bg: "#F3EFE7",
+    tileBg: "rgba(2, 6, 23, 0.78)", // slate-950-ish
+    tileRing: "rgba(255,255,255,0.10)",
+  },
+  {
+    id: "midnight",
+    name: "Midnight",
+    bg: "#061328",
+    tileBg: "rgba(255,255,255,0.07)",
+    tileRing: "rgba(255,255,255,0.12)",
+  },
+  {
+    id: "slate",
+    name: "Slate",
+    bg: "#0B1220",
+    tileBg: "rgba(2, 6, 23, 0.72)",
+    tileRing: "rgba(255,255,255,0.10)",
+  },
+];
+
+function getPresetById(id) {
+  return PRESET_THEMES.find((t) => t.id === id) || PRESET_THEMES[0];
 }
 
 export default function Dashboard() {
@@ -289,13 +339,71 @@ export default function Dashboard() {
     return { todayCount, remainNoDriver, weekCount, monthCount };
   }, [dispatchQuery.data]);
 
+  // Theme controls (so you don't have to edit code)
+  const [themeId, setThemeId] = useState(() => {
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      return saved || "warm";
+    } catch {
+      return "warm";
+    }
+  });
+
+  // Optional custom colors (color pickers)
+  const [custom, setCustom] = useState(() => {
+    try {
+      const raw = localStorage.getItem(COLOR_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const theme = useMemo(() => getPresetById(themeId), [themeId]);
+
+  const effective = useMemo(() => {
+    if (!custom) return theme;
+    return {
+      ...theme,
+      bg: custom.bg || theme.bg,
+      tileBg: custom.tileBg || theme.tileBg,
+      tileRing: custom.tileRing || theme.tileRing,
+    };
+  }, [theme, custom]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, themeId);
+    } catch {}
+  }, [themeId]);
+
+  useEffect(() => {
+    try {
+      if (custom) localStorage.setItem(COLOR_STORAGE_KEY, JSON.stringify(custom));
+      else localStorage.removeItem(COLOR_STORAGE_KEY);
+    } catch {}
+  }, [custom]);
+
   return (
-    <div className="min-h-screen bg-[#F3EFE7]">
-      {/* warm dashboard background (match DriverLog vibe) */}
+    <div
+      className="min-h-screen"
+      style={{
+        backgroundColor: effective.bg,
+        // These variables control the tile/stat pill colors ONLY on this page
+        ["--dash-tile-bg"]: effective.tileBg,
+        ["--dash-tile-ring"]: effective.tileRing,
+      }}
+    >
+      {/* Background effects (kept subtle so tiles stay readable) */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_0%,rgba(245,158,11,0.12),transparent_55%),radial-gradient(65%_60%_at_0%_35%,rgba(120,113,108,0.12),transparent_58%),radial-gradient(65%_60%_at_100%_60%,rgba(180,83,9,0.08),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.55),transparent_22%,rgba(0,0,0,0.04))]" />
-        <div className="absolute inset-0 opacity-[0.08] [background-image:radial-gradient(rgba(0,0,0,0.18)_1px,transparent_1px)] [background-size:24px_24px]" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(60% 55% at 50% 0%, rgba(245,158,11,0.10), transparent 55%), radial-gradient(65% 60% at 0% 35%, rgba(120,113,108,0.10), transparent 58%), radial-gradient(65% 60% at 100% 60%, rgba(180,83,9,0.07), transparent 60%)",
+          }}
+        />
+        <div className="absolute inset-0 opacity-[0.05] [background-image:radial-gradient(rgba(0,0,0,0.22)_1px,transparent_1px)] [background-size:24px_24px]" />
       </div>
 
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-8">
@@ -304,13 +412,88 @@ export default function Dashboard() {
             <LayoutGrid className="h-6 w-6 text-amber-300" />
           </div>
 
-          <div className="min-w-0">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
-              Transport Dash
-            </h1>
-            <p className="mt-1 text-sm text-slate-700">
-              Pick where you want to go — everything is one click away.
-            </p>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-950">
+                  Transport Dash
+                </h1>
+                <p className="mt-1 text-sm text-slate-700">
+                  Pick where you want to go — everything is one click away.
+                </p>
+              </div>
+
+              {/* Theme controls (local only, saved in browser) */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 rounded-2xl bg-white/70 backdrop-blur ring-1 ring-black/10 px-3 py-2 shadow-sm">
+                  <Palette className="h-4 w-4 text-slate-700" />
+                  <label className="text-xs font-medium text-slate-700">Theme</label>
+                  <select
+                    value={themeId}
+                    onChange={(e) => {
+                      setThemeId(e.target.value);
+                      // switching presets keeps your custom overrides if you set them; if you want presets to fully override, clear custom here.
+                    }}
+                    className="ml-1 rounded-lg bg-white/80 px-2 py-1 text-xs text-slate-800 ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-amber-400/60"
+                  >
+                    {PRESET_THEMES.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <details className="group">
+                  <summary className="cursor-pointer list-none rounded-2xl bg-white/70 backdrop-blur ring-1 ring-black/10 px-3 py-2 text-xs font-medium text-slate-700 shadow-sm hover:bg-white/80">
+                    Colors
+                  </summary>
+                  <div className="mt-2 grid gap-2 rounded-2xl bg-white/80 backdrop-blur ring-1 ring-black/10 p-3 shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs text-slate-700">Background</div>
+                      <input
+                        type="color"
+                        value={(custom?.bg || effective.bg) ?? "#ffffff"}
+                        onChange={(e) => setCustom((p) => ({ ...(p || {}), bg: e.target.value }))}
+                        className="h-7 w-10 rounded-md border border-black/10 bg-transparent"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs text-slate-700">Tile</div>
+                      <input
+                        type="color"
+                        value={(custom?.tileBg || effective.tileBg) ?? "#000000"}
+                        onChange={(e) =>
+                          setCustom((p) => ({ ...(p || {}), tileBg: e.target.value }))
+                        }
+                        className="h-7 w-10 rounded-md border border-black/10 bg-transparent"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs text-slate-700">Tile ring</div>
+                      <input
+                        type="color"
+                        value={(custom?.tileRing || effective.tileRing) ?? "#ffffff"}
+                        onChange={(e) =>
+                          setCustom((p) => ({ ...(p || {}), tileRing: e.target.value }))
+                        }
+                        className="h-7 w-10 rounded-md border border-black/10 bg-transparent"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setCustom(null)}
+                        className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-slate-800"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>
 
             <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <StatPill label="Today" value={counts.todayCount} className="md:col-span-1" />
