@@ -97,36 +97,17 @@ export default function Invoice() {
   const { data: rawCustomers } = useQuery({
     queryKey: ["customers_il"],
     queryFn: async () => {
-      // Primary: Supabase table customers_il
       try {
-        if (api?.supabase?.from) {
-          const { data, error } = await api.supabase.from("customers_il").select("*").order("customer");
-          if (error) throw error;
-          return data || [];
-        }
-        if (api?.from) {
-          const { data, error } = await api.from("customers_il").select("*").order("customer");
-          if (error) throw error;
-          return data || [];
-        }
-      } catch {
-        // ignore
+        // Base44 entity naming typically camel-cases the table name: customers_il -> CustomersIl
+        const res = await api.entities.CustomersIl.list("customer");
+        return unwrapListResult(res);
+      } catch (e) {
+        // If your entity is named differently, search/replace CustomersIl accordingly.
+        return [];
       }
-
-      // Fallbacks for different apiClient shapes
-      try {
-        const ent = api?.entities?.customers_il || api?.entities?.CustomersIL || api?.entities?.CustomersIl || api?.entities?.CustomerIL || api?.entities?.CustomerIl;
-        if (ent?.list) {
-          const res = await ent.list("customer");
-          return unwrapListResult(res);
-        }
-      } catch {
-        // ignore
-      }
-
-      return [];
     },
   });
+
 
   const customers = useMemo(() => unwrapListResult(rawCustomers), [rawCustomers]);
 
@@ -151,12 +132,11 @@ export default function Invoice() {
   const getUnitPrices = () => {
     const c = selectedCustomer || {};
     return {
-      p48x40_1: safeNum(c.price48x40_1),
-      p48x40_2: safeNum(c.price48x40_2),
-      pLargeOdd: safeNum(c.priceLargeOdd),
-      pSmallOdd: safeNum(c.priceSmallOdd),
-      // Invoice shows "Baled OCC" but Customers table stores it as "priceBailedCardboard"
-      pBaledOcc: safeNum(c.priceBailedCardboard),
+      p48x40_1: safeNum(c.price48x40_1 ?? c.price_48x40_1),
+      p48x40_2: safeNum(c.price48x40_2 ?? c.price_48x40_2),
+      pLargeOdd: safeNum(c.priceLargeOdd ?? c.price_large_odd),
+      pSmallOdd: safeNum(c.priceSmallOdd ?? c.price_small_odd),
+      pBaledOcc: safeNum(c.priceBailedCardboard ?? c.price_bailed_cardboard),
     };
   };
 
@@ -224,18 +204,16 @@ export default function Invoice() {
   };
 
   const onPickCustomer = (cust) => {
-    const name = cust?.customer || "";
-    const addr = cust?.address || "";
-    const idVal = cust?.id;
+    if (!cust) return;
+    // customers_il schema:
+    // id (bigint), customer (text), address (text), price48x40_1, price48x40_2, priceLargeOdd, priceSmallOdd, priceBailedCardboard, etc.
+    setCustomerNo(cust.id != null ? String(cust.id) : "");
+    setCustomerName(cust.customer || "");
 
-    setCustomerNo(idVal !== undefined && idVal !== null ? String(idVal) : "");
-    setCustomerName(name);
-
-    // address is stored as a single field in customers_il
-    // If it contains a newline, split it into line1/line2 for nicer layout.
-    const parts = String(addr || "").split(/?
-/).filter(Boolean);
-    setCustomerAddress1(parts[0] || String(addr || ""));
+    const addr = cust.address || "";
+    const parts = String(addr).split(/?
+/).map((s) => s.trim()).filter(Boolean);
+    setCustomerAddress1(parts[0] || String(addr));
     setCustomerAddress2(parts.slice(1).join(" ") || "");
 
     setCustomerFocused(false);
@@ -317,11 +295,11 @@ export default function Invoice() {
                       {customerMatches.map((c) => (
                         <button
                           type="button"
-                          key={c.id ?? c.customer}
+                          key={c.id ?? c.customer_name}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50"
                           onClick={() => onPickCustomer(c)}
                         >
-                          {c.customer}
+                          {c.customer_name}
                         </button>
                       ))}
                     </div>
