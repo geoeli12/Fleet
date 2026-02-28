@@ -139,19 +139,21 @@ export default function PickUps() {
       const called = toYMD(log.date_called_out);
       const picked = toYMD(log.date_picked_up);
 
-      // IMPORTANT:
-      // - Open items are grouped by the day they were called out (date_called_out)
-      // - Once picked up (date_picked_up exists), they must group by the pickup day
-      const effectiveDay = picked || called;
-      const isForSelectedDay = effectiveDay === selectedDate;
+      // Rolling window (duplicate, don't "move"):
+      // Show a pickup on EVERY day from the called-out day THROUGH the picked-up day (inclusive).
+      // If a P/U date is entered in the future (scheduled), it should still appear on earlier days
+      // until that P/U day actually arrives. After the P/U day, it should stop appearing.
+      //
+      // Examples:
+      // - Called 2/24, Picked 2/28 -> shows on 2/24, 2/25, 2/26, 2/27, 2/28; not on 3/1+
+      // - Called 2/24, no P/U yet   -> shows on 2/24 and every day after until a P/U date is set
+      if (!called) return false;
 
-      // Carry-over rule (duplicate, don't "move"):
-      // Any open item (no P/U date yet) should continue showing up on each later day
-      // until it is picked up. This applies whether or not a driver has been assigned.
       const hasPuDate = Boolean(picked);
-      const isCarryOver = Boolean(called && called < selectedDate && !hasPuDate);
+      const startOk = called <= selectedDate;
+      const endOk = !hasPuDate || selectedDate <= picked;
 
-      if (!isForSelectedDay && !isCarryOver) return false;
+      if (!(startOk && endOk)) return false;
       if (region && String(log.region || "").toUpperCase() !== String(region).toUpperCase()) return false;
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
