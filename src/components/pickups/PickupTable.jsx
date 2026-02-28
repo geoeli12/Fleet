@@ -68,7 +68,22 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete }) {
   };
 
   const saveEdit = async () => {
-    await onUpdate(editingId, editData);
+    // P/U Date is driven by the page date picker (viewDate).
+    // If a driver is entered, stamp date_picked_up to the currently viewed date.
+    // If driver is cleared, also clear date_picked_up so the row becomes "open" again.
+    const next = { ...editData };
+    const driver = (next.driver ?? "").toString().trim();
+    const viewYmd = normalizeYMD(viewDate || "");
+
+    if (driver) {
+      next.driver = driver;
+      if (viewYmd) next.date_picked_up = viewYmd;
+    } else {
+      next.driver = "";
+      next.date_picked_up = null;
+    }
+
+    await onUpdate(editingId, next);
     setEditingId(null);
     setEditData({});
   };
@@ -103,7 +118,6 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete }) {
       { key: "days_open", label: "Days old", width: "w-24 text-center" },
       // Type right after Days old
       { key: "shift_code", label: "Type", width: "w-24 text-center" },
-      { key: "date_picked_up", label: "P/U Date", width: "w-32 text-center" },
       { key: "driver", label: "Driver", width: "w-28" },
       { key: "notes", label: "Notes", width: "flex-1 min-w-[220px]" },
     ],
@@ -178,8 +192,6 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete }) {
                   const value = log[col.key] ?? "";
                   const isCarryOverView = Boolean(pickedYmd && viewDateYmd && viewDateYmd < pickedYmd);
 
-                  // These fields must be DATE inputs when editing
-                  const isDateField = col.key === "date_picked_up";
                   const isTypeField = col.key === "shift_code";
 
                   return (
@@ -201,7 +213,7 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete }) {
                           </select>
                         ) : (
                           <Input
-                            type={isDateField ? "date" : "text"}
+                            type="text"
                             value={editData[col.key] || ""}
                             onChange={(e) => handleChange(col.key, e.target.value)}
                             className="h-8 text-sm"
@@ -211,7 +223,7 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete }) {
                       ) : (
                         (() => {
                           let displayValue = value;
-                          if (isCarryOverView && (col.key === "driver" || col.key === "date_picked_up")) displayValue = "";
+                          if (isCarryOverView && col.key === "driver") displayValue = "";
                           return col.key === "location" ? (
                           <span
                             className="text-sm text-slate-700 block truncate whitespace-nowrap overflow-hidden"
