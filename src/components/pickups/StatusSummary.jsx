@@ -1,15 +1,37 @@
 import React from 'react';
 import { Truck, Package, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
-export default function StatusSummary({ logs = [], variant = "dispatch" }) {
+export default function StatusSummary({ logs = [], variant = "dispatch", selectedDate = "" }) {
   const safeLogs = Array.isArray(logs) ? logs : [];
+
+
+  const toYMD = (value) => {
+    if (!value) return "";
+    const s = String(value).trim();
+    if (!s || s === "-") return "";
+    if (s.length >= 10 && s[4] === "-" && s[7] === "-") return s.slice(0, 10);
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return "";
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
 
   if (variant === "pickups") {
     const dispatched = safeLogs.reduce((acc, log) => {
-      const puDate = String(log?.date_picked_up ?? log?.picked_up_date ?? "").trim();
-      const driver = String(log?.driver ?? log?.driver_name ?? "").trim();
-      return acc + (puDate && driver ? 1 : 0);
-    }, 0);
+  const puDateRaw = log?.date_picked_up ?? log?.picked_up_date ?? "";
+  const puYMD = toYMD(puDateRaw);
+  const driver = String(log?.driver ?? log?.driver_name ?? "").trim();
+
+  // Only count as dispatched when BOTH Driver and P/U Date exist.
+  // If a selectedDate is provided (Pick Ups page is date-filtered), only count rows
+  // whose P/U Date matches the selected date (prevents future pickups from counting early).
+  const dateOk = selectedDate ? puYMD === selectedDate : Boolean(puYMD);
+
+  return acc + (driver && puYMD && dateOk ? 1 : 0);
+}, 0);
 
     const total = safeLogs.length;
     const remaining = Math.max(0, total - dispatched);
