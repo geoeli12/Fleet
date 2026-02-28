@@ -117,6 +117,11 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave, isSa
       const derived = extractWeekendHours(next.receivingNotes);
       if (derived) next.weekendHours = derived;
     }
+    // Backward-compat: if older "distance" exists but "dis" is empty, copy it into Distance
+    if (!String(next.dis ?? "").trim() && String(next.distance ?? "").trim()) {
+      next.dis = String(next.distance ?? "").trim();
+    }
+
 
     setForm(next);
   }, [initial, open]);
@@ -178,7 +183,7 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave, isSa
           </div>
 
           <div className="space-y-2">
-            <Label>Dis</Label>
+            <Label>Distance</Label>
             <Input value={form.dis || ""} onChange={set("dis")} className="rounded-xl" placeholder="e.g., 18 mi" />
           </div>
 
@@ -220,14 +225,7 @@ function CustomerEditorDialog({ open, onOpenChange, title, initial, onSave, isSa
           <div className="space-y-2 sm:col-span-2">
             <Label>Notes</Label>
             <Textarea value={form.notes || ""} onChange={set("notes")} className="min-h-[70px] rounded-xl" />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Distance</Label>
-            <Input value={form.distance || ""} onChange={set("distance")} className="rounded-xl" />
-          </div>
-
-          <div className="space-y-2">
+          </div>          <div className="space-y-2">
             <Label>Drop Trailers</Label>
             <Input value={form.dropTrailers || ""} onChange={set("dropTrailers")} className="rounded-xl" />
           </div>
@@ -296,10 +294,10 @@ function CustomerCard({ row, onEdit, onDelete, onCopy }) {
   const hasContact = !!String(row?.contact || "").trim();
   const hasContactPhone = !!String(row?.contactPhone || "").trim();
   const hasContactEmail = !!String(row?.contactEmail || "").trim();
-  const hasDistance = !!String(row?.distance || "").trim();
+  const distanceVal = String(row?.dis ?? "").trim() || String(row?.distance ?? "").trim();
+  const hasDistance = !!distanceVal;
   const hasDrop = !!String(row?.dropTrailers || "").trim();
   const hasCoords = !!String(row?.coordinates || "").trim();
-  const hasDis = !!String(row?.dis || "").trim();
   const hasEta = !!String(row?.eta || "").trim();
 
   const pricingKeys = [
@@ -338,7 +336,7 @@ function CustomerCard({ row, onEdit, onDelete, onCopy }) {
       row?.contact ? `Contact: ${row.contact}` : "",
       row?.contactPhone ? `Phone: ${row.contactPhone}` : "",
       row?.contactEmail ? `Email: ${row.contactEmail}` : "",
-      row?.dis ? `Dis: ${row.dis}` : "",
+    (String(row?.dis ?? "").trim() || String(row?.distance ?? "").trim()) ? `Distance: ${String(row?.dis ?? "").trim() || String(row?.distance ?? "").trim()}` : "",
       row?.eta ? `ETA: ${row.eta}` : ""
     );
 
@@ -401,7 +399,7 @@ function CustomerCard({ row, onEdit, onDelete, onCopy }) {
 
       <CardContent className="pt-0">
         <div className="space-y-3">
-          {(hasReceiving || hasWeekend || hasDistance || hasDis || hasEta) ? (
+          {(hasReceiving || hasWeekend || hasDistance || hasEta) ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               {hasReceiving ? (
                 <div>
@@ -414,16 +412,9 @@ function CustomerCard({ row, onEdit, onDelete, onCopy }) {
                   <span className="text-muted-foreground">Weekend:</span> {row.weekendHours}
                 </div>
               ) : null}
-
               {hasDistance ? (
                 <div>
-                  <span className="text-muted-foreground">Distance:</span> {row.distance}
-                </div>
-              ) : null}
-
-              {hasDis ? (
-                <div>
-                  <span className="text-muted-foreground">Dis:</span> {row.dis}
+                  <span className="text-muted-foreground">Distance:</span> {distanceVal}
                 </div>
               ) : null}
 
@@ -658,8 +649,7 @@ export default function Customers() {
       contactPhone: "",
       contactEmail: "",
       notes: "",
-      distance: "",
-      dropTrailers: "",
+dropTrailers: "",
       weekendHours: "",
       coordinates: "",
       dis: "",
@@ -683,14 +673,15 @@ export default function Customers() {
   };
 
   const saveRow = (draft) => {
+    const { distance: _distance, ...draftRest } = (draft || {});
+
     const cleaned = {
-      ...(draft || {}),
+      ...draftRest,
       customer: displayCustomerName(draft?.customer),
       address: String(draft?.address ?? "").trim(),
       receivingHours: String(draft?.receivingHours ?? "").trim(),
       receivingNotes: String(draft?.receivingNotes ?? "").trim(),
       weekendHours: String(draft?.weekendHours ?? "").trim(),
-      distance: String(draft?.distance ?? "").trim(),
       contact: String(draft?.contact ?? "").trim(),
       contactPhone: String(draft?.contactPhone ?? "").trim(),
       contactEmail: String(draft?.contactEmail ?? "").trim(),
