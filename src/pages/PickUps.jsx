@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import AddPickupForm from "@/components/pickups/AddPickupForm";
 import PickupTable from "@/components/pickups/PickupTable";
+import StatusSummary from "@/components/StatusSummary";
 
 function parseYMDToLocalDate(ymd) {
   if (!ymd || typeof ymd !== "string" || ymd.length < 10) return new Date();
@@ -132,6 +133,39 @@ export default function PickUps() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pickupOrders"] }),
     onError: (e) => toast.error(e?.message || "Failed to delete"),
   });
+
+  const statsLogs = useMemo(() => {
+    const base = Array.isArray(uiLogs) ? uiLogs : [];
+    const filtered = base.filter((log) => {
+      const called = toYMD(log.date_called_out);
+      const picked = toYMD(log.date_picked_up);
+
+      if (!called) return false;
+
+      const hasPuDate = Boolean(picked);
+      const startOk = called <= selectedDate;
+      const endOk = !hasPuDate || selectedDate <= picked;
+
+      if (!(startOk && endOk)) return false;
+      if (region && String(log.region || "").toUpperCase() !== String(region).toUpperCase()) return false;
+
+      return true;
+    });
+
+    return filtered
+      .slice()
+      .sort((a, b) => {
+        const at = a.created_at ? new Date(a.created_at).getTime() : NaN;
+        const bt = b.created_at ? new Date(b.created_at).getTime() : NaN;
+        const aHas = Number.isFinite(at);
+        const bHas = Number.isFinite(bt);
+        if (aHas && bHas && at !== bt) return at - bt;
+        const ai = typeof a.id === "number" ? a.id : Number(String(a.id ?? "").replace(/\D/g, ""));
+        const bi = typeof b.id === "number" ? b.id : Number(String(b.id ?? "").replace(/\D/g, ""));
+        if (Number.isFinite(ai) && Number.isFinite(bi) && ai !== bi) return ai - bi;
+        return 0;
+      });
+  }, [uiLogs, selectedDate, region]);
 
   const filteredLogs = useMemo(() => {
     const base = Array.isArray(uiLogs) ? uiLogs : [];
@@ -285,6 +319,8 @@ export default function PickUps() {
             />
           </div>
         </div>
+
+        <StatusSummary logs={statsLogs} variant="pickups" />
 
         {isLoading ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
