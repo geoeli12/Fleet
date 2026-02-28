@@ -5,12 +5,6 @@ import { api } from "@/api/apiClient";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   LayoutGrid,
   ClipboardList,
   History,
@@ -69,74 +63,61 @@ const StatPill = ({ label, value, className }) => (
 );
 
 const Tile = ({ to, icon: Icon, title, description, pill }) => (
-  <TooltipProvider delayDuration={120}>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Link
-          to={to}
+  <Link
+    to={to}
+    className={[
+      "group relative overflow-hidden rounded-3xl p-4 sm:p-5",
+      "bg-white/7 backdrop-blur-xl ring-1 ring-white/12",
+      "shadow-[0_18px_60px_-28px_rgba(0,0,0,0.85)]",
+      "transition-all duration-200",
+      "hover:-translate-y-0.5 hover:ring-amber-400/35 hover:shadow-[0_22px_70px_-28px_rgba(0,0,0,0.9)]",
+      "focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
+    ].join(" ")}
+  >
+    {/* glow / sheen */}
+    <div className="pointer-events-none absolute -inset-24 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+      <div className="absolute inset-0 bg-[radial-gradient(45%_45%_at_50%_50%,rgba(245,158,11,0.22),transparent_65%)]" />
+    </div>
+    <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+      <div className="absolute -left-1/2 top-0 h-full w-1/2 rotate-12 bg-gradient-to-r from-transparent via-white/18 to-transparent blur-sm" />
+    </div>
+
+    <div className="relative flex items-start gap-4">
+      <div className="relative">
+        <div
           className={[
-            "group relative overflow-hidden rounded-3xl p-4 sm:p-5",
-            "bg-white/7 backdrop-blur-xl ring-1 ring-white/12",
-            "shadow-[0_18px_60px_-28px_rgba(0,0,0,0.85)]",
-            "transition-all duration-200",
-            "hover:-translate-y-0.5 hover:ring-amber-400/35 hover:shadow-[0_22px_70px_-28px_rgba(0,0,0,0.9)]",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70",
+            "grid h-12 w-12 place-items-center rounded-2xl",
+            "bg-gradient-to-br from-white/12 to-white/4 ring-1 ring-white/10",
+            "shadow-[0_12px_40px_-24px_rgba(0,0,0,0.9)]",
+            "transition-transform duration-200 group-hover:scale-[1.03]",
           ].join(" ")}
         >
-          {/* glow / sheen */}
-          <div className="pointer-events-none absolute -inset-24 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            <div className="absolute inset-0 bg-[radial-gradient(45%_45%_at_50%_50%,rgba(245,158,11,0.22),transparent_65%)]" />
+          <Icon className="h-6 w-6 text-amber-300" />
+        </div>
+
+        {pill ? (
+          <div className="absolute -top-2 -right-2">
+            <Badge className="rounded-full bg-amber-400 text-black hover:bg-amber-400">
+              {pill}
+            </Badge>
           </div>
-          <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            <div className="absolute -left-1/2 top-0 h-full w-1/2 rotate-12 bg-gradient-to-r from-transparent via-white/18 to-transparent blur-sm" />
+        ) : null}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-3">
+          <div className="truncate text-sm sm:text-base font-semibold text-white">
+            {title}
           </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-white/50 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-white/70" />
+        </div>
 
-          <div className="relative flex items-start gap-4">
-            <div className="relative">
-              <div
-                className={[
-                  "grid h-12 w-12 place-items-center rounded-2xl",
-                  "bg-gradient-to-br from-white/12 to-white/4 ring-1 ring-white/10",
-                  "shadow-[0_12px_40px_-24px_rgba(0,0,0,0.9)]",
-                  "transition-transform duration-200 group-hover:scale-[1.03]",
-                ].join(" ")}
-              >
-                <Icon className="h-6 w-6 text-amber-300" />
-              </div>
-
-              {pill ? (
-                <div className="absolute -top-2 -right-2">
-                  <Badge className="rounded-full bg-amber-400 text-black hover:bg-amber-400">
-                    {pill}
-                  </Badge>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-3">
-                <div className="truncate text-sm sm:text-base font-semibold text-white">
-                  {title}
-                </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-white/50 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-white/70" />
-              </div>
-
-              {/* keep it tight on cards; tooltip holds full text */}
-              <div className="mt-1 line-clamp-2 text-xs sm:text-sm text-white/70">
-                {description}
-              </div>
-            </div>
-          </div>
-        </Link>
-      </TooltipTrigger>
-
-      <TooltipContent side="top" className="max-w-[280px]">
-        <div className="text-xs leading-relaxed text-muted-foreground">
+        <div className="mt-1 line-clamp-2 text-xs sm:text-sm text-white/70">
           {description}
         </div>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+      </div>
+    </div>
+  </Link>
 );
 
 function safeParseISO(d) {
@@ -329,13 +310,13 @@ export default function Dashboard() {
   }, [dispatchQuery.data]);
 
   return (
-    <div className="min-h-screen text-white bg-[#070A12]">
+    <div className="min-h-screen text-white bg-[#0B1220]">
       {/* futuristic background */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_0%,rgba(245,158,11,0.18),transparent_55%),radial-gradient(60%_55%_at_0%_35%,rgba(59,130,246,0.14),transparent_55%),radial-gradient(60%_55%_at_100%_60%,rgba(236,72,153,0.10),transparent_55%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_0%,rgba(245,158,11,0.14),transparent_55%),radial-gradient(60%_55%_at_0%_35%,rgba(59,130,246,0.12),transparent_55%),radial-gradient(60%_55%_at_100%_60%,rgba(236,72,153,0.08),transparent_55%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.04),transparent_22%,rgba(255,255,255,0.02))]" />
-        <div className="absolute inset-0 opacity-[0.28] [background-image:radial-gradient(rgba(255,255,255,0.12)_1px,transparent_1px)] [background-size:22px_22px]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/45 to-black/65" />
+        <div className="absolute inset-0 opacity-[0.18] [background-image:radial-gradient(rgba(255,255,255,0.12)_1px,transparent_1px)] [background-size:22px_22px]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/25 to-black/35" />
       </div>
 
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-8">
@@ -366,7 +347,7 @@ export default function Dashboard() {
             title="Main Pages"
             subtitle="Your daily workflow — shift log, schedule, dispatch, and fuel."
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {primary.map((x) => (
                 <Tile
                   key={x.name}
@@ -384,7 +365,7 @@ export default function Dashboard() {
             title="Quick Actions"
             subtitle="Jump straight into common data entry screens."
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {quick.map((x) => (
                 <Tile
                   key={x.name}
