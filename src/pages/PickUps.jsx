@@ -293,6 +293,7 @@ export default function PickUps() {
           </div>
         ) : (
           <PickupTable
+            viewDate={selectedDate}
             logs={filteredLogs}
             onUpdate={(id, data) => updateMutation.mutateAsync({ id, data })}
             onDelete={(id) => deleteMutation.mutateAsync(id)}
