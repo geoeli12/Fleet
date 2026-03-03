@@ -240,10 +240,10 @@ export default function Schedule() {
     <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-light tracking-tight text-white">
+          <h1 className="text-3xl font-light tracking-tight text-zinc-900">
             Schedule <span className="font-semibold">Planning</span>
           </h1>
-          <p className="text-white/70 mt-2">Plan your drivers by day, shift, and region.</p>
+          <p className="text-zinc-700 mt-2">Plan your drivers by day, shift, and region.</p>
         </div>
 
         <Card className="bg-black/20 border-white/10 backdrop-blur-xl">
@@ -252,7 +252,7 @@ export default function Schedule() {
               <CardTitle className="text-white flex items-center gap-2">
                 <Calendar className="h-5 w-5" /> Schedule Date
               </CardTitle>
-              <p className="text-white/60 text-sm mt-1">Pick a date to view / edit the schedule.</p>
+              <p className="text-white/85 text-sm mt-1">Pick a date to view / edit the schedule.</p>
             </div>
             <div className="flex items-center gap-3">
               <Input
@@ -278,11 +278,11 @@ export default function Schedule() {
 
               <TabsContent value={activeTab} className="mt-6">
                 <div className="grid lg:grid-cols-2 gap-6">
-                  {/* Add Driver Card */}
+                  {/* Add Planned Runs Card */}
                   <Card className="bg-black/30 border-white/10">
                     <CardHeader>
                       <CardTitle className="text-white flex items-center gap-2">
-                        <Plus className="h-5 w-5 text-yellow-400" /> Add Driver
+                        <Plus className="h-5 w-5 text-yellow-400" /> Add Planned Runs
                       </CardTitle>
                     </CardHeader>
 
@@ -312,7 +312,7 @@ export default function Schedule() {
                           value={formData.unit_number}
                           onChange={(e) => setFormData((prev) => ({ ...prev, unit_number: e.target.value }))}
                           placeholder="e.g. 101"
-                          className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                          className="bg-black/20 border-white/10 text-white placeholder:text-white/85"
                         />
                       </div>
 
@@ -334,7 +334,7 @@ export default function Schedule() {
                             setCustomerSuggestOpen(val.trim().length > 0);
                           }}
                           placeholder="Customer name"
-                          className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                          className="bg-black/20 border-white/10 text-white placeholder:text-white/85"
                         />
 
                         {customerSuggestOpen && customerSuggestions.length > 0 && (
@@ -350,7 +350,7 @@ export default function Schedule() {
                                 className="w-full text-left px-3 py-2 text-sm text-white/90 hover:bg-white/10"
                               >
                                 <div className="font-medium">{c.customer}</div>
-                                {c.address ? <div className="text-white/50 text-xs line-clamp-1">{c.address}</div> : null}
+                                {c.address ? <div className="text-white/80 text-xs line-clamp-1">{c.address}</div> : null}
                               </button>
                             ))}
                           </div>
@@ -375,7 +375,7 @@ export default function Schedule() {
                           value={formData.address}
                           onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
                           placeholder="e.g. 123 Main St, Chicago, IL"
-                          className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                          className="bg-black/20 border-white/10 text-white placeholder:text-white/85"
                         />
                       </div>
 
@@ -387,7 +387,7 @@ export default function Schedule() {
                             value={formData.trailer}
                             onChange={(e) => setFormData((prev) => ({ ...prev, trailer: e.target.value }))}
                             placeholder="e.g. 12345"
-                            className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                            className="bg-black/20 border-white/10 text-white placeholder:text-white/85"
                           />
                         </div>
 
@@ -397,7 +397,7 @@ export default function Schedule() {
                             value={formData.pu_trailer}
                             onChange={(e) => setFormData((prev) => ({ ...prev, pu_trailer: e.target.value }))}
                             placeholder="e.g. 67890"
-                            className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                            className="bg-black/20 border-white/10 text-white placeholder:text-white/85"
                           />
                         </div>
                       </div>
@@ -408,7 +408,7 @@ export default function Schedule() {
                           value={formData.notes}
                           onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
                           placeholder="Additional notes"
-                          className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                          className="bg-black/20 border-white/10 text-white placeholder:text-white/85"
                         />
                       </div>
 
@@ -432,7 +432,7 @@ export default function Schedule() {
 
                     <CardContent>
                       {filteredSchedules.length === 0 ? (
-                        <div className="text-white/60 text-sm">No drivers scheduled for this shift.</div>
+                        <div className="text-white/85 text-sm">No drivers scheduled for this shift.</div>
                       ) : (
                         <div className="space-y-3">
                           {filteredSchedules.map((s) => (
@@ -442,15 +442,15 @@ export default function Schedule() {
                             >
                               <div className="min-w-0">
                                 <div className="text-white font-medium">{s.driver_name}</div>
-                                <div className="text-white/60 text-sm">
+                                <div className="text-white/85 text-sm">
                                   Unit: {s.unit_number || "—"} • Trailer: {s.trailer || "—"} • P/U Trailer: {s.pu_trailer || "—"} • Customer: {s.customer || "—"}
                                 </div>
                                 {s.show_address ? (
-                                  <div className="text-white/60 text-sm mt-1">
+                                  <div className="text-white/85 text-sm mt-1">
                                     Address: {s.address || "—"}
                                   </div>
                                 ) : null}
-                                {s.notes ? <div className="text-white/50 text-sm mt-1">Notes: {s.notes}</div> : null}
+                                {s.notes ? <div className="text-white/80 text-sm mt-1">Notes: {s.notes}</div> : null}
                               </div>
 
                               <Button
