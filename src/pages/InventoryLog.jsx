@@ -94,7 +94,9 @@ const calculate48x40Total = (entry) => {
       return groupedByDate[date].some(entry => 
         entry.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         entry.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.trailer_number?.toLowerCase().includes(searchTerm.toLowerCase())
+        entry.trailer_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.ash_pallet_ref?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.customer_ref?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     return true;
@@ -105,7 +107,9 @@ const calculate48x40Total = (entry) => {
       acc[date] = groupedByDate[date].filter(entry =>
         entry.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         entry.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.trailer_number?.toLowerCase().includes(searchTerm.toLowerCase())
+        entry.trailer_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.ash_pallet_ref?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.customer_ref?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     } else {
       acc[date] = groupedByDate[date];
@@ -134,7 +138,7 @@ const calculate48x40Total = (entry) => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 type="text"
-                placeholder="Search customer, notes..."
+                placeholder="Search customer, notes, refs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 w-64"
@@ -214,27 +218,43 @@ const calculate48x40Total = (entry) => {
                     </div>
                   </CardHeader>
                   <div className="overflow-x-auto pb-2">
-                    <Table className="min-w-[3400px] whitespace-nowrap">
+                    <Table className="min-w-[5200px] whitespace-nowrap">
                       <TableHeader>
                         <TableRow className="bg-slate-50">
                           <TableHead className="text-xs font-semibold">Customer</TableHead>
                           <TableHead className="text-xs font-semibold">Trailer #</TableHead>
                           <TableHead className="text-xs font-semibold">Counted By</TableHead>
                           <TableHead className="text-xs font-semibold">Received Date</TableHead>
+                          <TableHead className="text-xs font-semibold">Ash Pallet Ref</TableHead>
+                          <TableHead className="text-xs font-semibold">Customer Ref</TableHead>
+
                           <TableHead className="text-xs font-semibold bg-yellow-50">48x40 #1</TableHead>
                           <TableHead className="text-xs font-semibold bg-yellow-50">48x40 #2</TableHead>
                           <TableHead className="text-xs font-semibold bg-yellow-100">48x40 Total</TableHead>
+
                           <TableHead className="text-xs font-semibold">Large Odd</TableHead>
                           <TableHead className="text-xs font-semibold">Small Odd</TableHead>
                           <TableHead className="text-xs font-semibold">CHEP/PECO</TableHead>
+                          <TableHead className="text-xs font-semibold">Scrap Pull</TableHead>
                           <TableHead className="text-xs font-semibold">Trash</TableHead>
                           <TableHead className="text-xs font-semibold">Euro</TableHead>
                           <TableHead className="text-xs font-semibold">Block</TableHead>
                           <TableHead className="text-xs font-semibold">Stringer</TableHead>
                           <TableHead className="text-xs font-semibold bg-green-50">Plastic</TableHead>
+
+                          <TableHead className="text-xs font-semibold">Bailed Cardboard</TableHead>
+                          <TableHead className="text-xs font-semibold">OCC</TableHead>
+                          <TableHead className="text-xs font-semibold">Boxes of Plastic</TableHead>
+                          <TableHead className="text-xs font-semibold">Bailed Plastic</TableHead>
+                          <TableHead className="text-xs font-semibold">Gaylords</TableHead>
+                          <TableHead className="text-xs font-semibold">Boxes</TableHead>
+                          <TableHead className="text-xs font-semibold">Tops</TableHead>
+                          <TableHead className="text-xs font-semibold">IBC Crates</TableHead>
+                          <TableHead className="text-xs font-semibold">Totes</TableHead>
+
                           <TableHead className="text-xs font-semibold bg-green-100">Grand Total</TableHead>
                           <TableHead className="text-xs font-semibold">Notes</TableHead>
-                        </TableRow>
+</TableRow>
                       </TableHeader>
                       <TableBody>
                         {dateEntries.map((entry) => (
@@ -243,20 +263,36 @@ const calculate48x40Total = (entry) => {
                             <TableCell className="text-sm">{entry.trailer_number || '-'}</TableCell>
                             <TableCell className="text-sm">{entry.counted_by || '-'}</TableCell>
                             <TableCell className="text-sm">{entry.date_count_received || '-'}</TableCell>
+                            <TableCell className="text-sm">{entry.ash_pallet_ref || '-'}</TableCell>
+                            <TableCell className="text-sm">{entry.customer_ref || '-'}</TableCell>
+
                             <TableCell className="text-sm bg-yellow-50 text-center">{displayDashIfZero(entry.pallet_48x40_1)}</TableCell>
                             <TableCell className="text-sm bg-yellow-50 text-center">{displayDashIfZero(entry.pallet_48x40_2)}</TableCell>
                             <TableCell className="text-sm font-semibold bg-yellow-100 text-center">{displayDashIfZero(calculate48x40Total(entry))}</TableCell>
+
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.large_odd)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.small_odd)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.chep_peco)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.scrap_pull)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.trash_pallets)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.euro_pallets)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.block_pallets)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.stringer_pallets)}</TableCell>
                             <TableCell className="text-sm bg-green-50 text-center">{displayDashIfZero(entry.plastic_pallets)}</TableCell>
+
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.bailed_cardboard)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.occ)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.boxes_of_plastic)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.bailed_plastic)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.gaylords)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.boxes)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.tops)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.ibc_crates)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.totes)}</TableCell>
+
                             <TableCell className="text-sm font-semibold bg-green-100 text-center">{displayDashIfZero(calculateGrandTotal(entry))}</TableCell>
                             <TableCell className="text-sm text-slate-500 max-w-[200px] truncate">{entry.notes || '-'}</TableCell>
-                          </TableRow>
+</TableRow>
                         ))}
                       </TableBody>
                     </Table>
