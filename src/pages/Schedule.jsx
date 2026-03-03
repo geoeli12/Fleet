@@ -19,7 +19,13 @@ export default function Schedule() {
 
     const { data: drivers = [] } = useQuery({
         queryKey: ['drivers'],
-        queryFn: () => api.entities.Driver.filter({ status: 'active' }, 'name')
+        queryFn: async () => {
+            // Drivers page uses boolean `active` (not status string).
+            const all = await api.entities.Driver.list('name');
+            const list = all || [];
+            // Treat missing `active` as active for backwards compatibility.
+            return list.filter(d => d.active !== false);
+        }
     });
 
     const { data: schedules = [] } = useQuery({
@@ -84,7 +90,7 @@ export default function Schedule() {
             return;
         }
 
-        const headers = ['Driver', 'Unit', 'City', 'Customer', 'Notes', 'State'];
+        const headers = ['Driver', 'Unit', 'Address', 'Customer', 'Notes', 'State'];
         const rows = shiftSchedules.map(s => [
             s.driver_name,
             s.unit_number || '',
@@ -111,8 +117,10 @@ export default function Schedule() {
 
     const filteredSchedules = schedules.filter(s => s.shift_type === activeTab);
 
-    const ilDayDrivers = drivers.filter(d => d.state === 'IL');
-    const paDayDrivers = drivers.filter(d => d.state === 'PA');
+    const normalizeState = (v) => (v ?? "").toString().trim().toUpperCase();
+
+const ilDayDrivers = drivers.filter(d => normalizeState(d.state) === 'IL');
+    const paDayDrivers = drivers.filter(d => normalizeState(d.state) === 'PA');
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background">
@@ -192,11 +200,11 @@ export default function Schedule() {
                                         </div>
 
                                         <div>
-                                            <Label>Planned City</Label>
+                                            <Label>Address</Label>
                                             <Input
                                                 value={formData.planned_city}
                                                 onChange={(e) => setFormData({ ...formData, planned_city: e.target.value })}
-                                                placeholder="e.g., Chicago"
+                                                placeholder="e.g., 123 Main St, Chicago, IL"
                                             />
                                         </div>
 
