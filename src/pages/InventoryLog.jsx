@@ -56,6 +56,20 @@ const calculate48x40Total = (entry) => {
       (entry.plastic_pallets || 0);
   };
 
+
+  const displayDashIfZero = (val) => {
+    if (val === null || val === undefined) return '-';
+    if (typeof val === 'string') {
+      const s = val.trim();
+      if (s === '' || s === '0' || s === '0.0') return '-';
+      const n = Number(s);
+      if (!Number.isNaN(n)) return n === 0 ? '-' : n;
+      return s;
+    }
+    if (typeof val === 'number') return val === 0 ? '-' : val;
+    return val;
+  };
+
   // Group entries by date
   const groupedByDate = entriesArr.reduce((acc, entry) => {
     const date = safeYmd(entry?.date) || 'No Date';
@@ -195,7 +209,7 @@ const calculate48x40Total = (entry) => {
                       </CardTitle>
                       <div className="flex items-center gap-2 text-sm">
                         <Package className="w-4 h-4 text-slate-500" />
-                        <span className="font-semibold text-slate-700">Total: {totalForDate}</span>
+                        <span className="font-semibold text-slate-700">Total: {displayDashIfZero(totalForDate)}</span>
                       </div>
                     </div>
                   </CardHeader>
@@ -229,18 +243,18 @@ const calculate48x40Total = (entry) => {
                             <TableCell className="text-sm">{entry.trailer_number || '-'}</TableCell>
                             <TableCell className="text-sm">{entry.counted_by || '-'}</TableCell>
                             <TableCell className="text-sm">{entry.date_count_received || '-'}</TableCell>
-                            <TableCell className="text-sm bg-yellow-50 text-center">{entry.pallet_48x40_1 || 0}</TableCell>
-                            <TableCell className="text-sm bg-yellow-50 text-center">{entry.pallet_48x40_2 || 0}</TableCell>
-                            <TableCell className="text-sm font-semibold bg-yellow-100 text-center">{calculate48x40Total(entry)}</TableCell>
-                            <TableCell className="text-sm text-center">{entry.large_odd || 0}</TableCell>
-                            <TableCell className="text-sm text-center">{entry.small_odd || 0}</TableCell>
-                            <TableCell className="text-sm text-center">{entry.chep_peco || 0}</TableCell>
-                            <TableCell className="text-sm text-center">{entry.trash_pallets || 0}</TableCell>
-                            <TableCell className="text-sm text-center">{entry.euro_pallets || 0}</TableCell>
-                            <TableCell className="text-sm text-center">{entry.block_pallets || 0}</TableCell>
-                            <TableCell className="text-sm text-center">{entry.stringer_pallets || 0}</TableCell>
-                            <TableCell className="text-sm bg-green-50 text-center">{entry.plastic_pallets || 0}</TableCell>
-                            <TableCell className="text-sm font-semibold bg-green-100 text-center">{calculateGrandTotal(entry)}</TableCell>
+                            <TableCell className="text-sm bg-yellow-50 text-center">{displayDashIfZero(entry.pallet_48x40_1)}</TableCell>
+                            <TableCell className="text-sm bg-yellow-50 text-center">{displayDashIfZero(entry.pallet_48x40_2)}</TableCell>
+                            <TableCell className="text-sm font-semibold bg-yellow-100 text-center">{displayDashIfZero(calculate48x40Total(entry))}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.large_odd)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.small_odd)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.chep_peco)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.trash_pallets)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.euro_pallets)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.block_pallets)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.stringer_pallets)}</TableCell>
+                            <TableCell className="text-sm bg-green-50 text-center">{displayDashIfZero(entry.plastic_pallets)}</TableCell>
+                            <TableCell className="text-sm font-semibold bg-green-100 text-center">{displayDashIfZero(calculateGrandTotal(entry))}</TableCell>
                             <TableCell className="text-sm text-slate-500 max-w-[200px] truncate">{entry.notes || '-'}</TableCell>
                           </TableRow>
                         ))}
