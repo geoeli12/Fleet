@@ -33,6 +33,17 @@ function makeEntryId() {
   return `e_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+
+const RUN_OPTIONS = ["1st Run", "2nd Run", "3rd Run", "Add new…"];
+
+function runOrderFromLabel(label) {
+  const v = String(label || "").toLowerCase();
+  if (v.includes("1st")) return 1;
+  if (v.includes("2nd")) return 2;
+  if (v.includes("3rd")) return 3;
+  return 99;
+}
+
 function norm(v) {
   return String(v ?? "").trim().toLowerCase();
 }
@@ -106,6 +117,8 @@ export default function Schedule() {
   });
 
   const [formData, setFormData] = useState({
+    run_label: "1st Run",
+    custom_run_label: "",
     driver_name: "",
     unit_number: "",
     trailer: "",
@@ -138,6 +151,10 @@ export default function Schedule() {
   };
 
   const handleAddDriver = async () => {
+    const selectedRun = formData.run_label || "1st Run";
+    const isCustomRun = selectedRun === "Add new…" || selectedRun === "Add new...";
+    const run_label = (isCustomRun ? formData.custom_run_label : selectedRun) || "1st Run";
+
     if (!formData.driver_name) {
       toast.error("Please select a driver");
       return;
@@ -145,6 +162,8 @@ export default function Schedule() {
 
     const entry = {
       entry_id: makeEntryId(),
+      run_label,
+      run_order: runOrderFromLabel(run_label),
       driver_name: formData.driver_name,
       unit_number: formData.unit_number || "",
       trailer: formData.trailer || "",
@@ -164,13 +183,33 @@ export default function Schedule() {
       updater: (data) => {
         const next = { ...(data || {}) };
         const arr = Array.isArray(next.entries) ? [...next.entries] : [];
-        arr.push(entry);
-        next.entries = arr;
+        const sameIdx = arr
+          .map((e, idx) => ({ e, idx }))
+          .filter((x) => String(x.e?.driver_name || "") === String(entry.driver_name || ""))
+          .map((x) => x.idx);
+        const insertAt = sameIdx.length ? Math.max(...sameIdx) + 1 : arr.length;
+        arr.splice(insertAt, 0, entry);
+
+        // keep each driver's runs in order (1st, 2nd, 3rd, custom) within their block
+        const grouped = [];
+        const seen = new Set();
+        for (const e of arr) {
+          const key = String(e?.driver_name || "");
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          const block = arr.filter((x) => String(x?.driver_name || "") === key);
+          block.sort((a, b) => (a?.run_order ?? 99) - (b?.run_order ?? 99));
+          grouped.push(...block);
+        }
+        const leftovers = arr.filter((e) => !String(e?.driver_name || ""));
+        next.entries = [...grouped, ...leftovers];
         return next;
       },
     });
 
     setFormData({
+      run_label: "1st Run",
+      custom_run_label: "",
       driver_name: "",
       unit_number: "",
       trailer: "",
@@ -287,6 +326,43 @@ export default function Schedule() {
                     </CardHeader>
 
                     <CardContent className="space-y-5">
+                      <div className="space-y-2">
+                        <Label className="text-white/80">Run</Label>
+                        <Select
+                          value={formData.run_label}
+                          onValueChange={(value) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              run_label: value,
+                              custom_run_label: value === "Add new…" || value === "Add new..." ? prev.custom_run_label : "",
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="bg-black/20 border-white/10 text-white">
+                            <SelectValue placeholder="Select run" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-black/90 border-white/10 text-white">
+                            {RUN_OPTIONS.map((opt) => (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {formData.run_label === "Add new…" || formData.run_label === "Add new..." ? (
+                          <div className="mt-2 space-y-2">
+                            <Label className="text-white/80">Custom Run Label</Label>
+                            <Input
+                              value={formData.custom_run_label}
+                              onChange={(e) => setFormData((prev) => ({ ...prev, custom_run_label: e.target.value }))}
+                              placeholder='e.g., "Extra Run"'
+                              className="bg-black/20 border-white/10 text-white placeholder:text-white/50"
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+
                       <div className="space-y-2">
                         <Label className="text-white/80">Driver</Label>
                         <Select
@@ -441,7 +517,14 @@ export default function Schedule() {
                               className="flex items-start justify-between gap-4 p-3 rounded-xl bg-black/20 border border-white/10"
                             >
                               <div className="min-w-0">
-                                <div className="text-white font-medium">{s.driver_name}</div>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-white font-medium">{s.driver_name}</div>
+                                  {s.run_label ? (
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-200 border border-yellow-400/30">
+                                      {s.run_label}
+                                    </span>
+                                  ) : null}
+                                </div>
                                 <div className="text-white/85 text-sm">
                                   Unit: {s.unit_number || "—"} • Trailer: {s.trailer || "—"} • P/U Trailer: {s.pu_trailer || "—"} • Customer: {s.customer || "—"}
                                 </div>
