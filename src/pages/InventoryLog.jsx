@@ -360,7 +360,7 @@ export default function InventoryLogPage() {
                           <TableHead className="text-[11px] font-semibold py-1 px-2">Received Date</TableHead>
                           <TableHead className="text-[11px] font-semibold py-1 px-2">Ash Pallet Ref</TableHead>
                           <TableHead className="text-[11px] font-semibold py-1 px-2">Customer Ref</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center"> </TableHead>
+                          
 
                           <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-50 text-center">48x40 #1</TableHead>
                           <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-50 text-center">48x40 #2</TableHead>
@@ -388,6 +388,7 @@ export default function InventoryLogPage() {
 
                           <TableHead className="text-[11px] font-semibold py-1 px-2 bg-green-100 text-center">Grand Total</TableHead>
                           <TableHead className="text-[11px] font-semibold py-1 px-2">Notes</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center"> </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -404,19 +405,7 @@ export default function InventoryLogPage() {
                             <TableCell className="text-xs py-1 px-2 truncate">{entry.ash_pallet_ref || '-'}</TableCell>
                             <TableCell className="text-xs py-1 px-2 truncate">{entry.customer_ref || '-'}</TableCell>
 
-                            <TableCell className="py-1 px-2 text-center" onClick={(e) => e.stopPropagation()}>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-slate-500 hover:text-red-600"
-                                onClick={() => deleteEntry(entry)}
-                                aria-label="Delete entry"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
+                            
 
                             <TableCell className="text-xs py-1 px-2 bg-yellow-50 text-center">{displayDashIfZero(entry.pallet_48x40_1)}</TableCell>
                             <TableCell className="text-xs py-1 px-2 bg-yellow-50 text-center">{displayDashIfZero(entry.pallet_48x40_2)}</TableCell>
@@ -444,6 +433,19 @@ export default function InventoryLogPage() {
 
                             <TableCell className="text-xs py-1 px-2 font-semibold bg-green-100 text-center">{displayDashIfZero(calculateGrandTotal(entry))}</TableCell>
                             <TableCell className="text-xs py-1 px-2 text-slate-500 truncate">{entry.notes || '-'}</TableCell>
+                            <TableCell className="py-1 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-slate-500 hover:text-red-600"
+                                onClick={() => deleteEntry(entry)}
+                                aria-label="Delete entry"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
 </TableRow>
                         ))}
                       </TableBody>
