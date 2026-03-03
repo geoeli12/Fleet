@@ -1,7 +1,6 @@
-
-import React, { useState, useMemo } from 'react';
-import { api } from '@/api/apiClient';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useMemo, useState } from "react";
+import { api } from "@/api/apiClient";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,306 +8,426 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar, Plus, Download, Trash2 } from "lucide-react";
-import { format, addDays } from "date-fns";
+import { addDays, format } from "date-fns";
 import { toast } from "sonner";
 
-export default function Schedule() {
-    const [scheduleDate, setScheduleDate] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
-    const [activeTab, setActiveTab] = useState('day');
-    const queryClient = useQueryClient();
-
-    const { data: drivers = [] } = useQuery({
-        queryKey: ['drivers'],
-        queryFn: async () => {
-            // Drivers page uses boolean `active` (not status string).
-            const all = await api.entities.Driver.list('name');
-            const list = all || [];
-            // Treat missing `active` as active for backwards compatibility.
-            return list.filter(d => d.active !== false);
-        }
-    });
-
-    const { data: schedules = [] } = useQuery({
-        queryKey: ['schedules', scheduleDate],
-        queryFn: async () => {
-            const results = await api.entities.Schedule.filter({ date: scheduleDate });
-            return results || [];
-        }
-    });
-
-    const createScheduleMutation = useMutation({
-        mutationFn: (data) => api.entities.Schedule.create(data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['schedules'] });
-            toast.success('Driver scheduled');
-        }
-    });
-
-    const deleteScheduleMutation = useMutation({
-        mutationFn: (id) => api.entities.Schedule.delete(id),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['schedules'] });
-            toast.success('Schedule removed');
-        }
-    });
-
-    const [formData, setFormData] = useState({
-        driver_name: '',
-        unit_number: '',
-        planned_city: '',
-        planned_customer: '',
-        notes: ''
-    });
-
-    const handleAddDriver = () => {
-        if (!formData.driver_name) {
-            toast.error('Please select a driver');
-            return;
-        }
-
-        createScheduleMutation.mutate({
-            ...formData,
-            date: scheduleDate,
-            shift_type: activeTab,
-            state: activeTab.includes('PA') ? 'PA' : 'IL'
-        });
-
-        setFormData({
-            driver_name: '',
-            unit_number: '',
-            planned_city: '',
-            planned_customer: '',
-            notes: ''
-        });
-    };
-
-    const handleExportExcel = () => {
-        const shiftSchedules = schedules.filter(s => s.shift_type === activeTab);
-        
-        if (shiftSchedules.length === 0) {
-            toast.error('No schedules to export');
-            return;
-        }
-
-        const headers = ['Driver', 'Unit', 'Address', 'Customer', 'Notes', 'State'];
-        const rows = shiftSchedules.map(s => [
-            s.driver_name,
-            s.unit_number || '',
-            s.planned_city || '',
-            s.planned_customer || '',
-            s.notes || '',
-            s.state || ''
-        ]);
-
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-        ].join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Schedule_${activeTab}_${scheduleDate}.csv`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        toast.success('CSV file downloaded');
-    };
-
-    const filteredSchedules = schedules.filter(s => s.shift_type === activeTab);
-
-    const normalizeState = (v) => (v ?? "").toString().trim().toUpperCase();
-
-const ilDayDrivers = drivers.filter(d => normalizeState(d.state) === 'IL');
-    const paDayDrivers = drivers.filter(d => normalizeState(d.state) === 'PA');
-
-    return (
-        <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background">
-            <div className="max-w-7xl mx-auto px-4 py-8">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-light tracking-tight text-white">
-                        Schedule <span className="font-semibold">Planning</span>
-                    </h1>
-                    <p className="text-white/60 mt-1">Plan driver shifts and runs</p>
-                </div>
-
-                {/* Date Selector */}
-                <Card className="mb-6 border-0 shadow-lg">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Calendar className="h-5 w-5 text-amber-300" />
-                            Schedule Date
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Input
-                            type="date"
-                            value={scheduleDate}
-                            onChange={(e) => setScheduleDate(e.target.value)}
-                            className="max-w-xs"
-                        />
-                    </CardContent>
-                </Card>
-
-                {/* Tabs */}
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="grid w-full grid-cols-4 mb-6">
-                        <TabsTrigger value="day">Day (IL)</TabsTrigger>
-                        <TabsTrigger value="night">Night (IL)</TabsTrigger>
-                        <TabsTrigger value="dayPA">Day (PA)</TabsTrigger>
-                        <TabsTrigger value="nightPA">Night (PA)</TabsTrigger>
-                    </TabsList>
-
-                    {['day', 'night', 'dayPA', 'nightPA'].map(shiftType => (
-                        <TabsContent key={shiftType} value={shiftType}>
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                {/* Add Driver Form */}
-                                <Card className="border-0 shadow-lg">
-                                    <CardHeader>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <Plus className="h-5 w-5 text-amber-300" />
-                                            Add Driver
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div>
-                                            <Label>Driver</Label>
-                                            <Select
-                                                value={formData.driver_name}
-                                                onValueChange={(value) => setFormData({ ...formData, driver_name: value })}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select driver" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {(shiftType.includes('PA') ? paDayDrivers : ilDayDrivers).map(driver => (
-                                                        <SelectItem key={driver.id} value={driver.name}>
-                                                            {driver.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <div>
-                                            <Label>Unit Number</Label>
-                                            <Input
-                                                value={formData.unit_number}
-                                                onChange={(e) => setFormData({ ...formData, unit_number: e.target.value })}
-                                                placeholder="e.g., 101"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <Label>Address</Label>
-                                            <Input
-                                                value={formData.planned_city}
-                                                onChange={(e) => setFormData({ ...formData, planned_city: e.target.value })}
-                                                placeholder="e.g., 123 Main St, Chicago, IL"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <Label>Planned Customer</Label>
-                                            <Input
-                                                value={formData.planned_customer}
-                                                onChange={(e) => setFormData({ ...formData, planned_customer: e.target.value })}
-                                                placeholder="Customer name"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <Label>Notes</Label>
-                                            <Input
-                                                value={formData.notes}
-                                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                                                placeholder="Additional notes"
-                                            />
-                                        </div>
-
-                                        <Button
-                                            onClick={handleAddDriver}
-                                            className="w-full bg-amber-600 hover:bg-amber-700"
-                                            disabled={createScheduleMutation.isPending}
-                                        >
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            Add to Schedule
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Scheduled Drivers */}
-                                <Card className="lg:col-span-2 border-0 shadow-lg">
-                                    <CardHeader className="flex flex-row items-center justify-between">
-                                        <CardTitle className="text-lg">
-                                            Scheduled Drivers ({filteredSchedules.length})
-                                        </CardTitle>
-                                        <Button
-                                            onClick={handleExportExcel}
-                                            variant="outline"
-                                            size="sm"
-                                            disabled={filteredSchedules.length === 0}
-                                        >
-                                            <Download className="h-4 w-4 mr-2" />
-                                            Export Excel
-                                        </Button>
-                                    </CardHeader>
-                                    <CardContent>
-                                        {filteredSchedules.length === 0 ? (
-                                            <div className="text-center py-12 text-white/60">
-                                                <Calendar className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-                                                <p>No drivers scheduled yet</p>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-3">
-                                                {filteredSchedules.map(schedule => (
-                                                    <div
-                                                        key={schedule.id}
-                                                        className="bg-gradient-to-r from-amber-500/10 to-amber-600/10 rounded-xl p-4 border border-amber-400/20"
-                                                    >
-                                                        <div className="flex items-start justify-between">
-                                                            <div className="flex-1">
-                                                                <div className="font-semibold text-white mb-2">
-                                                                    {schedule.driver_name}
-                                                                    {schedule.unit_number && (
-                                                                        <span className="text-sm text-white/60 ml-2">
-                                                                            Unit {schedule.unit_number}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="text-sm text-white/70 space-y-1">
-                                                                    {schedule.planned_city && (
-                                                                        <div>📍 {schedule.planned_city}</div>
-                                                                    )}
-                                                                    {schedule.planned_customer && (
-                                                                        <div>🏢 {schedule.planned_customer}</div>
-                                                                    )}
-                                                                    {schedule.notes && (
-                                                                        <div>📝 {schedule.notes}</div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => deleteScheduleMutation.mutate(schedule.id)}
-                                                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        </TabsContent>
-                    ))}
-                </Tabs>
-            </div>
-        </div>
-    );
+function normalizeState(v) {
+  return (v ?? "").toString().trim().toUpperCase();
 }
 
+function regionFromTab(tab) {
+  return String(tab || "").toLowerCase().includes("pa") ? "PA" : "IL";
+}
+
+function shiftTypeFromTab(tab) {
+  const t = String(tab || "");
+  if (t === "day" || t === "dayPA") return "day";
+  if (t === "night" || t === "nightPA") return "night";
+  return "day";
+}
+
+function makeEntryId() {
+  try {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  } catch (e) {}
+  return `e_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function norm(v) {
+  return String(v ?? "").trim().toLowerCase();
+}
+
+export default function Schedule() {
+  const [scheduleDate, setScheduleDate] = useState(format(addDays(new Date(), 1), "yyyy-MM-dd"));
+  const [activeTab, setActiveTab] = useState("day");
+  const queryClient = useQueryClient();
+
+  const region = regionFromTab(activeTab);
+  const shiftType = shiftTypeFromTab(activeTab);
+
+  const { data: drivers = [] } = useQuery({
+    queryKey: ["drivers"],
+    queryFn: async () => {
+      const all = await api.entities.Driver.list("name");
+      const list = all || [];
+      // Treat missing `active` as active for backwards compatibility.
+      return list.filter((d) => d.active !== false);
+    },
+  });
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers", region],
+    queryFn: async () => {
+      const list =
+        region === "PA"
+          ? await api.entities.CustomerPA.list("customer")
+          : await api.entities.CustomerIL.list("customer");
+      return list || [];
+    },
+  });
+
+  // schedules table stores one row per date:
+  // - schedule_date: yyyy-mm-dd
+  // - data: { entries: [...] }
+  const { data: scheduleRow } = useQuery({
+    queryKey: ["scheduleRow", scheduleDate],
+    queryFn: async () => {
+      const rows = await api.entities.Schedule.filter({ schedule_date: scheduleDate });
+      return (rows && rows[0]) ? rows[0] : null;
+    },
+  });
+
+  const schedules = useMemo(() => {
+    const entries = scheduleRow?.data?.entries;
+    return Array.isArray(entries) ? entries : [];
+  }, [scheduleRow]);
+
+  const upsertScheduleRowMutation = useMutation({
+    mutationFn: async ({ schedule_date, updater }) => {
+      const rows = await api.entities.Schedule.filter({ schedule_date });
+      const existing = (rows && rows[0]) ? rows[0] : null;
+
+      const currentData = (existing && existing.data && typeof existing.data === "object") ? existing.data : {};
+      const nextData = updater ? updater(currentData) : currentData;
+
+      if (existing?.id) {
+        return api.entities.Schedule.update(existing.id, { schedule_date, data: nextData });
+      }
+      return api.entities.Schedule.create({ schedule_date, data: nextData });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduleRow"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduleRow", scheduleDate] });
+      toast.success("Schedule updated");
+    },
+    onError: (e) => {
+      toast.error(e?.message || "Could not update schedule");
+    },
+  });
+
+  const [formData, setFormData] = useState({
+    driver_name: "",
+    unit_number: "",
+    customer: "",
+    address: "",
+    show_address: true,
+    notes: "",
+  });
+
+  const [customerQuery, setCustomerQuery] = useState("");
+  const customerSuggestions = useMemo(() => {
+    const q = norm(customerQuery || formData.customer);
+    if (!q) return [];
+    const hits = (customers || []).filter((c) => norm(c.customer).includes(q));
+    return hits.slice(0, 8);
+  }, [customers, customerQuery, formData.customer]);
+
+  const handlePickCustomer = (cust) => {
+    const name = String(cust?.customer ?? "").trim();
+    const addr = String(cust?.address ?? "").trim();
+    setFormData((p) => ({
+      ...p,
+      customer: name,
+      address: addr || p.address,
+    }));
+    setCustomerQuery("");
+  };
+
+  const handleAddDriver = async () => {
+    if (!formData.driver_name) {
+      toast.error("Please select a driver");
+      return;
+    }
+
+    const entry = {
+      entry_id: makeEntryId(),
+      driver_name: formData.driver_name,
+      unit_number: formData.unit_number || "",
+      customer: formData.customer || "",
+      address: formData.address || "",
+      show_address: !!formData.show_address,
+      notes: formData.notes || "",
+      // keep these so filtering/display/export stays simple
+      shift_type: shiftType,
+      state: region,
+      created_at: new Date().toISOString(),
+    };
+
+    upsertScheduleRowMutation.mutate({
+      schedule_date: scheduleDate,
+      updater: (data) => {
+        const next = { ...(data || {}) };
+        const arr = Array.isArray(next.entries) ? [...next.entries] : [];
+        arr.push(entry);
+        next.entries = arr;
+        return next;
+      },
+    });
+
+    setFormData({
+      driver_name: "",
+      unit_number: "",
+      customer: "",
+      address: "",
+      show_address: true,
+      notes: "",
+    });
+    setCustomerQuery("");
+  };
+
+  const handleDeleteEntry = (entryId) => {
+    upsertScheduleRowMutation.mutate({
+      schedule_date: scheduleDate,
+      updater: (data) => {
+        const next = { ...(data || {}) };
+        const arr = Array.isArray(next.entries) ? next.entries : [];
+        next.entries = arr.filter((e) => String(e?.entry_id) !== String(entryId));
+        return next;
+      },
+    });
+  };
+
+  const handleExportExcel = () => {
+    const shiftSchedules = schedules.filter(
+      (s) => String(s.shift_type) === String(shiftType) && normalizeState(s.state) === region
+    );
+
+    if (shiftSchedules.length === 0) {
+      toast.error("No schedules to export");
+      return;
+    }
+
+    const headers = ["Driver", "Unit", "Customer", "Address", "Notes", "State"];
+    const rows = shiftSchedules.map((s) => [
+      s.driver_name || "",
+      s.unit_number || "",
+      s.customer || "",
+      s.show_address ? (s.address || "") : "",
+      s.notes || "",
+      s.state || "",
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Schedule_${region}_${shiftType}_${scheduleDate}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success("CSV file downloaded");
+  };
+
+  const filteredSchedules = schedules.filter(
+    (s) => String(s.shift_type) === String(shiftType) && normalizeState(s.state) === region
+  );
+
+  const ilDrivers = drivers.filter((d) => normalizeState(d.state) === "IL");
+  const paDrivers = drivers.filter((d) => normalizeState(d.state) === "PA");
+  const driverOptions = region === "PA" ? paDrivers : ilDrivers;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-black/5 via-background to-background">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-light tracking-tight text-white">
+            Schedule <span className="font-semibold">Planning</span>
+          </h1>
+          <p className="text-white/70 mt-2">Plan your drivers by day, shift, and region.</p>
+        </div>
+
+        <Card className="bg-black/20 border-white/10 backdrop-blur-xl">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Calendar className="h-5 w-5" /> Schedule Date
+              </CardTitle>
+              <p className="text-white/60 text-sm mt-1">Pick a date to view / edit the schedule.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Input
+                type="date"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                className="w-40 bg-black/30 border-white/10 text-white"
+              />
+              <Button onClick={handleExportExcel} variant="outline" className="border-white/10 text-white hover:bg-white/10">
+                <Download className="h-4 w-4 mr-2" /> Export
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid grid-cols-4 bg-black/30 border border-white/10">
+                <TabsTrigger value="day" className="data-[state=active]:bg-white/10">IL Day</TabsTrigger>
+                <TabsTrigger value="night" className="data-[state=active]:bg-white/10">IL Night</TabsTrigger>
+                <TabsTrigger value="dayPA" className="data-[state=active]:bg-white/10">PA Day</TabsTrigger>
+                <TabsTrigger value="nightPA" className="data-[state=active]:bg-white/10">PA Night</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value={activeTab} className="mt-6">
+                <div className="grid lg:grid-cols-2 gap-6">
+                  {/* Add Driver Card */}
+                  <Card className="bg-black/30 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white flex items-center gap-2">
+                        <Plus className="h-5 w-5 text-yellow-400" /> Add Driver
+                      </CardTitle>
+                    </CardHeader>
+
+                    <CardContent className="space-y-5">
+                      <div className="space-y-2">
+                        <Label className="text-white/80">Driver</Label>
+                        <Select
+                          value={formData.driver_name}
+                          onValueChange={(value) => setFormData((prev) => ({ ...prev, driver_name: value }))}
+                        >
+                          <SelectTrigger className="bg-black/20 border-white/10 text-white">
+                            <SelectValue placeholder="Select driver" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-black/90 border-white/10 text-white">
+                            {(driverOptions || []).map((d) => (
+                              <SelectItem key={d.id} value={d.name}>
+                                {d.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-white/80">Unit Number</Label>
+                        <Input
+                          value={formData.unit_number}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, unit_number: e.target.value }))}
+                          placeholder="e.g. 101"
+                          className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                        />
+                      </div>
+
+                      <div className="space-y-2 relative">
+                        <Label className="text-white/80">Customer</Label>
+                        <Input
+                          value={customerQuery || formData.customer}
+                          onChange={(e) => {
+                            setCustomerQuery(e.target.value);
+                            setFormData((prev) => ({ ...prev, customer: e.target.value }));
+                          }}
+                          placeholder="Customer name"
+                          className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                        />
+
+                        {customerSuggestions.length > 0 && (
+                          <div className="absolute z-50 mt-1 w-full rounded-xl border border-white/10 bg-black/90 backdrop-blur-xl overflow-hidden">
+                            {customerSuggestions.map((c) => (
+                              <button
+                                type="button"
+                                key={String(c.id)}
+                                onClick={() => handlePickCustomer(c)}
+                                className="w-full text-left px-3 py-2 text-sm text-white/90 hover:bg-white/10"
+                              >
+                                <div className="font-medium">{c.customer}</div>
+                                {c.address ? <div className="text-white/50 text-xs line-clamp-1">{c.address}</div> : null}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <Label className="text-white/80">Address</Label>
+                          <label className="flex items-center gap-2 text-white/70 text-sm select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!formData.show_address}
+                              onChange={(e) => setFormData((prev) => ({ ...prev, show_address: e.target.checked }))}
+                              className="h-4 w-4 accent-yellow-400"
+                            />
+                            Show
+                          </label>
+                        </div>
+
+                        <Input
+                          value={formData.address}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
+                          placeholder="e.g. 123 Main St, Chicago, IL"
+                          className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-white/80">Notes</Label>
+                        <Input
+                          value={formData.notes}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                          placeholder="Additional notes"
+                          className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                        />
+                      </div>
+
+                      <Button
+                        onClick={handleAddDriver}
+                        className="w-full bg-yellow-600 hover:bg-yellow-700 text-black font-semibold rounded-xl"
+                        disabled={upsertScheduleRowMutation.isPending}
+                      >
+                        <Plus className="h-4 w-4 mr-2" /> Add to Schedule
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Schedule List */}
+                  <Card className="bg-black/30 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white">
+                        {region} {shiftType === "day" ? "Day" : "Night"} Schedule
+                      </CardTitle>
+                    </CardHeader>
+
+                    <CardContent>
+                      {filteredSchedules.length === 0 ? (
+                        <div className="text-white/60 text-sm">No drivers scheduled for this shift.</div>
+                      ) : (
+                        <div className="space-y-3">
+                          {filteredSchedules.map((s) => (
+                            <div
+                              key={s.entry_id || `${s.driver_name}_${s.unit_number}_${s.created_at}`}
+                              className="flex items-start justify-between gap-4 p-3 rounded-xl bg-black/20 border border-white/10"
+                            >
+                              <div className="min-w-0">
+                                <div className="text-white font-medium">{s.driver_name}</div>
+                                <div className="text-white/60 text-sm">
+                                  Unit: {s.unit_number || "—"} • Customer: {s.customer || "—"}
+                                </div>
+                                {s.show_address ? (
+                                  <div className="text-white/60 text-sm mt-1">
+                                    Address: {s.address || "—"}
+                                  </div>
+                                ) : null}
+                                {s.notes ? <div className="text-white/50 text-sm mt-1">Notes: {s.notes}</div> : null}
+                              </div>
+
+                              <Button
+                                variant="ghost"
+                                onClick={() => handleDeleteEntry(s.entry_id)}
+                                className="text-white/70 hover:text-white hover:bg-white/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
