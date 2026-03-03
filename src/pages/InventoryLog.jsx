@@ -1,10 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api } from '@/api/apiClient';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, Search, Package } from 'lucide-react';
+import { Calendar, Search, Package, Trash2 } from 'lucide-react';
 
 function unwrapListResult(list) {
   if (Array.isArray(list)) return list;
@@ -24,6 +27,11 @@ function safeYmd(v) {
 export default function InventoryLogPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const qc = useQueryClient();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState(null);
+  const [form, setForm] = useState({});
 
   const { data: rawEntries, isLoading } = useQuery({
     queryKey: ['inventoryEntries'],
@@ -38,7 +46,132 @@ export default function InventoryLogPage() {
   });
 
   const entriesArr = useMemo(() => unwrapListResult(rawEntries), [rawEntries]);
-const calculate48x40Total = (entry) => {
+
+  const numericFields = useMemo(() => ([
+    'pallet_48x40_1',
+    'pallet_48x40_2',
+    'large_odd',
+    'small_odd',
+    'chep_peco',
+    'scrap_pull',
+    'trash_pallets',
+    'euro_pallets',
+    'block_pallets',
+    'stringer_pallets',
+    'plastic_pallets',
+    'bailed_cardboard',
+    'occ',
+    'boxes_of_plastic',
+    'bailed_plastic',
+    'gaylords',
+    'boxes',
+    'tops',
+    'ibc_crates',
+    'totes',
+  ]), []);
+
+  const openEdit = (entry) => {
+    setEditEntry(entry);
+    setEditOpen(true);
+  };
+
+  useEffect(() => {
+    if (!editOpen || !editEntry) return;
+
+    const next = {
+      customer_name: editEntry.customer_name ?? '',
+      trailer_number: editEntry.trailer_number ?? '',
+      counted_by: editEntry.counted_by ?? '',
+      date: safeYmd(editEntry.date) ?? '',
+      date_count_received: safeYmd(editEntry.date_count_received) ?? '',
+      ash_pallet_ref: editEntry.ash_pallet_ref ?? '',
+      customer_ref: editEntry.customer_ref ?? '',
+      notes: editEntry.notes ?? '',
+    };
+
+    numericFields.forEach((k) => {
+      const v = editEntry?.[k];
+      next[k] = (v === null || v === undefined) ? '' : String(v);
+    });
+
+    setForm(next);
+  }, [editOpen, editEntry, numericFields]);
+
+  const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const toNullableInt = (v) => {
+    const s = String(v ?? '').trim();
+    if (!s) return null;
+    const n = Number(s);
+    if (Number.isNaN(n)) return null;
+    return Math.trunc(n);
+  };
+
+  const saveEdit = async () => {
+    if (!editEntry?.id) return;
+
+    const payload = {
+      customer_name: String(form.customer_name ?? '').trim() || null,
+      trailer_number: String(form.trailer_number ?? '').trim() || null,
+      counted_by: String(form.counted_by ?? '').trim() || null,
+      date: safeYmd(form.date) || null,
+      date_count_received: safeYmd(form.date_count_received) || null,
+      ash_pallet_ref: String(form.ash_pallet_ref ?? '').trim() || null,
+      customer_ref: String(form.customer_ref ?? '').trim() || null,
+      notes: String(form.notes ?? '').trim() || null,
+    };
+
+    numericFields.forEach((k) => {
+      payload[k] = toNullableInt(form[k]);
+    });
+
+    try {
+      if (api?.entities?.InventoryEntry?.update) {
+        await api.entities.InventoryEntry.update(editEntry.id, payload);
+      } else if (api?.entities?.InventoryEntry?.patch) {
+        await api.entities.InventoryEntry.patch(editEntry.id, payload);
+      } else {
+        throw new Error('Update method not found on api.entities.InventoryEntry');
+      }
+
+      await qc.invalidateQueries({ queryKey: ['inventoryEntries'] });
+      setEditOpen(false);
+      setEditEntry(null);
+    } catch (e) {
+      // eslint-disable-next-line no-alert
+      alert(`Could not save changes. ${e?.message ? String(e.message) : ''}`);
+    }
+  };
+
+  const deleteEntry = async (entry) => {
+    if (!entry?.id) return;
+    // eslint-disable-next-line no-alert
+    const ok = window.confirm(`Delete this entry for "${entry.customer_name || 'Unknown'}"?`);
+    if (!ok) return;
+
+    try {
+      if (api?.entities?.InventoryEntry?.delete) {
+        await api.entities.InventoryEntry.delete(entry.id);
+      } else if (api?.entities?.InventoryEntry?.remove) {
+        await api.entities.InventoryEntry.remove(entry.id);
+      } else if (api?.entities?.InventoryEntry?.destroy) {
+        await api.entities.InventoryEntry.destroy(entry.id);
+      } else {
+        throw new Error('Delete method not found on api.entities.InventoryEntry');
+      }
+
+      await qc.invalidateQueries({ queryKey: ['inventoryEntries'] });
+      if (editEntry?.id === entry.id) {
+        setEditOpen(false);
+        setEditEntry(null);
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-alert
+      alert(`Could not delete entry. ${e?.message ? String(e.message) : ''}`);
+    }
+  };
+
+  const calculate48x40Total = (entry) => {
     return (entry.pallet_48x40_1 || 0) + (entry.pallet_48x40_2 || 0);
   };
 
@@ -218,80 +351,99 @@ const calculate48x40Total = (entry) => {
                     </div>
                   </CardHeader>
                   <div className="overflow-x-auto pb-2">
-                    <Table className="min-w-[5200px] whitespace-nowrap">
+                    <Table className="min-w-[5200px] whitespace-nowrap table-fixed">
                       <TableHeader>
                         <TableRow className="bg-slate-50">
-                          <TableHead className="text-xs font-semibold">Customer</TableHead>
-                          <TableHead className="text-xs font-semibold">Trailer #</TableHead>
-                          <TableHead className="text-xs font-semibold">Counted By</TableHead>
-                          <TableHead className="text-xs font-semibold">Received Date</TableHead>
-                          <TableHead className="text-xs font-semibold">Ash Pallet Ref</TableHead>
-                          <TableHead className="text-xs font-semibold">Customer Ref</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[220px]">Customer</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[110px]">Trailer #</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px]">Counted By</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[130px]">Received Date</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[130px]">Ash Pallet Ref</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[130px]">Customer Ref</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[44px] text-center"> </TableHead>
 
-                          <TableHead className="text-xs font-semibold bg-yellow-50">48x40 #1</TableHead>
-                          <TableHead className="text-xs font-semibold bg-yellow-50">48x40 #2</TableHead>
-                          <TableHead className="text-xs font-semibold bg-yellow-100">48x40 Total</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-50 w-[90px] text-center">48x40 #1</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-50 w-[90px] text-center">48x40 #2</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-100 w-[100px] text-center">48x40 Total</TableHead>
 
-                          <TableHead className="text-xs font-semibold">Large Odd</TableHead>
-                          <TableHead className="text-xs font-semibold">Small Odd</TableHead>
-                          <TableHead className="text-xs font-semibold">CHEP/PECO</TableHead>
-                          <TableHead className="text-xs font-semibold">Scrap Pull</TableHead>
-                          <TableHead className="text-xs font-semibold">Trash</TableHead>
-                          <TableHead className="text-xs font-semibold">Euro</TableHead>
-                          <TableHead className="text-xs font-semibold">Block</TableHead>
-                          <TableHead className="text-xs font-semibold">Stringer</TableHead>
-                          <TableHead className="text-xs font-semibold bg-green-50">Plastic</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px] text-center">Large Odd</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px] text-center">Small Odd</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[100px] text-center">CHEP/PECO</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px] text-center">Scrap Pull</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[80px] text-center">Trash</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">Euro</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">Block</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[80px] text-center">Stringer</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-green-50 w-[80px] text-center">Plastic</TableHead>
 
-                          <TableHead className="text-xs font-semibold">Bailed Cardboard</TableHead>
-                          <TableHead className="text-xs font-semibold">OCC</TableHead>
-                          <TableHead className="text-xs font-semibold">Boxes of Plastic</TableHead>
-                          <TableHead className="text-xs font-semibold">Bailed Plastic</TableHead>
-                          <TableHead className="text-xs font-semibold">Gaylords</TableHead>
-                          <TableHead className="text-xs font-semibold">Boxes</TableHead>
-                          <TableHead className="text-xs font-semibold">Tops</TableHead>
-                          <TableHead className="text-xs font-semibold">IBC Crates</TableHead>
-                          <TableHead className="text-xs font-semibold">Totes</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[120px] text-center">Bailed Cardboard</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">OCC</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[120px] text-center">Boxes of Plastic</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[110px] text-center">Bailed Plastic</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px] text-center">Gaylords</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">Boxes</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">Tops</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px] text-center">IBC Crates</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">Totes</TableHead>
 
-                          <TableHead className="text-xs font-semibold bg-green-100">Grand Total</TableHead>
-                          <TableHead className="text-xs font-semibold">Notes</TableHead>
-</TableRow>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-green-100 w-[110px] text-center">Grand Total</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[260px]">Notes</TableHead>
+                        </TableRow>
                       </TableHeader>
                       <TableBody>
                         {dateEntries.map((entry) => (
-                          <TableRow key={entry.id} className="hover:bg-slate-50">
-                            <TableCell className="font-medium text-sm">{entry.customer_name}</TableCell>
-                            <TableCell className="text-sm">{entry.trailer_number || '-'}</TableCell>
-                            <TableCell className="text-sm">{entry.counted_by || '-'}</TableCell>
-                            <TableCell className="text-sm">{entry.date_count_received || '-'}</TableCell>
-                            <TableCell className="text-sm">{entry.ash_pallet_ref || '-'}</TableCell>
-                            <TableCell className="text-sm">{entry.customer_ref || '-'}</TableCell>
+                          <TableRow
+                            key={entry.id}
+                            className="hover:bg-slate-50 cursor-pointer"
+                            onClick={() => openEdit(entry)}
+                          >
+                            <TableCell className="font-medium text-xs py-1 px-2 truncate">{entry.customer_name}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 truncate">{entry.trailer_number || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 truncate">{entry.counted_by || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 truncate">{entry.date_count_received || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 truncate">{entry.ash_pallet_ref || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 truncate">{entry.customer_ref || '-'}</TableCell>
 
-                            <TableCell className="text-sm bg-yellow-50 text-center">{displayDashIfZero(entry.pallet_48x40_1)}</TableCell>
-                            <TableCell className="text-sm bg-yellow-50 text-center">{displayDashIfZero(entry.pallet_48x40_2)}</TableCell>
-                            <TableCell className="text-sm font-semibold bg-yellow-100 text-center">{displayDashIfZero(calculate48x40Total(entry))}</TableCell>
+                            <TableCell className="py-1 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-slate-500 hover:text-red-600"
+                                onClick={() => deleteEntry(entry)}
+                                aria-label="Delete entry"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
 
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.large_odd)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.small_odd)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.chep_peco)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.scrap_pull)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.trash_pallets)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.euro_pallets)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.block_pallets)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.stringer_pallets)}</TableCell>
-                            <TableCell className="text-sm bg-green-50 text-center">{displayDashIfZero(entry.plastic_pallets)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 bg-yellow-50 text-center">{displayDashIfZero(entry.pallet_48x40_1)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 bg-yellow-50 text-center">{displayDashIfZero(entry.pallet_48x40_2)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 font-semibold bg-yellow-100 text-center">{displayDashIfZero(calculate48x40Total(entry))}</TableCell>
 
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.bailed_cardboard)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.occ)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.boxes_of_plastic)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.bailed_plastic)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.gaylords)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.boxes)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.tops)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.ibc_crates)}</TableCell>
-                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.totes)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.large_odd)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.small_odd)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.chep_peco)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.scrap_pull)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.trash_pallets)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.euro_pallets)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.block_pallets)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.stringer_pallets)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 bg-green-50 text-center">{displayDashIfZero(entry.plastic_pallets)}</TableCell>
 
-                            <TableCell className="text-sm font-semibold bg-green-100 text-center">{displayDashIfZero(calculateGrandTotal(entry))}</TableCell>
-                            <TableCell className="text-sm text-slate-500 max-w-[200px] truncate">{entry.notes || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.bailed_cardboard)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.occ)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.boxes_of_plastic)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.bailed_plastic)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.gaylords)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.boxes)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.tops)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.ibc_crates)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-center">{displayDashIfZero(entry.totes)}</TableCell>
+
+                            <TableCell className="text-xs py-1 px-2 font-semibold bg-green-100 text-center">{displayDashIfZero(calculateGrandTotal(entry))}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 text-slate-500 truncate">{entry.notes || '-'}</TableCell>
 </TableRow>
                         ))}
                       </TableBody>
@@ -303,6 +455,95 @@ const calculate48x40Total = (entry) => {
           </div>
         )}
       </div>
+
+      {/* Edit / Delete */}
+      <Dialog
+        open={editOpen}
+        onOpenChange={(v) => {
+          setEditOpen(v);
+          if (!v) setEditEntry(null);
+        }}
+      >
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Edit Inventory Entry</DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-[70vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Customer</Label>
+                <Input value={form.customer_name ?? ''} onChange={(e) => setField('customer_name', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Trailer #</Label>
+                <Input value={form.trailer_number ?? ''} onChange={(e) => setField('trailer_number', e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Counted By</Label>
+                <Input value={form.counted_by ?? ''} onChange={(e) => setField('counted_by', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Received Date</Label>
+                <Input type="date" value={safeYmd(form.date_count_received)} onChange={(e) => setField('date_count_received', e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Entry Date</Label>
+                <Input type="date" value={safeYmd(form.date)} onChange={(e) => setField('date', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Ash Pallet Ref</Label>
+                <Input value={form.ash_pallet_ref ?? ''} onChange={(e) => setField('ash_pallet_ref', e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Customer Ref</Label>
+                <Input value={form.customer_ref ?? ''} onChange={(e) => setField('customer_ref', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Input value={form.notes ?? ''} onChange={(e) => setField('notes', e.target.value)} />
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="text-sm font-semibold text-slate-700 mb-3">Counts</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {numericFields.map((k) => (
+                  <div key={k} className="space-y-1">
+                    <Label className="text-xs text-slate-600">{k.replaceAll('_', ' ')}</Label>
+                    <Input
+                      inputMode="numeric"
+                      value={form[k] ?? ''}
+                      onChange={(e) => setField(k, e.target.value)}
+                      className="h-9"
+                      placeholder="-"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => deleteEntry(editEntry)}
+              className="sm:mr-auto"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+              <Button type="button" onClick={saveEdit}>Save</Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
