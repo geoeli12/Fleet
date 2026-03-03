@@ -208,6 +208,56 @@ export default function DispatchLog() {
       // ignore
     }
   }, [region]);
+  const orderStorageKey = useMemo(() => {
+    const r = String(region || "IL").toUpperCase();
+    return `dispatch_order_${selectedDate}_${r}`;
+  }, [selectedDate, region]);
+
+  const [manualOrderIds, setManualOrderIds] = useState(() => {
+    try {
+      const raw = localStorage.getItem(orderStorageKey);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr.map(String) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(orderStorageKey);
+      const arr = raw ? JSON.parse(raw) : [];
+      setManualOrderIds(Array.isArray(arr) ? arr.map(String) : []);
+    } catch {
+      setManualOrderIds([]);
+    }
+  }, [orderStorageKey]);
+
+  const persistManualOrder = (ids) => {
+    const clean = (Array.isArray(ids) ? ids : []).map(String);
+    setManualOrderIds(clean);
+    try {
+      localStorage.setItem(orderStorageKey, JSON.stringify(clean));
+    } catch {
+      // ignore
+    }
+  };
+
+  const applyManualOrder = (list, orderIds) => {
+    const ids = Array.isArray(orderIds) ? orderIds.map(String) : [];
+    if (!ids.length) return list;
+
+    const pos = new Map(ids.map((id, i) => [String(id), i]));
+    return list
+      .map((item, idx) => ({ item, idx }))
+      .sort((a, b) => {
+        const ap = pos.has(String(a.item.id)) ? pos.get(String(a.item.id)) : 1e9 + a.idx;
+        const bp = pos.has(String(b.item.id)) ? pos.get(String(b.item.id)) : 1e9 + b.idx;
+        return ap - bp;
+      })
+      .map((x) => x.item);
+  };
+
   const queryClient = useQueryClient();
 
   const {
@@ -281,7 +331,7 @@ export default function DispatchLog() {
     // 1) Rows WITH a real BOL stay together (top section)
     // 2) Rows WITHOUT a real BOL stay together (bottom section)
     // 3) Within each section, keep the order stable by created_at (or id as fallback)
-    return filtered
+    const defaultSorted = filtered
       .slice()
       .sort((a, b) => {
         const aBol = hasRealBol(a);
@@ -298,7 +348,9 @@ export default function DispatchLog() {
         if (Number.isFinite(ai) && Number.isFinite(bi) && ai !== bi) return ai - bi;
         return 0;
       });
-  }, [uiLogs, selectedDate, searchTerm, region]);
+
+    return applyManualOrder(defaultSorted, manualOrderIds);
+  }, [uiLogs, selectedDate, searchTerm, region, manualOrderIds]);
 
   const logsForSummary = useMemo(() => {
     // Do NOT count rows without a real BOL in the status summary.
@@ -441,6 +493,11 @@ export default function DispatchLog() {
         ) : (
           <DispatchTable
             logs={filteredLogs}
+            reorderEnabled={!searchTerm}
+            onReorder={(nextLogs) => {
+              // Persist full order for this date/region (even if some rows are hidden by search later).
+              persistManualOrder((nextLogs || []).map((l) => String(l.id)));
+            }}
             onUpdate={(id, data) => updateMutation.mutateAsync({ id, data })}
             onDelete={(id) => deleteMutation.mutateAsync(id)}
           />
