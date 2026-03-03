@@ -213,8 +213,9 @@ const calculate48x40Total = (entry) => {
                       </div>
                     </div>
                   </CardHeader>
+                  {/* Per-date horizontal scroll (each date card scrolls independently) */}
                   <div className="overflow-x-auto">
-                    <Table>
+                    <Table className="min-w-[2400px]">
                       <TableHeader>
                         <TableRow className="bg-slate-50">
                           <TableHead className="text-xs font-semibold">Customer</TableHead>
@@ -227,11 +228,21 @@ const calculate48x40Total = (entry) => {
                           <TableHead className="text-xs font-semibold">Large Odd</TableHead>
                           <TableHead className="text-xs font-semibold">Small Odd</TableHead>
                           <TableHead className="text-xs font-semibold">CHEP/PECO</TableHead>
+                          <TableHead className="text-xs font-semibold">Scrap Pull</TableHead>
                           <TableHead className="text-xs font-semibold">Trash</TableHead>
                           <TableHead className="text-xs font-semibold">Euro</TableHead>
                           <TableHead className="text-xs font-semibold">Block</TableHead>
                           <TableHead className="text-xs font-semibold">Stringer</TableHead>
                           <TableHead className="text-xs font-semibold bg-green-50">Plastic</TableHead>
+                          <TableHead className="text-xs font-semibold">Bailed Cardboard</TableHead>
+                          <TableHead className="text-xs font-semibold">OCC</TableHead>
+                          <TableHead className="text-xs font-semibold">Boxes of Plastic</TableHead>
+                          <TableHead className="text-xs font-semibold">Bailed Plastic</TableHead>
+                          <TableHead className="text-xs font-semibold">Gaylords</TableHead>
+                          <TableHead className="text-xs font-semibold">Boxes</TableHead>
+                          <TableHead className="text-xs font-semibold">Tops</TableHead>
+                          <TableHead className="text-xs font-semibold">IBC Crates</TableHead>
+                          <TableHead className="text-xs font-semibold">Totes</TableHead>
                           <TableHead className="text-xs font-semibold bg-green-100">Grand Total</TableHead>
                           <TableHead className="text-xs font-semibold">Notes</TableHead>
                         </TableRow>
@@ -249,11 +260,21 @@ const calculate48x40Total = (entry) => {
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.large_odd)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.small_odd)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.chep_peco)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.scrap_pull)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.trash_pallets)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.euro_pallets)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.block_pallets)}</TableCell>
                             <TableCell className="text-sm text-center">{displayDashIfZero(entry.stringer_pallets)}</TableCell>
                             <TableCell className="text-sm bg-green-50 text-center">{displayDashIfZero(entry.plastic_pallets)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.bailed_cardboard)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.occ)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.boxes_of_plastic)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.bailed_plastic)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.gaylords)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.boxes)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.tops)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.ibc_crates)}</TableCell>
+                            <TableCell className="text-sm text-center">{displayDashIfZero(entry.totes)}</TableCell>
                             <TableCell className="text-sm font-semibold bg-green-100 text-center">{displayDashIfZero(calculateGrandTotal(entry))}</TableCell>
                             <TableCell className="text-sm text-slate-500 max-w-[200px] truncate">{entry.notes || '-'}</TableCell>
                           </TableRow>
