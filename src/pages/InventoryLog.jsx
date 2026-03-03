@@ -351,43 +351,43 @@ export default function InventoryLogPage() {
                     </div>
                   </CardHeader>
                   <div className="overflow-x-auto pb-2">
-                    <Table className="min-w-[5200px] whitespace-nowrap table-fixed">
+                    <Table className="w-full whitespace-nowrap table-auto">
                       <TableHeader>
                         <TableRow className="bg-slate-50">
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[220px]">Customer</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[110px]">Trailer #</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px]">Counted By</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[130px]">Received Date</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[130px]">Ash Pallet Ref</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[130px]">Customer Ref</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[44px] text-center"> </TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 max-w-[240px]">Customer</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2">Trailer #</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2">Counted By</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2">Received Date</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2">Ash Pallet Ref</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2">Customer Ref</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center"> </TableHead>
 
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-50 w-[90px] text-center">48x40 #1</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-50 w-[90px] text-center">48x40 #2</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-100 w-[100px] text-center">48x40 Total</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-50 text-center">48x40 #1</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-50 text-center">48x40 #2</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-yellow-100 text-center">48x40 Total</TableHead>
 
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px] text-center">Large Odd</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px] text-center">Small Odd</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[100px] text-center">CHEP/PECO</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px] text-center">Scrap Pull</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[80px] text-center">Trash</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">Euro</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">Block</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[80px] text-center">Stringer</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-green-50 w-[80px] text-center">Plastic</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Large Odd</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Small Odd</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">CHEP/PECO</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Scrap Pull</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Trash</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Euro</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Block</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Stringer</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-green-50 text-center">Plastic</TableHead>
 
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[120px] text-center">Bailed Cardboard</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">OCC</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[120px] text-center">Boxes of Plastic</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[110px] text-center">Bailed Plastic</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px] text-center">Gaylords</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">Boxes</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">Tops</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[90px] text-center">IBC Crates</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[70px] text-center">Totes</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Bailed Cardboard</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">OCC</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Boxes of Plastic</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Bailed Plastic</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Gaylords</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Boxes</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Tops</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">IBC Crates</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 text-center">Totes</TableHead>
 
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-green-100 w-[110px] text-center">Grand Total</TableHead>
-                          <TableHead className="text-[11px] font-semibold py-1 px-2 w-[260px]">Notes</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2 bg-green-100 text-center">Grand Total</TableHead>
+                          <TableHead className="text-[11px] font-semibold py-1 px-2">Notes</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
