@@ -108,6 +108,8 @@ export default function Schedule() {
   const [formData, setFormData] = useState({
     driver_name: "",
     unit_number: "",
+    trailer: "",
+    pu_trailer: "",
     customer: "",
     address: "",
     show_address: true,
@@ -115,12 +117,13 @@ export default function Schedule() {
   });
 
   const [customerQuery, setCustomerQuery] = useState("");
+  const [customerSuggestOpen, setCustomerSuggestOpen] = useState(false);
   const customerSuggestions = useMemo(() => {
-    const q = norm(customerQuery || formData.customer);
+    const q = norm(customerQuery);
     if (!q) return [];
     const hits = (customers || []).filter((c) => norm(c.customer).includes(q));
     return hits.slice(0, 8);
-  }, [customers, customerQuery, formData.customer]);
+  }, [customers, customerQuery]);
 
   const handlePickCustomer = (cust) => {
     const name = String(cust?.customer ?? "").trim();
@@ -131,6 +134,7 @@ export default function Schedule() {
       address: addr || p.address,
     }));
     setCustomerQuery("");
+    setCustomerSuggestOpen(false);
   };
 
   const handleAddDriver = async () => {
@@ -143,6 +147,8 @@ export default function Schedule() {
       entry_id: makeEntryId(),
       driver_name: formData.driver_name,
       unit_number: formData.unit_number || "",
+      trailer: formData.trailer || "",
+      pu_trailer: formData.pu_trailer || "",
       customer: formData.customer || "",
       address: formData.address || "",
       show_address: !!formData.show_address,
@@ -167,12 +173,15 @@ export default function Schedule() {
     setFormData({
       driver_name: "",
       unit_number: "",
+      trailer: "",
+      pu_trailer: "",
       customer: "",
       address: "",
       show_address: true,
       notes: "",
     });
     setCustomerQuery("");
+    setCustomerSuggestOpen(false);
   };
 
   const handleDeleteEntry = (entryId) => {
@@ -310,22 +319,34 @@ export default function Schedule() {
                       <div className="space-y-2 relative">
                         <Label className="text-white/80">Customer</Label>
                         <Input
-                          value={customerQuery || formData.customer}
+                          value={formData.customer}
+                          onFocus={() => {
+                            if ((customerQuery || "").trim().length > 0) setCustomerSuggestOpen(true);
+                          }}
+                          onBlur={() => {
+                            // Delay closing so clicks on suggestions still register
+                            setTimeout(() => setCustomerSuggestOpen(false), 120);
+                          }}
                           onChange={(e) => {
-                            setCustomerQuery(e.target.value);
-                            setFormData((prev) => ({ ...prev, customer: e.target.value }));
+                            const val = e.target.value;
+                            setFormData((prev) => ({ ...prev, customer: val }));
+                            setCustomerQuery(val);
+                            setCustomerSuggestOpen(val.trim().length > 0);
                           }}
                           placeholder="Customer name"
                           className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
                         />
 
-                        {customerSuggestions.length > 0 && (
+                        {customerSuggestOpen && customerSuggestions.length > 0 && (
                           <div className="absolute z-50 mt-1 w-full rounded-xl border border-white/10 bg-black/90 backdrop-blur-xl overflow-hidden">
                             {customerSuggestions.map((c) => (
                               <button
                                 type="button"
                                 key={String(c.id)}
-                                onClick={() => handlePickCustomer(c)}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  handlePickCustomer(c);
+                                }}
                                 className="w-full text-left px-3 py-2 text-sm text-white/90 hover:bg-white/10"
                               >
                                 <div className="font-medium">{c.customer}</div>
@@ -356,6 +377,29 @@ export default function Schedule() {
                           placeholder="e.g. 123 Main St, Chicago, IL"
                           className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
                         />
+                      </div>
+
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-white/80">Trailer</Label>
+                          <Input
+                            value={formData.trailer}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, trailer: e.target.value }))}
+                            placeholder="e.g. 12345"
+                            className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-white/80">P/U Trailer</Label>
+                          <Input
+                            value={formData.pu_trailer}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, pu_trailer: e.target.value }))}
+                            placeholder="e.g. 67890"
+                            className="bg-black/20 border-white/10 text-white placeholder:text-white/40"
+                          />
+                        </div>
                       </div>
 
                       <div className="space-y-2">
@@ -399,7 +443,7 @@ export default function Schedule() {
                               <div className="min-w-0">
                                 <div className="text-white font-medium">{s.driver_name}</div>
                                 <div className="text-white/60 text-sm">
-                                  Unit: {s.unit_number || "—"} • Customer: {s.customer || "—"}
+                                  Unit: {s.unit_number || "—"} • Trailer: {s.trailer || "—"} • P/U Trailer: {s.pu_trailer || "—"} • Customer: {s.customer || "—"}
                                 </div>
                                 {s.show_address ? (
                                   <div className="text-white/60 text-sm mt-1">
