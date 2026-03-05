@@ -65,6 +65,7 @@ import FuelHistory from './pages/FuelHistory';
 import AddReading from './pages/AddReading';
 import AddRefill from './pages/AddRefill';
 import DispatchLog from './pages/DispatchLog';
+import DailyOrders from './pages/DailyOrders';
 import LoadHistory from './pages/LoadHistory';
 import PickUps from './pages/PickUps';
 import PickupHistory from './pages/PickupHistory';
@@ -84,6 +85,7 @@ export const PAGES = {
     "CustomersPA": CustomersPA,
     "Schedule": Schedule,
     "DispatchLog": DispatchLog,
+    "DailyOrders": DailyOrders,
     "LoadHistory": LoadHistory,
     "PickUps": PickUps,
     "PickupHistory": PickupHistory,
