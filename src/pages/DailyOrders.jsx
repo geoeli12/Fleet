@@ -68,7 +68,7 @@ const numericKeys = [
 
 const emptyForm = {
   date: "",
-  customer: "",
+  company: "",
   ht: "",
   pallet_1_6: "",
   pallet_1_reg: "",
@@ -135,14 +135,8 @@ function safeNumOrBlank(v) {
 }
 
 function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
-  // Sheet layout to mimic your screenshot:
-  // - Data starts at column B (so A is blank)
-  // - Header row at row 3
-  // - Orders start at row 4
-  // - Day name at B2, Date at C2
-
   const headers = [
-    "Customer",
+    "Company",
     "HT",
     "#1.6",
     "#1 Reg",
@@ -157,16 +151,9 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
   ];
 
   const wb = XLSX.utils.book_new();
-
-  // Build AOA with blank col A so table begins in col B.
   const aoa = [];
-
-  // Row 1 (blank)
   aoa.push([""]);
 
-  // Row 2 (top header area)
-  // Put dayName in column B and date in column C
-  // A=0, B=1, C=2
   const row2 = new Array(13).fill("");
   row2[1] = dayName || ""; // B
   let prettyDate = "";
@@ -179,10 +166,8 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
   row2[2] = prettyDate; // C
   aoa.push(row2);
 
-  // Row 3 (headers) starting at col B -> so first element is blank for col A
   aoa.push(["", ...headers]);
 
-  // Totals for columns D..I (#1.6..Customs Count)
   let t1_6 = 0;
   let t1_reg = 0;
   let t2_prem = 0;
@@ -190,9 +175,7 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
   let t2x4 = 0;
   let tCustoms = 0;
 
-  // Rows 4+ (data)
   for (const o of orders) {
-    // accumulate totals (treat blanks as 0)
     t1_6 += Number(o?.pallet_1_6 ?? 0) || 0;
     t1_reg += Number(o?.pallet_1_reg ?? 0) || 0;
     t2_prem += Number(o?.pallet_2_prem ?? 0) || 0;
@@ -201,8 +184,8 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
     tCustoms += Number(o?.customs_count ?? 0) || 0;
 
     aoa.push([
-      "", // col A blank
-      o.customer || "",
+      "",
+      o.customer || "", // DailyOrder table column is still "customer"
       o.ht || "",
       safeNumOrBlank(o.pallet_1_6),
       safeNumOrBlank(o.pallet_1_reg),
@@ -217,9 +200,8 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
     ]);
   }
 
-  // TOTAL row (sums columns D..I)
   aoa.push([
-    "", // col A blank
+    "",
     "TOTAL",
     "",
     t1_6,
@@ -236,27 +218,25 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-  // Column widths (B..N)
   ws["!cols"] = [
-    { wch: 2 }, // A (blank)
-    { wch: 18 }, // B Customer
-    { wch: 14 }, // C HT
-    { wch: 8 }, // D #1.6
-    { wch: 10 }, // E #1 Reg
-    { wch: 10 }, // F #2 Prem
-    { wch: 10 }, // G #2 Reg
-    { wch: 8 }, // H 2x4
-    { wch: 14 }, // I Customs Count
-    { wch: 10 }, // J Bol #
-    { wch: 12 }, // K PO #
-    { wch: 16 }, // L Type
-    { wch: 34 }, // M Notes
-    { wch: 12 }, // N top date cell (only used in row 2)
+    { wch: 2 },
+    { wch: 18 }, // Company
+    { wch: 14 }, // HT
+    { wch: 8 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 8 },
+    { wch: 14 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 16 },
+    { wch: 34 },
+    { wch: 12 },
   ];
 
   const border = mkBorder();
 
-  // Style: top header (B2, C2)
   setCell(ws, "B2", dayName || "", {
     font: { bold: true, sz: 14 },
     alignment: { horizontal: "center", vertical: "center" },
@@ -266,9 +246,8 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
     alignment: { horizontal: "center", vertical: "center" },
   });
 
-  // Style header row (row 3, columns B..M i.e. 12 headers)
   for (let i = 0; i < headers.length; i++) {
-    const col = XLSX.utils.encode_col(1 + i); // 1=B since A=0
+    const col = XLSX.utils.encode_col(1 + i);
     const addr = `${col}3`;
     setCell(ws, addr, headers[i], {
       font: { bold: true },
@@ -277,16 +256,15 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
     });
   }
 
-  // Style table body borders + Type fill (Type column is L)
   const startRow = 4;
-  const endRow = Math.max(4, 3 + orders.length + 1); // last data row index (includes TOTAL row)
-  const firstCol = 1; // B
-  const lastCol = 12; // M (Notes)
-  const typeCol = 11; // L
+  const endRow = Math.max(4, 3 + orders.length + 1);
+  const firstCol = 1;
+  const lastCol = 12;
+  const typeCol = 11;
 
   for (let r = startRow; r <= endRow; r++) {
     for (let c = firstCol; c <= lastCol; c++) {
-      const addr = XLSX.utils.encode_cell({ r: r - 1, c }); // 0-based
+      const addr = XLSX.utils.encode_cell({ r: r - 1, c });
       const existing = ws[addr] || { v: "" };
       const isType = c === typeCol;
       ws[addr] = {
@@ -302,8 +280,7 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
     }
   }
 
-  // Style TOTAL row: bold + thicker top border across D..I (and keep borders consistent)
-  const totalRow = 3 + orders.length + 1; // 1-based row number in sheet
+  const totalRow = 3 + orders.length + 1;
   const thickTop = {
     top: { style: "medium", color: { rgb: "000000" } },
     bottom: { style: "thin", color: { rgb: "000000" } },
@@ -312,10 +289,10 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
   };
 
   for (let c = firstCol; c <= lastCol; c++) {
-    const addr = XLSX.utils.encode_cell({ r: totalRow - 1, c }); // 0-based row
+    const addr = XLSX.utils.encode_cell({ r: totalRow - 1, c });
     const existing = ws[addr] || { v: "" };
     const isType = c === typeCol;
-    const inSumCols = c >= 3 && c <= 8; // D..I
+    const inSumCols = c >= 3 && c <= 8;
     ws[addr] = {
       ...existing,
       s: {
@@ -328,9 +305,8 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
     };
   }
 
-  // Set sheet range properly
   const range = XLSX.utils.decode_range(ws["!ref"] || "A1:A1");
-  range.e.c = Math.max(range.e.c, 13); // include N (col 13)
+  range.e.c = Math.max(range.e.c, 13);
   range.e.r = Math.max(range.e.r, endRow - 1);
   ws["!ref"] = XLSX.utils.encode_range(range);
 
@@ -351,7 +327,6 @@ export default function DailyOrders() {
 
   const ymd = useMemo(() => toYmd(selectedDate), [selectedDate]);
 
-  // Region toggle for this page (drives badge + customer suggestion priority + dispatch_orders insert)
   const [activeRegion, setActiveRegion] = useState("IL");
 
   const regionBadgeClass =
@@ -393,13 +368,12 @@ export default function DailyOrders() {
   }, [orders]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [mode, setMode] = useState("add"); // add | edit
+  const [mode, setMode] = useState("add");
   const [activeOrder, setActiveOrder] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
-  // Customer suggestion (same behavior as Invoice)
-  const [customerFocused, setCustomerFocused] = useState(false);
-  const ignoreCustomerBlurRef = useRef(false);
+  const [companyFocused, setCompanyFocused] = useState(false);
+  const ignoreCompanyBlurRef = useRef(false);
 
   const { data: rawCustomersIL } = useQuery({
     queryKey: ["customersIL"],
@@ -452,16 +426,14 @@ export default function DailyOrders() {
       .toString()
       .trim()
       .toLowerCase()
-      // Strip leading numeric IDs like "137 " from customer names
       .replace(/^\d+\s+/, "")
       .replace(/^[-–—\s]+/, "")
       .trim();
 
-  const findCustomerMatch = (customerName) => {
-    const q = normalizeCustomerKey(customerName);
+  const findCustomerMatch = (companyName) => {
+    const q = normalizeCustomerKey(companyName);
     if (!q) return null;
 
-    // Prefer current region first
     const inRegion = customerDirectory.filter((r) => (r.region || "IL") === activeRegion);
 
     return (
@@ -475,20 +447,20 @@ export default function DailyOrders() {
     );
   };
 
-  const getDockHoursForCustomer = (customerName) => {
-    const match = findCustomerMatch(customerName);
+  const getDockHoursForCustomer = (companyName) => {
+    const match = findCustomerMatch(companyName);
     if (!match) return "";
     return (match.receivingHours || match.receivingNotes || "").trim();
   };
 
-  const getEtaForCustomer = (customerName) => {
-    const match = findCustomerMatch(customerName);
+  const getEtaForCustomer = (companyName) => {
+    const match = findCustomerMatch(companyName);
     if (!match) return "";
     return (match.eta || "").trim();
   };
 
-  const getAddressForCustomer = (customerName) => {
-    const match = findCustomerMatch(customerName);
+  const getAddressForCustomer = (companyName) => {
+    const match = findCustomerMatch(companyName);
     if (!match) return "";
     return (match.address || "").trim();
   };
@@ -497,14 +469,12 @@ export default function DailyOrders() {
     const dock = (row?.receivingHours || row?.receivingNotes || "").trim();
     const pickedRegion = (row?.region || activeRegion || "IL").toString().trim().toUpperCase();
 
-    // My opinion: switching region automatically when you pick a customer is the least confusing behavior.
-    // If you don't want that, remove the next line.
     if (pickedRegion && pickedRegion !== activeRegion) setActiveRegion(pickedRegion);
 
     setForm((prev) => ({
       ...prev,
       region: pickedRegion || prev.region,
-      customer: row?.customer || prev.customer,
+      company: row?.customer || prev.company,
       address: (row?.address || "").trim(),
       dock_hours: dock || "",
       eta: (row?.eta || "").trim() || "",
@@ -512,15 +482,15 @@ export default function DailyOrders() {
   };
 
   const tryAutoFillFromCustomer = () => {
-    const customerName = String(form.customer || "").trim();
-    if (!customerName) return;
+    const companyName = String(form.company || "").trim();
+    if (!companyName) return;
 
-    const match = findCustomerMatch(customerName);
-    const addr = match ? (match.address || "").trim() : getAddressForCustomer(customerName);
+    const match = findCustomerMatch(companyName);
+    const addr = match ? (match.address || "").trim() : getAddressForCustomer(companyName);
     const dock = match
       ? (match.receivingHours || match.receivingNotes || "").trim()
-      : getDockHoursForCustomer(customerName);
-    const eta = match ? (match.eta || "").trim() : getEtaForCustomer(customerName);
+      : getDockHoursForCustomer(companyName);
+    const eta = match ? (match.eta || "").trim() : getEtaForCustomer(companyName);
 
     if (!addr && !dock && !eta && !match) return;
 
@@ -538,15 +508,14 @@ export default function DailyOrders() {
     }));
   };
 
-  const customerMatches = useMemo(() => {
-    const q = (form.customer || "").trim().toLowerCase();
+  const companyMatches = useMemo(() => {
+    const q = (form.company || "").trim().toLowerCase();
     if (!q) return [];
 
     const matches = customerDirectory.filter((c) =>
       String(c?.customer || "").toLowerCase().includes(q)
     );
 
-    // Prefer active region first (same logic as AddDispatchForm)
     matches.sort((a, b) => {
       const aPri = (a.region || "IL") === activeRegion ? 0 : 1;
       const bPri = (b.region || "IL") === activeRegion ? 0 : 1;
@@ -557,7 +526,7 @@ export default function DailyOrders() {
     });
 
     return matches.slice(0, 10);
-  }, [form.customer, customerDirectory, activeRegion]);
+  }, [form.company, customerDirectory, activeRegion]);
 
   const dayName = useMemo(() => {
     try {
@@ -580,7 +549,7 @@ export default function DailyOrders() {
 
     const next = { ...emptyForm };
     next.date = safeYmd(order?.date) || ymd;
-    next.customer = order?.customer ?? "";
+    next.company = order?.customer ?? "";
     next.ht = order?.ht ?? "";
     next.bol_number = order?.bol_number ?? "";
     next.po_number = order?.po_number ?? "";
@@ -592,14 +561,12 @@ export default function DailyOrders() {
       next[k] = v === null || v === undefined ? "" : String(v);
     }
 
-    // UI-only
     next.address = "";
     next.dock_hours = "";
     next.eta = "";
 
-    // Set region based on toggle first, then try to infer from customer match
     next.region = activeRegion || "IL";
-    const inferred = findCustomerMatch(next.customer);
+    const inferred = findCustomerMatch(next.company);
     if (inferred?.region) next.region = String(inferred.region).trim().toUpperCase();
 
     setForm(next);
@@ -607,23 +574,20 @@ export default function DailyOrders() {
   };
 
   useEffect(() => {
-    // If the user changes the date while dialog is open in "add" mode, keep the form date synced.
     if (!dialogOpen) return;
     if (mode !== "add") return;
     setForm((p) => ({ ...p, date: ymd }));
   }, [ymd, dialogOpen, mode]);
 
-  // If region toggle changes while add dialog is open, keep it synced (but don't stomp a picked customer region)
   useEffect(() => {
     if (!dialogOpen) return;
     if (mode !== "add") return;
     setForm((p) => ({ ...p, region: p.region || activeRegion || "IL" }));
   }, [activeRegion, dialogOpen, mode]);
 
-  // When dialog is open, auto-fill Address / Dock Hours / ETA if customer matches and fields are empty
   useEffect(() => {
     if (!dialogOpen) return;
-    if (!String(form.customer || "").trim()) return;
+    if (!String(form.company || "").trim()) return;
     if (
       String(form.address || "").trim() &&
       String(form.dock_hours || "").trim() &&
@@ -633,14 +597,15 @@ export default function DailyOrders() {
     }
     tryAutoFillFromCustomer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.customer, customerDirectory, activeRegion]);
+  }, [dialogOpen, form.company, customerDirectory, activeRegion]);
 
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   const buildPayload = () => {
+    // DailyOrder table column stays as "customer" in Supabase
     const payload = {
       date: safeYmd(form.date) || ymd,
-      customer: String(form.customer ?? "").trim() || null,
+      customer: String(form.company ?? "").trim() || null,
       ht: String(form.ht ?? "").trim() || null,
       bol_number: String(form.bol_number ?? "").trim() || null,
       po_number: String(form.po_number ?? "").trim() || null,
@@ -653,24 +618,16 @@ export default function DailyOrders() {
   };
 
   const buildDispatchOrderPayload = () => {
-    // IMPORTANT:
-    // You asked to create a record in supabase table dispatch_orders like AddDispatchForm does.
-    // We only do this on ADD (not on EDIT) and we do NOT add any new columns to DailyOrder.
-    //
-    // Mapping:
-    // - dispatch_orders.company  <- DailyOrder.customer
-    // - dispatch_orders.item     <- DailyOrder.type
-    // - dispatch_orders.bol      <- DailyOrder.bol_number
-    // - dispatch_orders.notes    <- DailyOrder.notes
-    // - dispatch_orders.dock_hours <- UI-only dock_hours
-    // - dispatch_orders.eta      <- UI-only eta
-    // - dispatch_orders.region   <- activeRegion / inferred region
-    // - trailer_number, delivered_by left blank (not part of daily order dialog right now)
     const region = (form.region || activeRegion || "IL").toString().trim().toUpperCase();
+    const company = String(form.company ?? "").trim() || null;
+
+    // Best compatibility: send BOTH keys. This prevents Supabase rejecting inserts
+    // whether your dispatch_orders table uses "customer" OR "company".
     return {
       date: safeYmd(form.date) || ymd,
       region,
-      company: String(form.customer ?? "").trim() || null,
+      company,
+      customer: company,
       trailer_number: null,
       notes: String(form.notes ?? "").trim() || null,
       dock_hours: String(form.dock_hours ?? "").trim() || null,
@@ -688,10 +645,9 @@ export default function DailyOrders() {
       if (mode === "add") {
         await api.entities.DailyOrder.create(payload);
 
-        // Also create dispatch_orders row (best-effort; don't block daily save if this fails)
         try {
           const dispatchPayload = buildDispatchOrderPayload();
-          if (dispatchPayload.company) {
+          if (dispatchPayload.company || dispatchPayload.customer) {
             await api.entities.DispatchOrder.create(dispatchPayload);
           }
         } catch (e) {
@@ -799,7 +755,6 @@ export default function DailyOrders() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {/* Region toggle (IL / PA) */}
                 <div className="flex items-center gap-2 rounded-2xl bg-white/80 ring-1 ring-black/10 px-2 py-2 shadow-sm">
                   <Button
                     type="button"
@@ -853,7 +808,7 @@ export default function DailyOrders() {
               <Table className="table-auto min-w-[1200px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="whitespace-nowrap">Customer</TableHead>
+                    <TableHead className="whitespace-nowrap">Company</TableHead>
                     <TableHead className="whitespace-nowrap">HT</TableHead>
                     <TableHead className="whitespace-nowrap">#1.6</TableHead>
                     <TableHead className="whitespace-nowrap">#1 Reg</TableHead>
@@ -943,7 +898,9 @@ export default function DailyOrders() {
                 {mode === "add" ? "New Daily Order" : "Edit Daily Order"}
               </DialogTitle>
 
-              <Badge className={`rounded-full px-3 py-1 text-xs font-semibold border-0 ${regionBadgeClass}`}>
+              <Badge
+                className={`rounded-full px-3 py-1 text-xs font-semibold border-0 ${regionBadgeClass}`}
+              >
                 {activeRegion}
               </Badge>
             </div>
@@ -961,45 +918,44 @@ export default function DailyOrders() {
                 />
               </div>
 
-              {/* Customer with suggestion dropdown */}
               <div className="space-y-2 relative">
-                <Label>Customer</Label>
+                <Label>Company</Label>
                 <Input
-                  value={form.customer}
-                  onChange={(e) => setField("customer", e.target.value)}
-                  onFocus={() => setCustomerFocused(true)}
+                  value={form.company}
+                  onChange={(e) => setField("company", e.target.value)}
+                  onFocus={() => setCompanyFocused(true)}
                   onBlur={() => {
-                    if (ignoreCustomerBlurRef.current) {
-                      ignoreCustomerBlurRef.current = false;
+                    if (ignoreCompanyBlurRef.current) {
+                      ignoreCompanyBlurRef.current = false;
                       return;
                     }
                     tryAutoFillFromCustomer();
-                    setCustomerFocused(false);
+                    setCompanyFocused(false);
                   }}
                   placeholder="Uline - 16"
                   className="rounded-2xl"
                   autoComplete="off"
                 />
 
-                {customerFocused && customerMatches.length > 0 && (
+                {companyFocused && companyMatches.length > 0 && (
                   <div
                     className="absolute z-30 mt-1 left-0 right-0 bg-white border border-black/10 rounded-xl shadow-lg overflow-hidden"
                     onMouseDown={() => {
-                      ignoreCustomerBlurRef.current = true;
+                      ignoreCompanyBlurRef.current = true;
                     }}
                     onMouseUp={() => {
-                      ignoreCustomerBlurRef.current = false;
+                      ignoreCompanyBlurRef.current = false;
                     }}
                   >
                     <div className="max-h-64 overflow-auto">
-                      {customerMatches.map((c) => (
+                      {companyMatches.map((c) => (
                         <button
                           type="button"
                           key={c._key ?? c.id ?? c.customer}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50"
                           onClick={() => {
                             applyCustomerPick(c);
-                            setCustomerFocused(false);
+                            setCompanyFocused(false);
                           }}
                         >
                           <div className="flex items-center justify-between gap-3">
@@ -1026,7 +982,6 @@ export default function DailyOrders() {
                 )}
               </div>
 
-              {/* Address / Dock Hours / ETA (UI-only) */}
               <div className="space-y-2 md:col-span-2">
                 <Label>Address</Label>
                 <Textarea
