@@ -311,7 +311,7 @@ for (let c = firstCol; c <= lastCol; c++) {
   const addr = XLSX.utils.encode_cell({ r: totalRow - 1, c }); // 0-based row
   const existing = ws[addr] || { v: "" };
   const isType = c === typeCol;
-  const inSumCols = c >= 3 && c <= 8; // D..I
+  const inSumCols = c >= 1 && c <= 12; // B..M..D(3)..I(8)
   ws[addr] = {
     ...existing,
     s: {
