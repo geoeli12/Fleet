@@ -157,27 +157,42 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
   aoa.push([""]);
 
   // Row 2 (top header area)
-  // Put dayName in col M, date in col N (A=1 ... M=13, N=14)
-  // We'll build a row with 14 columns (A..N), index 0..13
-  const row2 = new Array(14).fill("");
-  row2[12] = dayName || ""; // M
-  // format date like 3/5/2026 (no leading zero)
-  let prettyDate = "";
-  try {
-    const [yy, mm, dd] = String(ymd).split("-").map((x) => Number(x));
-    if (yy && mm && dd) prettyDate = `${mm}/${dd}/${yy}`;
-  } catch {
-    prettyDate = ymd || "";
-  }
-  row2[13] = prettyDate; // N
-  aoa.push(row2);
+// Put dayName in column B and date in column C
+// A=0, B=1, C=2
+const row2 = new Array(13).fill("");
+row2[1] = dayName || ""; // B
+let prettyDate = "";
+try {
+  const [yy, mm, dd] = String(ymd).split("-").map((x) => Number(x));
+  if (yy && mm && dd) prettyDate = `${mm}/${dd}/${yy}`;
+} catch {
+  prettyDate = ymd || "";
+}
+row2[2] = prettyDate; // C
+aoa.push(row2);
 
   // Row 3 (headers) starting at col B -> so first element is blank for col A
   aoa.push(["", ...headers]);
 
-  // Rows 4+ (data)
-  for (const o of orders) {
-    aoa.push([
+  // Totals for columns D..I (#1.6..Customs Count)
+  let t1_6 = 0;
+  let t1_reg = 0;
+  let t2_prem = 0;
+  let t2_reg = 0;
+  let t2x4 = 0;
+  let tCustoms = 0;
+
+// Rows 4+ (data)
+for (const o of orders) {
+  // accumulate totals (treat blanks as 0)
+  t1_6 += Number(o?.pallet_1_6 ?? 0) || 0;
+  t1_reg += Number(o?.pallet_1_reg ?? 0) || 0;
+  t2_prem += Number(o?.pallet_2_prem ?? 0) || 0;
+  t2_reg += Number(o?.pallet_2_reg ?? 0) || 0;
+  t2x4 += Number(o?.pallet_2x4 ?? 0) || 0;
+  tCustoms += Number(o?.customs_count ?? 0) || 0;
+
+  aoa.push([
       "", // col A blank
       o.customer || "",
       o.ht || "",
@@ -192,9 +207,26 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
       o.type || "",
       o.notes || "",
     ]);
-  }
+}
 
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
+// TOTAL row (sums columns D..I)
+aoa.push([
+  "", // col A blank
+  "TOTAL",
+  "",
+  t1_6,
+  t1_reg,
+  t2_prem,
+  t2_reg,
+  t2x4,
+  tCustoms,
+  "",
+  "",
+  "",
+  "",
+]);
+
+const ws = XLSX.utils.aoa_to_sheet(aoa);
 
   // Column widths (B..N)
   ws["!cols"] = [
@@ -217,11 +249,11 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
   const border = mkBorder();
 
   // Style: top header (M2, N2)
-  setCell(ws, "M2", dayName || "", {
+  setCell(ws, "B2", dayName || "", {
     font: { bold: true, sz: 14 },
     alignment: { horizontal: "center", vertical: "center" },
   });
-  setCell(ws, "N2", prettyDate || "", {
+  setCell(ws, "C2", prettyDate || "", {
     font: { bold: true, sz: 14 },
     alignment: { horizontal: "center", vertical: "center" },
   });
@@ -241,7 +273,7 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
   // Our Type is at column L in the sheet: headers[10] is "Type"
   // That maps to: A blank, B customer (1), ... L type (11), M notes (12)
   const startRow = 4;
-  const endRow = Math.max(4, 3 + orders.length); // last data row index
+  const endRow = Math.max(4, 3 + orders.length + 1); // last data row index (includes TOTAL row)
   const firstCol = 1; // B
   const lastCol = 12; // M (Notes)
   const typeCol = 11; // L
@@ -263,6 +295,34 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
       };
     }
   }
+
+
+// Style TOTAL row: bold + thicker top border across D..I (and keep borders consistent)
+const totalRow = 3 + orders.length + 1; // 1-based row number in sheet (row 3 headers + orders + total)
+const thickTop = {
+  top: { style: "medium", color: { rgb: "000000" } },
+  bottom: { style: "thin", color: { rgb: "000000" } },
+  left: { style: "thin", color: { rgb: "000000" } },
+  right: { style: "thin", color: { rgb: "000000" } },
+};
+
+// Bold the entire TOTAL row B..M; make D..I have thick top border like Excel totals
+for (let c = firstCol; c <= lastCol; c++) {
+  const addr = XLSX.utils.encode_cell({ r: totalRow - 1, c }); // 0-based row
+  const existing = ws[addr] || { v: "" };
+  const isType = c === typeCol;
+  const inSumCols = c >= 3 && c <= 8; // D..I
+  ws[addr] = {
+    ...existing,
+    s: {
+      ...(existing.s || {}),
+      border: inSumCols ? thickTop : border,
+      font: { bold: true },
+      alignment: { vertical: "center", wrapText: c === lastCol },
+      ...(isType ? { fill: { patternType: "solid", fgColor: { rgb: "DDEBF7" } } } : {}),
+    },
+  };
+}
 
   // Set sheet range properly
   const range = XLSX.utils.decode_range(ws["!ref"] || "A1:A1");
