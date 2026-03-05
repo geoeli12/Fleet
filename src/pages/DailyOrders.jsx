@@ -99,7 +99,7 @@ export default function DailyOrders() {
     queryKey: ["dailyOrders", ymd],
     queryFn: async () => {
       try {
-        const res = await api.entities.DailyOrder.filter({ date: ymd }, "-created_at");
+        const res = await api.entities.DailyOrder.filter({ date: ymd }, "created_at");
         return unwrapListResult(res);
       } catch {
         return [];
