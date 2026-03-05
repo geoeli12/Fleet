@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, subDays } from "date-fns";
 import { api } from "@/api/apiClient";
@@ -76,32 +76,6 @@ const emptyForm = {
   type: "",
   notes: "",
 };
-
-function useLocalStorageState(key, initialValue) {
-  const [state, setState] = useState(() => {
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw === null || raw === undefined || raw === "") return initialValue;
-      return JSON.parse(raw);
-    } catch {
-      return initialValue;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(key, JSON.stringify(state));
-    } catch {
-      // ignore
-    }
-  }, [key, state]);
-
-  return [state, setState];
-}
-
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
-}
 
 function Stat({ label, value }) {
   return (
@@ -258,126 +232,10 @@ export default function DailyOrders() {
     }
   };
 
-  // ---- UI customization (persisted) ----
-  const [panelSize, setPanelSize] = useLocalStorageState("dailyOrders_panelSize_v1", {
-    w: null,
-    h: null,
-  });
-
-  const [tableFontPx, setTableFontPx] = useLocalStorageState("dailyOrders_tableFontPx_v1", 14);
-
-  const defaultCols = useMemo(
-    () => [
-      { key: "customer", label: "Customer", min: 180, w: 220 },
-      { key: "ht", label: "HT", min: 110, w: 140 },
-      { key: "pallet_1_6", label: "#1.6", min: 90, w: 95 },
-      { key: "pallet_1_reg", label: "#1 Reg", min: 100, w: 105 },
-      { key: "pallet_2_prem", label: "#2 Prem", min: 110, w: 115 },
-      { key: "pallet_2_reg", label: "#2 Reg", min: 100, w: 105 },
-      { key: "pallet_2x4", label: "2x4", min: 90, w: 90 },
-      { key: "customs_count", label: "Customs Count", min: 140, w: 150 },
-      { key: "bol_number", label: "BOL #", min: 110, w: 120 },
-      { key: "po_number", label: "PO #", min: 110, w: 120 },
-      { key: "type", label: "Type", min: 110, w: 130 },
-      { key: "notes", label: "Notes", min: 260, w: 340 },
-      { key: "actions", label: "Actions", min: 120, w: 130 },
-    ],
-    []
-  );
-
-  const [colWidths, setColWidths] = useLocalStorageState(
-    "dailyOrders_colWidths_v1",
-    defaultCols.reduce((acc, c) => {
-      acc[c.key] = c.w;
-      return acc;
-    }, {})
-  );
-
-  const tableWrapRef = useRef(null);
-  const dragRef = useRef({ active: false, key: null, startX: 0, startW: 0 });
-  const startResize = (e, key) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startW = Number(colWidths?.[key] ?? 120);
-    dragRef.current = { active: true, key, startX: e.clientX, startW };
-    document.body.style.cursor = "col-resize";
-  };
-
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!dragRef.current.active) return;
-      const { key, startX, startW } = dragRef.current;
-      const delta = e.clientX - startX;
-      const meta = defaultCols.find((c) => c.key === key);
-      const min = meta?.min ?? 80;
-      const nextW = clamp(startW + delta, min, 1200);
-      setColWidths((p) => ({ ...p, [key]: nextW }));
-    };
-    const onUp = () => {
-      if (!dragRef.current.active) return;
-      dragRef.current = { active: false, key: null, startX: 0, startW: 0 };
-      document.body.style.cursor = "";
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [defaultCols, setColWidths]);
-
-  const panelRef = useRef(null);
-  useEffect(() => {
-    if (!panelRef.current) return;
-    if (typeof ResizeObserver === "undefined") return;
-
-    let raf = 0;
-    const ro = new ResizeObserver((entries) => {
-      const el = entries?.[0]?.target;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        setPanelSize((p) => ({
-          ...p,
-          w: Math.round(rect.width),
-          h: Math.round(rect.height),
-        }));
-      });
-    });
-
-    ro.observe(panelRef.current);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-    };
-  }, [setPanelSize]);
-
-  const resetTableLayout = () => {
-    setColWidths(
-      defaultCols.reduce((acc, c) => {
-        acc[c.key] = c.w;
-        return acc;
-      }, {})
-    );
-    setTableFontPx(14);
-  };
-
-  const panelStyle = useMemo(() => {
-    const style = {
-      resize: "both",
-      overflow: "auto",
-    };
-    if (panelSize?.w) style.width = `${panelSize.w}px`;
-    if (panelSize?.h) style.height = `${panelSize.h}px`;
-    return style;
-  }, [panelSize]);
-
   return (
     <div className="min-h-screen bg-amber-50">
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-8 space-y-6">
-        <div ref={panelRef} style={panelStyle} className="max-w-full">
-          <Card className="rounded-3xl min-w-[860px]">
+      <div className="w-full px-6 py-6 space-y-6">
+        <Card className="rounded-3xl">
           <CardHeader className="pb-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
@@ -421,35 +279,6 @@ export default function DailyOrders() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <div className="flex items-center gap-1 rounded-2xl bg-white/80 backdrop-blur ring-1 ring-black/10 px-2 py-2 shadow-sm">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={() => setTableFontPx((p) => clamp(Number(p ?? 14) - 1, 11, 22))}
-                    title="Smaller table text"
-                  >
-                    A-
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={() => setTableFontPx((p) => clamp(Number(p ?? 14) + 1, 11, 22))}
-                    title="Bigger table text"
-                  >
-                    A+
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={resetTableLayout}
-                    title="Reset table columns + text"
-                  >
-                    Reset
-                  </Button>
-                </div>
                 <Button onClick={openAdd} className="rounded-2xl">
                   <Plus className="h-4 w-4 mr-2" />
                   New Order
@@ -469,35 +298,23 @@ export default function DailyOrders() {
               <Stat label="Customs" value={summary.customs_count} />
             </div>
 
-            <div
-              ref={tableWrapRef}
-              className="rounded-3xl ring-1 ring-black/10 bg-white overflow-auto"
-              style={{ fontSize: `${tableFontPx}px` }}
-            >
-              <Table className="table-fixed min-w-[1200px]">
-                <colgroup>
-                  {defaultCols.map((c) => (
-                    <col key={c.key} style={{ width: `${Number(colWidths?.[c.key] ?? c.w)}px` }} />
-                  ))}
-                </colgroup>
+            <div className="rounded-3xl ring-1 ring-black/10 bg-white overflow-x-auto">
+              <Table className="table-auto min-w-[1200px]">
                 <TableHeader>
                   <TableRow>
-                    {defaultCols.map((c) => (
-                      <TableHead
-                        key={c.key}
-                        className={`relative whitespace-nowrap ${c.key === "actions" ? "text-right" : ""}`}
-                        style={{ userSelect: "none" }}
-                      >
-                        <div className={`pr-3 ${c.key === "actions" ? "text-right" : ""}`}>{c.label}</div>
-                        <div
-                          role="separator"
-                          aria-orientation="vertical"
-                          onMouseDown={(e) => startResize(e, c.key)}
-                          className="absolute right-0 top-0 h-full w-2 cursor-col-resize"
-                          title="Drag to resize column"
-                        />
-                      </TableHead>
-                    ))}
+                    <TableHead className="whitespace-nowrap">Customer</TableHead>
+                    <TableHead className="whitespace-nowrap">HT</TableHead>
+                    <TableHead className="whitespace-nowrap">#1.6</TableHead>
+                    <TableHead className="whitespace-nowrap">#1 Reg</TableHead>
+                    <TableHead className="whitespace-nowrap">#2 Prem</TableHead>
+                    <TableHead className="whitespace-nowrap">#2 Reg</TableHead>
+                    <TableHead className="whitespace-nowrap">2x4</TableHead>
+                    <TableHead className="whitespace-nowrap">Customs Count</TableHead>
+                    <TableHead className="whitespace-nowrap">BOL #</TableHead>
+                    <TableHead className="whitespace-nowrap">PO #</TableHead>
+                    <TableHead className="whitespace-nowrap">Type</TableHead>
+                    <TableHead className="min-w-[260px]">Notes</TableHead>
+                    <TableHead className="w-[90px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -521,23 +338,17 @@ export default function DailyOrders() {
                         onClick={() => openEdit(o)}
                         title="Click to edit"
                       >
-                        <TableCell className="font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                          {o.customer || ""}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap overflow-hidden text-ellipsis">{o.ht || ""}</TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{o.customer || ""}</TableCell>
+                        <TableCell className="whitespace-nowrap">{o.ht || ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{o.pallet_1_6 ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{o.pallet_1_reg ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{o.pallet_2_prem ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{o.pallet_2_reg ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{o.pallet_2x4 ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{o.customs_count ?? ""}</TableCell>
-                        <TableCell className="whitespace-nowrap overflow-hidden text-ellipsis">
-                          {o.bol_number || ""}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap overflow-hidden text-ellipsis">
-                          {o.po_number || ""}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap overflow-hidden text-ellipsis">{o.type || ""}</TableCell>
+                        <TableCell className="whitespace-nowrap">{o.bol_number || ""}</TableCell>
+                        <TableCell className="whitespace-nowrap">{o.po_number || ""}</TableCell>
+                        <TableCell className="whitespace-nowrap">{o.type || ""}</TableCell>
                         <TableCell className="whitespace-normal break-words">{o.notes || ""}</TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
@@ -568,18 +379,11 @@ export default function DailyOrders() {
               </Table>
             </div>
           </CardContent>
-          </Card>
-        </div>
+        </Card>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent
-          className="max-w-none rounded-3xl resize overflow-auto"
-          style={{
-            width: "min(96vw, 1100px)",
-            maxHeight: "85vh",
-          }}
-        >
+        <DialogContent className="max-w-3xl rounded-3xl">
           <DialogHeader>
             <DialogTitle className="text-xl">
               {mode === "add" ? "New Daily Order" : "Edit Daily Order"}
