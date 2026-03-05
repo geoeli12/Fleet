@@ -79,6 +79,11 @@ const emptyForm = {
   po_number: "",
   type: "",
   notes: "",
+
+  // UI-only fields (DO NOT save to DailyOrder table)
+  address: "",
+  dock_hours: "",
+  eta: "",
 };
 
 function Stat({ label, value }) {
@@ -131,7 +136,7 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
   // - Data starts at column B (so A is blank)
   // - Header row at row 3
   // - Orders start at row 4
-  // - Day name at M2, Date at N2
+  // - Day name at B2, Date at C2
 
   const headers = [
     "Customer",
@@ -157,19 +162,19 @@ function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
   aoa.push([""]);
 
   // Row 2 (top header area)
-// Put dayName in column B and date in column C
-// A=0, B=1, C=2
-const row2 = new Array(13).fill("");
-row2[1] = dayName || ""; // B
-let prettyDate = "";
-try {
-  const [yy, mm, dd] = String(ymd).split("-").map((x) => Number(x));
-  if (yy && mm && dd) prettyDate = `${mm}/${dd}/${yy}`;
-} catch {
-  prettyDate = ymd || "";
-}
-row2[2] = prettyDate; // C
-aoa.push(row2);
+  // Put dayName in column B and date in column C
+  // A=0, B=1, C=2
+  const row2 = new Array(13).fill("");
+  row2[1] = dayName || ""; // B
+  let prettyDate = "";
+  try {
+    const [yy, mm, dd] = String(ymd).split("-").map((x) => Number(x));
+    if (yy && mm && dd) prettyDate = `${mm}/${dd}/${yy}`;
+  } catch {
+    prettyDate = ymd || "";
+  }
+  row2[2] = prettyDate; // C
+  aoa.push(row2);
 
   // Row 3 (headers) starting at col B -> so first element is blank for col A
   aoa.push(["", ...headers]);
@@ -182,17 +187,17 @@ aoa.push(row2);
   let t2x4 = 0;
   let tCustoms = 0;
 
-// Rows 4+ (data)
-for (const o of orders) {
-  // accumulate totals (treat blanks as 0)
-  t1_6 += Number(o?.pallet_1_6 ?? 0) || 0;
-  t1_reg += Number(o?.pallet_1_reg ?? 0) || 0;
-  t2_prem += Number(o?.pallet_2_prem ?? 0) || 0;
-  t2_reg += Number(o?.pallet_2_reg ?? 0) || 0;
-  t2x4 += Number(o?.pallet_2x4 ?? 0) || 0;
-  tCustoms += Number(o?.customs_count ?? 0) || 0;
+  // Rows 4+ (data)
+  for (const o of orders) {
+    // accumulate totals (treat blanks as 0)
+    t1_6 += Number(o?.pallet_1_6 ?? 0) || 0;
+    t1_reg += Number(o?.pallet_1_reg ?? 0) || 0;
+    t2_prem += Number(o?.pallet_2_prem ?? 0) || 0;
+    t2_reg += Number(o?.pallet_2_reg ?? 0) || 0;
+    t2x4 += Number(o?.pallet_2x4 ?? 0) || 0;
+    tCustoms += Number(o?.customs_count ?? 0) || 0;
 
-  aoa.push([
+    aoa.push([
       "", // col A blank
       o.customer || "",
       o.ht || "",
@@ -207,26 +212,26 @@ for (const o of orders) {
       o.type || "",
       o.notes || "",
     ]);
-}
+  }
 
-// TOTAL row (sums columns D..I)
-aoa.push([
-  "", // col A blank
-  "TOTAL",
-  "",
-  t1_6,
-  t1_reg,
-  t2_prem,
-  t2_reg,
-  t2x4,
-  tCustoms,
-  "",
-  "",
-  "",
-  "",
-]);
+  // TOTAL row (sums columns D..I)
+  aoa.push([
+    "", // col A blank
+    "TOTAL",
+    "",
+    t1_6,
+    t1_reg,
+    t2_prem,
+    t2_reg,
+    t2x4,
+    tCustoms,
+    "",
+    "",
+    "",
+    "",
+  ]);
 
-const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
 
   // Column widths (B..N)
   ws["!cols"] = [
@@ -242,13 +247,13 @@ const ws = XLSX.utils.aoa_to_sheet(aoa);
     { wch: 10 }, // J Bol #
     { wch: 12 }, // K PO #
     { wch: 16 }, // L Type
-    { wch: 34 }, // M Notes (actually column M in our table row; dayName is M2 but Type/Notes are L/M in table row)
+    { wch: 34 }, // M Notes
     { wch: 12 }, // N top date cell (only used in row 2)
   ];
 
   const border = mkBorder();
 
-  // Style: top header (M2, N2)
+  // Style: top header (B2, C2)
   setCell(ws, "B2", dayName || "", {
     font: { bold: true, sz: 14 },
     alignment: { horizontal: "center", vertical: "center" },
@@ -269,9 +274,7 @@ const ws = XLSX.utils.aoa_to_sheet(aoa);
     });
   }
 
-  // Style table body borders + Type fill (Type column is L -> in our table it is column index 11 overall, but AOA has A blank then B..)
-  // Our Type is at column L in the sheet: headers[10] is "Type"
-  // That maps to: A blank, B customer (1), ... L type (11), M notes (12)
+  // Style table body borders + Type fill (Type column is L)
   const startRow = 4;
   const endRow = Math.max(4, 3 + orders.length + 1); // last data row index (includes TOTAL row)
   const firstCol = 1; // B
@@ -296,37 +299,34 @@ const ws = XLSX.utils.aoa_to_sheet(aoa);
     }
   }
 
-
-// Style TOTAL row: bold + thicker top border across D..I (and keep borders consistent)
-const totalRow = 3 + orders.length + 1; // 1-based row number in sheet (row 3 headers + orders + total)
-const thickTop = {
-  top: { style: "medium", color: { rgb: "000000" } },
-  bottom: { style: "thin", color: { rgb: "000000" } },
-  left: { style: "thin", color: { rgb: "000000" } },
-  right: { style: "thin", color: { rgb: "000000" } },
-};
-
-// Bold the entire TOTAL row B..M; make D..I have thick top border like Excel totals
-for (let c = firstCol; c <= lastCol; c++) {
-  const addr = XLSX.utils.encode_cell({ r: totalRow - 1, c }); // 0-based row
-  const existing = ws[addr] || { v: "" };
-  const isType = c === typeCol;
-  const inSumCols = c >= 1 && c <= 12; // B..M..D(3)..I(8)
-  ws[addr] = {
-    ...existing,
-    s: {
-      ...(existing.s || {}),
-      border: inSumCols ? thickTop : border,
-      font: { bold: true },
-      alignment: { vertical: "center", wrapText: c === lastCol },
-      ...(isType ? { fill: { patternType: "solid", fgColor: { rgb: "DDEBF7" } } } : {}),
-    },
+  // Style TOTAL row: bold + thicker top border across D..I (and keep borders consistent)
+  const totalRow = 3 + orders.length + 1; // 1-based row number in sheet
+  const thickTop = {
+    top: { style: "medium", color: { rgb: "000000" } },
+    bottom: { style: "thin", color: { rgb: "000000" } },
+    left: { style: "thin", color: { rgb: "000000" } },
+    right: { style: "thin", color: { rgb: "000000" } },
   };
-}
+
+  for (let c = firstCol; c <= lastCol; c++) {
+    const addr = XLSX.utils.encode_cell({ r: totalRow - 1, c }); // 0-based row
+    const existing = ws[addr] || { v: "" };
+    const isType = c === typeCol;
+    const inSumCols = c >= 3 && c <= 8; // D..I
+    ws[addr] = {
+      ...existing,
+      s: {
+        ...(existing.s || {}),
+        border: inSumCols ? thickTop : border,
+        font: { bold: true },
+        alignment: { vertical: "center", wrapText: c === lastCol },
+        ...(isType ? { fill: { patternType: "solid", fgColor: { rgb: "DDEBF7" } } } : {}),
+      },
+    };
+  }
 
   // Set sheet range properly
   const range = XLSX.utils.decode_range(ws["!ref"] || "A1:A1");
-  // Ensure it includes through N2 and table columns through M
   range.e.c = Math.max(range.e.c, 13); // include N (col 13)
   range.e.r = Math.max(range.e.r, endRow - 1);
   ws["!ref"] = XLSX.utils.encode_range(range);
@@ -392,7 +392,7 @@ export default function DailyOrders() {
   const [customerFocused, setCustomerFocused] = useState(false);
   const ignoreCustomerBlurRef = useRef(false);
 
-  const { data: rawCustomers } = useQuery({
+  const { data: rawCustomersIL } = useQuery({
     queryKey: ["customersIL"],
     queryFn: async () => {
       try {
@@ -404,21 +404,117 @@ export default function DailyOrders() {
     },
   });
 
-  const customers = useMemo(() => unwrapListResult(rawCustomers), [rawCustomers]);
+  // Optional (if you have CustomerPA entity wired up, this will work; otherwise it fails safely)
+  const { data: rawCustomersPA } = useQuery({
+    queryKey: ["customersPA"],
+    queryFn: async () => {
+      try {
+        const res = await api.entities.CustomerPA.list("customer");
+        return unwrapListResult(res);
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const customersIL = useMemo(() => unwrapListResult(rawCustomersIL), [rawCustomersIL]);
+  const customersPA = useMemo(() => unwrapListResult(rawCustomersPA), [rawCustomersPA]);
+
+  const customerDirectory = useMemo(() => {
+    const normalize = (v) => (v ?? "").toString().trim();
+
+    const withMeta = (rows, region) =>
+      (rows || []).map((r, idx) => ({
+        _key: `${region}-${r?.id ?? idx}`,
+        region,
+        customer: normalize(r?.customer),
+        address: normalize(r?.address),
+        receivingHours: normalize(r?.receivingHours),
+        receivingNotes: normalize(r?.receivingNotes),
+        eta: normalize(r?.eta),
+      }));
+
+    return [...withMeta(customersIL, "IL"), ...withMeta(customersPA, "PA")].filter(
+      (r) => r.customer
+    );
+  }, [customersIL, customersPA]);
+
+  const normalizeCustomerKey = (v) =>
+    (v ?? "")
+      .toString()
+      .trim()
+      .toLowerCase()
+      // Strip leading numeric IDs like "137 " from customer names
+      .replace(/^\d+\s+/, "")
+      .replace(/^[-–—\s]+/, "")
+      .trim();
+
+  const findCustomerMatch = (customerName) => {
+    const q = normalizeCustomerKey(customerName);
+    if (!q) return null;
+
+    return (
+      customerDirectory.find((r) => normalizeCustomerKey(r.customer) === q) ||
+      customerDirectory.find((r) => normalizeCustomerKey(r.customer).startsWith(q)) ||
+      customerDirectory.find((r) => normalizeCustomerKey(r.customer).includes(q)) ||
+      null
+    );
+  };
+
+  const getDockHoursForCustomer = (customerName) => {
+    const match = findCustomerMatch(customerName);
+    if (!match) return "";
+    return (match.receivingHours || match.receivingNotes || "").trim();
+  };
+
+  const getEtaForCustomer = (customerName) => {
+    const match = findCustomerMatch(customerName);
+    if (!match) return "";
+    return (match.eta || "").trim();
+  };
+
+  const getAddressForCustomer = (customerName) => {
+    const match = findCustomerMatch(customerName);
+    if (!match) return "";
+    return (match.address || "").trim();
+  };
+
+  const applyCustomerPick = (row) => {
+    const dock = (row?.receivingHours || row?.receivingNotes || "").trim();
+    setForm((prev) => ({
+      ...prev,
+      customer: row?.customer || prev.customer,
+      address: (row?.address || "").trim(),
+      dock_hours: dock || "",
+      eta: (row?.eta || "").trim() || "",
+    }));
+  };
+
+  const tryAutoFillFromCustomer = () => {
+    const customerName = String(form.customer || "").trim();
+    if (!customerName) return;
+
+    const addr = getAddressForCustomer(customerName);
+    const dock = getDockHoursForCustomer(customerName);
+    const eta = getEtaForCustomer(customerName);
+
+    if (!addr && !dock && !eta) return;
+
+    setForm((prev) => ({
+      ...prev,
+      address: prev.address || addr,
+      dock_hours: prev.dock_hours || dock,
+      eta: prev.eta || eta,
+    }));
+  };
 
   const customerMatches = useMemo(() => {
     const q = (form.customer || "").trim().toLowerCase();
     if (!q) return [];
-    return customers
+    return customerDirectory
       .filter((c) => String(c?.customer || "").toLowerCase().includes(q))
       .slice(0, 10);
-  }, [form.customer, customers]);
-
-  const onPickCustomer = (cust) => {
-    const name = String(cust?.customer || "");
-    setForm((p) => ({ ...p, customer: name }));
-    setCustomerFocused(false);
-  };
+  }, [form.customer, customerDirectory]);
 
   const dayName = useMemo(() => {
     try {
@@ -438,6 +534,7 @@ export default function DailyOrders() {
   const openEdit = (order) => {
     setMode("edit");
     setActiveOrder(order);
+
     const next = { ...emptyForm };
     next.date = safeYmd(order?.date) || ymd;
     next.customer = order?.customer ?? "";
@@ -446,10 +543,17 @@ export default function DailyOrders() {
     next.po_number = order?.po_number ?? "";
     next.type = order?.type ?? "";
     next.notes = order?.notes ?? "";
+
     for (const k of numericKeys) {
       const v = order?.[k];
       next[k] = v === null || v === undefined ? "" : String(v);
     }
+
+    // UI-only (try to pull from customer directory later)
+    next.address = "";
+    next.dock_hours = "";
+    next.eta = "";
+
     setForm(next);
     setDialogOpen(true);
   };
@@ -461,6 +565,18 @@ export default function DailyOrders() {
     if (mode !== "add") return;
     setForm((p) => ({ ...p, date: ymd }));
   }, [ymd, dialogOpen, mode]);
+
+  // When dialog is open, auto-fill Address / Dock Hours / ETA if customer matches and fields are empty
+  useEffect(() => {
+    if (!dialogOpen) return;
+    if (!String(form.customer || "").trim()) return;
+    // Only fill if at least one field is missing
+    if (String(form.address || "").trim() && String(form.dock_hours || "").trim() && String(form.eta || "").trim()) {
+      return;
+    }
+    tryAutoFillFromCustomer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, form.customer, customerDirectory]);
 
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -723,10 +839,12 @@ export default function DailyOrders() {
                       ignoreCustomerBlurRef.current = false;
                       return;
                     }
+                    tryAutoFillFromCustomer();
                     setCustomerFocused(false);
                   }}
                   placeholder="Uline - 16"
                   className="rounded-2xl"
+                  autoComplete="off"
                 />
 
                 {customerFocused && customerMatches.length > 0 && (
@@ -739,18 +857,64 @@ export default function DailyOrders() {
                       ignoreCustomerBlurRef.current = false;
                     }}
                   >
-                    {customerMatches.map((c) => (
-                      <button
-                        type="button"
-                        key={c.id ?? c.customer}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50"
-                        onClick={() => onPickCustomer(c)}
-                      >
-                        {c.customer}
-                      </button>
-                    ))}
+                    <div className="max-h-64 overflow-auto">
+                      {customerMatches.map((c) => (
+                        <button
+                          type="button"
+                          key={c._key ?? c.id ?? c.customer}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50"
+                          onClick={() => {
+                            applyCustomerPick(c);
+                            setCustomerFocused(false);
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">{c.customer}</div>
+                              {c.address ? (
+                                <div className="truncate text-xs text-slate-600">{c.address}</div>
+                              ) : null}
+                            </div>
+                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-700">
+                              {c.region || "IL"}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
+              </div>
+
+              {/* NEW: Address / Dock Hours / ETA (UI-only) */}
+              <div className="space-y-2 md:col-span-2">
+                <Label>Address</Label>
+                <Textarea
+                  value={form.address}
+                  onChange={(e) => setField("address", e.target.value)}
+                  placeholder="Pulled from Customers (you can edit here)"
+                  className="min-h-[80px] rounded-2xl"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Dock Hours</Label>
+                <Input
+                  value={form.dock_hours}
+                  onChange={(e) => setField("dock_hours", e.target.value)}
+                  placeholder='e.g. "6am - 4am"'
+                  className="rounded-2xl"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>ETA</Label>
+                <Input
+                  value={form.eta}
+                  onChange={(e) => setField("eta", e.target.value)}
+                  placeholder="e.g. 28 min"
+                  className="rounded-2xl"
+                />
               </div>
 
               <div className="space-y-2">
