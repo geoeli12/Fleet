@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, subDays } from "date-fns";
 import { api } from "@/api/apiClient";
@@ -134,6 +134,38 @@ export default function DailyOrders() {
   const [mode, setMode] = useState("add"); // add | edit
   const [activeOrder, setActiveOrder] = useState(null);
   const [form, setForm] = useState(emptyForm);
+
+  // Customer suggestion (same behavior as Invoice)
+  const [customerFocused, setCustomerFocused] = useState(false);
+  const ignoreCustomerBlurRef = useRef(false);
+
+  const { data: rawCustomers } = useQuery({
+    queryKey: ["customersIL"],
+    queryFn: async () => {
+      try {
+        const res = await api.entities.CustomerIL.list("customer");
+        return unwrapListResult(res);
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const customers = useMemo(() => unwrapListResult(rawCustomers), [rawCustomers]);
+
+  const customerMatches = useMemo(() => {
+    const q = (form.customer || "").trim().toLowerCase();
+    if (!q) return [];
+    return customers
+      .filter((c) => String(c?.customer || "").toLowerCase().includes(q))
+      .slice(0, 10);
+  }, [form.customer, customers]);
+
+  const onPickCustomer = (cust) => {
+    const name = String(cust?.customer || "");
+    setForm((p) => ({ ...p, customer: name }));
+    setCustomerFocused(false);
+  };
 
   const dayName = useMemo(() => {
     try {
@@ -384,7 +416,6 @@ export default function DailyOrders() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="w-[95vw] max-w-6xl max-h-[85vh] overflow-hidden rounded-3xl">
-
           <DialogHeader>
             <DialogTitle className="text-xl">
               {mode === "add" ? "New Daily Order" : "Edit Daily Order"}
@@ -402,14 +433,47 @@ export default function DailyOrders() {
                   className="rounded-2xl"
                 />
               </div>
-              <div className="space-y-2">
+
+              {/* Customer with suggestion dropdown */}
+              <div className="space-y-2 relative">
                 <Label>Customer</Label>
                 <Input
                   value={form.customer}
                   onChange={(e) => setField("customer", e.target.value)}
+                  onFocus={() => setCustomerFocused(true)}
+                  onBlur={() => {
+                    if (ignoreCustomerBlurRef.current) {
+                      ignoreCustomerBlurRef.current = false;
+                      return;
+                    }
+                    setCustomerFocused(false);
+                  }}
                   placeholder="Uline - 16"
                   className="rounded-2xl"
                 />
+
+                {customerFocused && customerMatches.length > 0 && (
+                  <div
+                    className="absolute z-30 mt-1 left-0 right-0 bg-white border border-black/10 rounded-xl shadow-lg overflow-hidden"
+                    onMouseDown={() => {
+                      ignoreCustomerBlurRef.current = true;
+                    }}
+                    onMouseUp={() => {
+                      ignoreCustomerBlurRef.current = false;
+                    }}
+                  >
+                    {customerMatches.map((c) => (
+                      <button
+                        type="button"
+                        key={c.id ?? c.customer}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50"
+                        onClick={() => onPickCustomer(c)}
+                      >
+                        {c.customer}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
