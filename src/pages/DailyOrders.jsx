@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -81,6 +82,7 @@ const emptyForm = {
   notes: "",
 
   // UI-only fields (DO NOT save to DailyOrder table)
+  region: "IL",
   address: "",
   dock_hours: "",
   eta: "",
@@ -127,7 +129,8 @@ function setCell(ws, addr, v, s) {
 
 function safeNumOrBlank(v) {
   const n = Number(v ?? "");
-  if (Number.isNaN(n) || v === null || v === undefined || String(v).trim() === "") return "";
+  if (Number.isNaN(n) || v === null || v === undefined || String(v).trim() === "")
+    return "";
   return n;
 }
 
@@ -348,6 +351,12 @@ export default function DailyOrders() {
 
   const ymd = useMemo(() => toYmd(selectedDate), [selectedDate]);
 
+  // Region toggle for this page (drives badge + customer suggestion priority + dispatch_orders insert)
+  const [activeRegion, setActiveRegion] = useState("IL");
+
+  const regionBadgeClass =
+    activeRegion === "PA" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700";
+
   const { data: rawOrders, isLoading } = useQuery({
     queryKey: ["dailyOrders", ymd],
     queryFn: async () => {
@@ -404,7 +413,6 @@ export default function DailyOrders() {
     },
   });
 
-  // Optional (if you have CustomerPA entity wired up, this will work; otherwise it fails safely)
   const { data: rawCustomersPA } = useQuery({
     queryKey: ["customersPA"],
     queryFn: async () => {
@@ -453,7 +461,13 @@ export default function DailyOrders() {
     const q = normalizeCustomerKey(customerName);
     if (!q) return null;
 
+    // Prefer current region first
+    const inRegion = customerDirectory.filter((r) => (r.region || "IL") === activeRegion);
+
     return (
+      inRegion.find((r) => normalizeCustomerKey(r.customer) === q) ||
+      inRegion.find((r) => normalizeCustomerKey(r.customer).startsWith(q)) ||
+      inRegion.find((r) => normalizeCustomerKey(r.customer).includes(q)) ||
       customerDirectory.find((r) => normalizeCustomerKey(r.customer) === q) ||
       customerDirectory.find((r) => normalizeCustomerKey(r.customer).startsWith(q)) ||
       customerDirectory.find((r) => normalizeCustomerKey(r.customer).includes(q)) ||
@@ -481,8 +495,15 @@ export default function DailyOrders() {
 
   const applyCustomerPick = (row) => {
     const dock = (row?.receivingHours || row?.receivingNotes || "").trim();
+    const pickedRegion = (row?.region || activeRegion || "IL").toString().trim().toUpperCase();
+
+    // My opinion: switching region automatically when you pick a customer is the least confusing behavior.
+    // If you don't want that, remove the next line.
+    if (pickedRegion && pickedRegion !== activeRegion) setActiveRegion(pickedRegion);
+
     setForm((prev) => ({
       ...prev,
+      region: pickedRegion || prev.region,
       customer: row?.customer || prev.customer,
       address: (row?.address || "").trim(),
       dock_hours: dock || "",
@@ -494,14 +515,23 @@ export default function DailyOrders() {
     const customerName = String(form.customer || "").trim();
     if (!customerName) return;
 
-    const addr = getAddressForCustomer(customerName);
-    const dock = getDockHoursForCustomer(customerName);
-    const eta = getEtaForCustomer(customerName);
+    const match = findCustomerMatch(customerName);
+    const addr = match ? (match.address || "").trim() : getAddressForCustomer(customerName);
+    const dock = match
+      ? (match.receivingHours || match.receivingNotes || "").trim()
+      : getDockHoursForCustomer(customerName);
+    const eta = match ? (match.eta || "").trim() : getEtaForCustomer(customerName);
 
-    if (!addr && !dock && !eta) return;
+    if (!addr && !dock && !eta && !match) return;
+
+    const matchRegion = (match?.region || form.region || activeRegion || "IL")
+      .toString()
+      .trim()
+      .toUpperCase();
 
     setForm((prev) => ({
       ...prev,
+      region: prev.region || matchRegion,
       address: prev.address || addr,
       dock_hours: prev.dock_hours || dock,
       eta: prev.eta || eta,
@@ -511,10 +541,23 @@ export default function DailyOrders() {
   const customerMatches = useMemo(() => {
     const q = (form.customer || "").trim().toLowerCase();
     if (!q) return [];
-    return customerDirectory
-      .filter((c) => String(c?.customer || "").toLowerCase().includes(q))
-      .slice(0, 10);
-  }, [form.customer, customerDirectory]);
+
+    const matches = customerDirectory.filter((c) =>
+      String(c?.customer || "").toLowerCase().includes(q)
+    );
+
+    // Prefer active region first (same logic as AddDispatchForm)
+    matches.sort((a, b) => {
+      const aPri = (a.region || "IL") === activeRegion ? 0 : 1;
+      const bPri = (b.region || "IL") === activeRegion ? 0 : 1;
+      if (aPri !== bPri) return aPri - bPri;
+      return String(a.customer || "").localeCompare(String(b.customer || ""), undefined, {
+        sensitivity: "base",
+      });
+    });
+
+    return matches.slice(0, 10);
+  }, [form.customer, customerDirectory, activeRegion]);
 
   const dayName = useMemo(() => {
     try {
@@ -527,7 +570,7 @@ export default function DailyOrders() {
   const openAdd = () => {
     setMode("add");
     setActiveOrder(null);
-    setForm({ ...emptyForm, date: ymd });
+    setForm({ ...emptyForm, date: ymd, region: activeRegion || "IL" });
     setDialogOpen(true);
   };
 
@@ -549,34 +592,48 @@ export default function DailyOrders() {
       next[k] = v === null || v === undefined ? "" : String(v);
     }
 
-    // UI-only (try to pull from customer directory later)
+    // UI-only
     next.address = "";
     next.dock_hours = "";
     next.eta = "";
+
+    // Set region based on toggle first, then try to infer from customer match
+    next.region = activeRegion || "IL";
+    const inferred = findCustomerMatch(next.customer);
+    if (inferred?.region) next.region = String(inferred.region).trim().toUpperCase();
 
     setForm(next);
     setDialogOpen(true);
   };
 
   useEffect(() => {
-    // If the user changes the date while dialog is open in "add" mode,
-    // keep the form date synced.
+    // If the user changes the date while dialog is open in "add" mode, keep the form date synced.
     if (!dialogOpen) return;
     if (mode !== "add") return;
     setForm((p) => ({ ...p, date: ymd }));
   }, [ymd, dialogOpen, mode]);
 
+  // If region toggle changes while add dialog is open, keep it synced (but don't stomp a picked customer region)
+  useEffect(() => {
+    if (!dialogOpen) return;
+    if (mode !== "add") return;
+    setForm((p) => ({ ...p, region: p.region || activeRegion || "IL" }));
+  }, [activeRegion, dialogOpen, mode]);
+
   // When dialog is open, auto-fill Address / Dock Hours / ETA if customer matches and fields are empty
   useEffect(() => {
     if (!dialogOpen) return;
     if (!String(form.customer || "").trim()) return;
-    // Only fill if at least one field is missing
-    if (String(form.address || "").trim() && String(form.dock_hours || "").trim() && String(form.eta || "").trim()) {
+    if (
+      String(form.address || "").trim() &&
+      String(form.dock_hours || "").trim() &&
+      String(form.eta || "").trim()
+    ) {
       return;
     }
     tryAutoFillFromCustomer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.customer, customerDirectory]);
+  }, [dialogOpen, form.customer, customerDirectory, activeRegion]);
 
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -595,11 +652,56 @@ export default function DailyOrders() {
     return payload;
   };
 
+  const buildDispatchOrderPayload = () => {
+    // IMPORTANT:
+    // You asked to create a record in supabase table dispatch_orders like AddDispatchForm does.
+    // We only do this on ADD (not on EDIT) and we do NOT add any new columns to DailyOrder.
+    //
+    // Mapping:
+    // - dispatch_orders.company  <- DailyOrder.customer
+    // - dispatch_orders.item     <- DailyOrder.type
+    // - dispatch_orders.bol      <- DailyOrder.bol_number
+    // - dispatch_orders.notes    <- DailyOrder.notes
+    // - dispatch_orders.dock_hours <- UI-only dock_hours
+    // - dispatch_orders.eta      <- UI-only eta
+    // - dispatch_orders.region   <- activeRegion / inferred region
+    // - trailer_number, delivered_by left blank (not part of daily order dialog right now)
+    const region = (form.region || activeRegion || "IL").toString().trim().toUpperCase();
+    return {
+      date: safeYmd(form.date) || ymd,
+      region,
+      company: String(form.customer ?? "").trim() || null,
+      trailer_number: null,
+      notes: String(form.notes ?? "").trim() || null,
+      dock_hours: String(form.dock_hours ?? "").trim() || null,
+      eta: String(form.eta ?? "").trim() || null,
+      bol: String(form.bol_number ?? "").trim() || null,
+      item: String(form.type ?? "").trim() || null,
+      delivered_by: null,
+    };
+  };
+
   const save = async () => {
     try {
       const payload = buildPayload();
+
       if (mode === "add") {
         await api.entities.DailyOrder.create(payload);
+
+        // Also create dispatch_orders row (best-effort; don't block daily save if this fails)
+        try {
+          const dispatchPayload = buildDispatchOrderPayload();
+          if (dispatchPayload.company) {
+            await api.entities.DispatchOrder.create(dispatchPayload);
+          }
+        } catch (e) {
+          // eslint-disable-next-line no-alert
+          alert(
+            `Daily Order saved, but creating Dispatch Order failed. ${
+              e?.message ? String(e.message) : ""
+            }`
+          );
+        }
       } else {
         if (!activeOrder?.id) return;
         await api.entities.DailyOrder.update(activeOrder.id, payload);
@@ -696,7 +798,33 @@ export default function DailyOrders() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Region toggle (IL / PA) */}
+                <div className="flex items-center gap-2 rounded-2xl bg-white/80 ring-1 ring-black/10 px-2 py-2 shadow-sm">
+                  <Button
+                    type="button"
+                    variant={activeRegion === "IL" ? "default" : "outline"}
+                    className={`rounded-2xl h-9 px-4 ${
+                      activeRegion === "IL" ? "bg-amber-600 hover:bg-amber-700 text-white" : ""
+                    }`}
+                    onClick={() => setActiveRegion("IL")}
+                    title="IL Region"
+                  >
+                    IL
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={activeRegion === "PA" ? "default" : "outline"}
+                    className={`rounded-2xl h-9 px-4 ${
+                      activeRegion === "PA" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
+                    }`}
+                    onClick={() => setActiveRegion("PA")}
+                    title="PA Region"
+                  >
+                    PA
+                  </Button>
+                </div>
+
                 <Button variant="outline" onClick={onExport} className="rounded-2xl">
                   <Download className="h-4 w-4 mr-2" />
                   Export
@@ -810,9 +938,15 @@ export default function DailyOrders() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="w-[95vw] max-w-6xl max-h-[85vh] overflow-hidden rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-xl">
-              {mode === "add" ? "New Daily Order" : "Edit Daily Order"}
-            </DialogTitle>
+            <div className="flex items-center justify-between gap-4">
+              <DialogTitle className="text-xl">
+                {mode === "add" ? "New Daily Order" : "Edit Daily Order"}
+              </DialogTitle>
+
+              <Badge className={`rounded-full px-3 py-1 text-xs font-semibold border-0 ${regionBadgeClass}`}>
+                {activeRegion}
+              </Badge>
+            </div>
           </DialogHeader>
 
           <div className="max-h-[65vh] overflow-y-auto pr-2">
@@ -875,7 +1009,13 @@ export default function DailyOrders() {
                                 <div className="truncate text-xs text-slate-600">{c.address}</div>
                               ) : null}
                             </div>
-                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-700">
+                            <span
+                              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                (c.region || "IL") === "PA"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
                               {c.region || "IL"}
                             </span>
                           </div>
@@ -886,7 +1026,7 @@ export default function DailyOrders() {
                 )}
               </div>
 
-              {/* NEW: Address / Dock Hours / ETA (UI-only) */}
+              {/* Address / Dock Hours / ETA (UI-only) */}
               <div className="space-y-2 md:col-span-2">
                 <Label>Address</Label>
                 <Textarea
