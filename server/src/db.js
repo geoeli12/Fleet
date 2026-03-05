@@ -86,6 +86,28 @@ const COLLECTIONS = {
     ],
   },
 
+  daily_orders: {
+    table: "daily_orders",
+    primaryKey: "id",
+    allowed: [
+      "id",
+      "date",
+      "customer",
+      "ht",
+      "pallet_1_6",
+      "pallet_1_reg",
+      "pallet_2_prem",
+      "pallet_2_reg",
+      "pallet_2x4",
+      "customs_count",
+      "bol_number",
+      "po_number",
+      "type",
+      "notes",
+      "created_at",
+    ],
+  },
+
   pickup_orders: {
     table: "pickup_orders",
     primaryKey: "id",
