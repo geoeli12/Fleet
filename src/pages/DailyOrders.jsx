@@ -383,134 +383,137 @@ export default function DailyOrders() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl rounded-3xl">
+        <DialogContent className="w-[95vw] max-w-6xl max-h-[85vh] overflow-hidden rounded-3xl">
+
           <DialogHeader>
             <DialogTitle className="text-xl">
               {mode === "add" ? "New Daily Order" : "Edit Daily Order"}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Input
-                type="date"
-                value={safeYmd(form.date)}
-                onChange={(e) => setField("date", e.target.value)}
-                className="rounded-2xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Customer</Label>
-              <Input
-                value={form.customer}
-                onChange={(e) => setField("customer", e.target.value)}
-                placeholder="Uline - 16"
-                className="rounded-2xl"
-              />
-            </div>
+          <div className="max-h-[65vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={safeYmd(form.date)}
+                  onChange={(e) => setField("date", e.target.value)}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Customer</Label>
+                <Input
+                  value={form.customer}
+                  onChange={(e) => setField("customer", e.target.value)}
+                  placeholder="Uline - 16"
+                  className="rounded-2xl"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>HT</Label>
-              <Input
-                value={form.ht}
-                onChange={(e) => setField("ht", e.target.value)}
-                placeholder="Heat Treated"
-                className="rounded-2xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Input
-                value={form.type}
-                onChange={(e) => setField("type", e.target.value)}
-                placeholder="96x48"
-                className="rounded-2xl"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>HT</Label>
+                <Input
+                  value={form.ht}
+                  onChange={(e) => setField("ht", e.target.value)}
+                  placeholder="Heat Treated"
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Input
+                  value={form.type}
+                  onChange={(e) => setField("type", e.target.value)}
+                  placeholder="96x48"
+                  className="rounded-2xl"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>#1.6</Label>
-              <Input
-                inputMode="numeric"
-                value={form.pallet_1_6}
-                onChange={(e) => setField("pallet_1_6", e.target.value)}
-                className="rounded-2xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>#1 Reg</Label>
-              <Input
-                inputMode="numeric"
-                value={form.pallet_1_reg}
-                onChange={(e) => setField("pallet_1_reg", e.target.value)}
-                className="rounded-2xl"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>#1.6</Label>
+                <Input
+                  inputMode="numeric"
+                  value={form.pallet_1_6}
+                  onChange={(e) => setField("pallet_1_6", e.target.value)}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>#1 Reg</Label>
+                <Input
+                  inputMode="numeric"
+                  value={form.pallet_1_reg}
+                  onChange={(e) => setField("pallet_1_reg", e.target.value)}
+                  className="rounded-2xl"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>#2 Prem</Label>
-              <Input
-                inputMode="numeric"
-                value={form.pallet_2_prem}
-                onChange={(e) => setField("pallet_2_prem", e.target.value)}
-                className="rounded-2xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>#2 Reg</Label>
-              <Input
-                inputMode="numeric"
-                value={form.pallet_2_reg}
-                onChange={(e) => setField("pallet_2_reg", e.target.value)}
-                className="rounded-2xl"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>#2 Prem</Label>
+                <Input
+                  inputMode="numeric"
+                  value={form.pallet_2_prem}
+                  onChange={(e) => setField("pallet_2_prem", e.target.value)}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>#2 Reg</Label>
+                <Input
+                  inputMode="numeric"
+                  value={form.pallet_2_reg}
+                  onChange={(e) => setField("pallet_2_reg", e.target.value)}
+                  className="rounded-2xl"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>2x4</Label>
-              <Input
-                inputMode="numeric"
-                value={form.pallet_2x4}
-                onChange={(e) => setField("pallet_2x4", e.target.value)}
-                className="rounded-2xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Customs Count</Label>
-              <Input
-                inputMode="numeric"
-                value={form.customs_count}
-                onChange={(e) => setField("customs_count", e.target.value)}
-                className="rounded-2xl"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>2x4</Label>
+                <Input
+                  inputMode="numeric"
+                  value={form.pallet_2x4}
+                  onChange={(e) => setField("pallet_2x4", e.target.value)}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Customs Count</Label>
+                <Input
+                  inputMode="numeric"
+                  value={form.customs_count}
+                  onChange={(e) => setField("customs_count", e.target.value)}
+                  className="rounded-2xl"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>BOL #</Label>
-              <Input
-                value={form.bol_number}
-                onChange={(e) => setField("bol_number", e.target.value)}
-                className="rounded-2xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>PO #</Label>
-              <Input
-                value={form.po_number}
-                onChange={(e) => setField("po_number", e.target.value)}
-                className="rounded-2xl"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>BOL #</Label>
+                <Input
+                  value={form.bol_number}
+                  onChange={(e) => setField("bol_number", e.target.value)}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>PO #</Label>
+                <Input
+                  value={form.po_number}
+                  onChange={(e) => setField("po_number", e.target.value)}
+                  className="rounded-2xl"
+                />
+              </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Notes</Label>
-              <Textarea
-                value={form.notes}
-                onChange={(e) => setField("notes", e.target.value)}
-                placeholder="Optional"
-                className="min-h-[110px] rounded-2xl"
-              />
+              <div className="space-y-2 md:col-span-2">
+                <Label>Notes</Label>
+                <Textarea
+                  value={form.notes}
+                  onChange={(e) => setField("notes", e.target.value)}
+                  placeholder="Optional"
+                  className="min-h-[110px] rounded-2xl"
+                />
+              </div>
             </div>
           </div>
 
