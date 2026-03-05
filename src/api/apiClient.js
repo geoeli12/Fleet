@@ -64,6 +64,9 @@ export const api = {
 
     // Customer pricing
     CustomerPrice: makeEntity("customer-prices"),
+
+    // Daily Orders
+    DailyOrder: makeEntity("daily-orders"),
   },
 
   custom: {
