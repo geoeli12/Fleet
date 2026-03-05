@@ -638,6 +638,53 @@ export default function DailyOrders() {
     };
   };
 
+  // Sync to dispatch_orders so ETA/Dock Hours/etc actually persist.
+  // Strategy:
+  //  - Try to find an existing DispatchOrder for the same date + company/customer (+ bol if present)
+  //  - If found: update it
+  //  - If not found (or filter fails): create a new one
+  const syncDispatchOrder = async () => {
+    const dispatchPayload = buildDispatchOrderPayload();
+
+    const companyKey = dispatchPayload.company || dispatchPayload.customer;
+    if (!companyKey) return;
+
+    const dateKey = dispatchPayload.date;
+    const bolKey = dispatchPayload.bol || null;
+
+    try {
+      // Best-effort search (depends on your apiClient/entity filter support)
+      const filterObj = bolKey
+        ? { date: dateKey, bol: bolKey, company: companyKey }
+        : { date: dateKey, company: companyKey };
+
+      let res = await api.entities.DispatchOrder.filter(filterObj, "created_at");
+      const list = unwrapListResult(res);
+
+      // If the API ignores the "company" filter because the column is actually "customer",
+      // try again using "customer" as the filter key.
+      if (!Array.isArray(list) || list.length === 0) {
+        const filterObj2 = bolKey
+          ? { date: dateKey, bol: bolKey, customer: companyKey }
+          : { date: dateKey, customer: companyKey };
+        res = await api.entities.DispatchOrder.filter(filterObj2, "created_at");
+      }
+
+      const list2 = unwrapListResult(res);
+      const existing = Array.isArray(list2) && list2.length ? list2[0] : null;
+
+      if (existing?.id) {
+        await api.entities.DispatchOrder.update(existing.id, dispatchPayload);
+      } else {
+        await api.entities.DispatchOrder.create(dispatchPayload);
+      }
+    } catch {
+      // If filter/update isn't supported in your apiClient, just create.
+      await api.entities.DispatchOrder.create(dispatchPayload);
+    }
+  };
+
+
   const save = async () => {
     try {
       const payload = buildPayload();
@@ -646,10 +693,7 @@ export default function DailyOrders() {
         await api.entities.DailyOrder.create(payload);
 
         try {
-          const dispatchPayload = buildDispatchOrderPayload();
-          if (dispatchPayload.company || dispatchPayload.customer) {
-            await api.entities.DispatchOrder.create(dispatchPayload);
-          }
+          await syncDispatchOrder();
         } catch (e) {
           // eslint-disable-next-line no-alert
           alert(
@@ -661,6 +705,11 @@ export default function DailyOrders() {
       } else {
         if (!activeOrder?.id) return;
         await api.entities.DailyOrder.update(activeOrder.id, payload);
+        try {
+          await syncDispatchOrder();
+        } catch {
+          // ignore
+        }
       }
 
       await qc.invalidateQueries({ queryKey: ["dailyOrders", ymd] });
