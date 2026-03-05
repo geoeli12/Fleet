@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, subDays } from "date-fns";
 import { api } from "@/api/apiClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +22,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil, Download } from "lucide-react";
+
+// NOTE: for styled XLSX export (borders/fills/bold), install:
+// npm i xlsx-js-style
+import * as XLSX from "xlsx-js-style";
 
 function unwrapListResult(list) {
   if (Array.isArray(list)) return list;
@@ -85,6 +89,195 @@ function Stat({ label, value }) {
     </div>
   );
 }
+
+/** ============ XLSX EXPORT HELPERS (styled) ============ */
+function downloadArrayBufferAsFile(buf, filename) {
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function mkBorder() {
+  return {
+    top: { style: "thin", color: { rgb: "000000" } },
+    bottom: { style: "thin", color: { rgb: "000000" } },
+    left: { style: "thin", color: { rgb: "000000" } },
+    right: { style: "thin", color: { rgb: "000000" } },
+  };
+}
+
+function setCell(ws, addr, v, s) {
+  ws[addr] = ws[addr] || {};
+  ws[addr].v = v;
+  if (s) ws[addr].s = s;
+}
+
+function safeNumOrBlank(v) {
+  const n = Number(v ?? "");
+  if (Number.isNaN(n) || v === null || v === undefined || String(v).trim() === "") return "";
+  return n;
+}
+
+function exportDailyOrdersToXlsx({ dayName, ymd, orders }) {
+  // Sheet layout to mimic your screenshot:
+  // - Data starts at column B (so A is blank)
+  // - Header row at row 3
+  // - Orders start at row 4
+  // - Day name at M2, Date at N2
+
+  const headers = [
+    "Customer",
+    "HT",
+    "#1.6",
+    "#1 Reg",
+    "#2 Prem",
+    "#2 Reg",
+    "2x4",
+    "Customs Count",
+    "Bol #",
+    "PO #",
+    "Type",
+    "Notes",
+  ];
+
+  const wb = XLSX.utils.book_new();
+
+  // Build AOA with blank col A so table begins in col B.
+  const aoa = [];
+
+  // Row 1 (blank)
+  aoa.push([""]);
+
+  // Row 2 (top header area)
+  // Put dayName in col M, date in col N (A=1 ... M=13, N=14)
+  // We'll build a row with 14 columns (A..N), index 0..13
+  const row2 = new Array(14).fill("");
+  row2[12] = dayName || ""; // M
+  // format date like 3/5/2026 (no leading zero)
+  let prettyDate = "";
+  try {
+    const [yy, mm, dd] = String(ymd).split("-").map((x) => Number(x));
+    if (yy && mm && dd) prettyDate = `${mm}/${dd}/${yy}`;
+  } catch {
+    prettyDate = ymd || "";
+  }
+  row2[13] = prettyDate; // N
+  aoa.push(row2);
+
+  // Row 3 (headers) starting at col B -> so first element is blank for col A
+  aoa.push(["", ...headers]);
+
+  // Rows 4+ (data)
+  for (const o of orders) {
+    aoa.push([
+      "", // col A blank
+      o.customer || "",
+      o.ht || "",
+      safeNumOrBlank(o.pallet_1_6),
+      safeNumOrBlank(o.pallet_1_reg),
+      safeNumOrBlank(o.pallet_2_prem),
+      safeNumOrBlank(o.pallet_2_reg),
+      safeNumOrBlank(o.pallet_2x4),
+      safeNumOrBlank(o.customs_count),
+      o.bol_number || "",
+      o.po_number || "",
+      o.type || "",
+      o.notes || "",
+    ]);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Column widths (B..N)
+  ws["!cols"] = [
+    { wch: 2 }, // A (blank)
+    { wch: 18 }, // B Customer
+    { wch: 14 }, // C HT
+    { wch: 8 }, // D #1.6
+    { wch: 10 }, // E #1 Reg
+    { wch: 10 }, // F #2 Prem
+    { wch: 10 }, // G #2 Reg
+    { wch: 8 }, // H 2x4
+    { wch: 14 }, // I Customs Count
+    { wch: 10 }, // J Bol #
+    { wch: 12 }, // K PO #
+    { wch: 16 }, // L Type
+    { wch: 34 }, // M Notes (actually column M in our table row; dayName is M2 but Type/Notes are L/M in table row)
+    { wch: 12 }, // N top date cell (only used in row 2)
+  ];
+
+  const border = mkBorder();
+
+  // Style: top header (M2, N2)
+  setCell(ws, "M2", dayName || "", {
+    font: { bold: true, sz: 14 },
+    alignment: { horizontal: "center", vertical: "center" },
+  });
+  setCell(ws, "N2", prettyDate || "", {
+    font: { bold: true, sz: 14 },
+    alignment: { horizontal: "center", vertical: "center" },
+  });
+
+  // Style header row (row 3, columns B..M i.e. 12 headers)
+  for (let i = 0; i < headers.length; i++) {
+    const col = XLSX.utils.encode_col(1 + i); // 1=B since A=0
+    const addr = `${col}3`;
+    setCell(ws, addr, headers[i], {
+      font: { bold: true },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border,
+    });
+  }
+
+  // Style table body borders + Type fill (Type column is L -> in our table it is column index 11 overall, but AOA has A blank then B..)
+  // Our Type is at column L in the sheet: headers[10] is "Type"
+  // That maps to: A blank, B customer (1), ... L type (11), M notes (12)
+  const startRow = 4;
+  const endRow = Math.max(4, 3 + orders.length); // last data row index
+  const firstCol = 1; // B
+  const lastCol = 12; // M (Notes)
+  const typeCol = 11; // L
+
+  for (let r = startRow; r <= endRow; r++) {
+    for (let c = firstCol; c <= lastCol; c++) {
+      const addr = XLSX.utils.encode_cell({ r: r - 1, c }); // 0-based
+      const existing = ws[addr] || { v: "" };
+      const isType = c === typeCol;
+      ws[addr] = {
+        ...existing,
+        s: {
+          border,
+          alignment: { vertical: "center", wrapText: c === lastCol },
+          ...(isType
+            ? { fill: { patternType: "solid", fgColor: { rgb: "DDEBF7" } } }
+            : {}),
+        },
+      };
+    }
+  }
+
+  // Set sheet range properly
+  const range = XLSX.utils.decode_range(ws["!ref"] || "A1:A1");
+  // Ensure it includes through N2 and table columns through M
+  range.e.c = Math.max(range.e.c, 13); // include N (col 13)
+  range.e.r = Math.max(range.e.r, endRow - 1);
+  ws["!ref"] = XLSX.utils.encode_range(range);
+
+  XLSX.utils.book_append_sheet(wb, ws, "Daily Orders");
+
+  const fileName = `DailyOrders_${ymd || "export"}.xlsx`;
+  const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  downloadArrayBufferAsFile(out, fileName);
+}
+/** ===================================================== */
 
 export default function DailyOrders() {
   const qc = useQueryClient();
@@ -264,6 +457,23 @@ export default function DailyOrders() {
     }
   };
 
+  const onExport = () => {
+    try {
+      exportDailyOrdersToXlsx({
+        dayName,
+        ymd,
+        orders,
+      });
+    } catch (e) {
+      // eslint-disable-next-line no-alert
+      alert(
+        `Export failed. ${
+          e?.message ? String(e.message) : "Make sure xlsx-js-style is installed."
+        }`
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-amber-50">
       <div className="w-full px-6 py-6 space-y-6">
@@ -311,6 +521,11 @@ export default function DailyOrders() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={onExport} className="rounded-2xl">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+
                 <Button onClick={openAdd} className="rounded-2xl">
                   <Plus className="h-4 w-4 mr-2" />
                   New Order
@@ -370,7 +585,9 @@ export default function DailyOrders() {
                         onClick={() => openEdit(o)}
                         title="Click to edit"
                       >
-                        <TableCell className="font-medium whitespace-nowrap">{o.customer || ""}</TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">
+                          {o.customer || ""}
+                        </TableCell>
                         <TableCell className="whitespace-nowrap">{o.ht || ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{o.pallet_1_6 ?? ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{o.pallet_1_reg ?? ""}</TableCell>
