@@ -11,6 +11,7 @@ import {
   CalendarDays,
   Users,
   Truck,
+  ClipboardCheck,
   Fuel,
   Droplets,
   Gauge,
@@ -200,6 +201,12 @@ export default function Dashboard() {
       to: createPageUrl("DispatchLog"),
       icon: Truck,
       description: "Track dispatch info and operational notes in one place.",
+    },
+    {
+      name: "Daily Orders",
+      to: createPageUrl("DailyOrders"),
+      icon: ClipboardCheck,
+      description: "Enter and review daily customer orders in a spreadsheet-style table.",
     },
     {
       name: "Load History",
