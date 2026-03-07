@@ -111,13 +111,13 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete, onCopy
   const columns = useMemo(
     () => [
       { key: "drag", label: "", width: "w-12 shrink-0" },
-      { key: "company", label: "Company", width: "w-56 min-w-[220px]" },
-      { key: "dk_trl", label: "Dk/TRL#", width: "w-40 min-w-[140px]" },
-      { key: "location", label: "Location", width: "min-w-[360px] flex-[1.4]" },
-      { key: "days_open", label: "Days old", width: "w-28 shrink-0 text-center" },
+      { key: "company", label: "Company", width: "w-[18%] min-w-[220px]" },
+      { key: "dk_trl", label: "Dk/TRL#", width: "w-[12%] min-w-[140px]" },
+      { key: "location", label: "Location", width: "w-[30%] min-w-[280px]" },
+      { key: "days_open", label: "Days old", width: "w-24 shrink-0 text-center" },
       { key: "shift_code", label: "Type", width: "w-24 shrink-0 text-center" },
-      { key: "driver", label: "Driver", width: "w-40 min-w-[140px]" },
-      { key: "notes", label: "Notes", width: "min-w-[260px] flex-1" },
+      { key: "driver", label: "Driver", width: "w-[12%] min-w-[150px]" },
+      { key: "notes", label: "Notes", width: "w-[16%] min-w-[180px]" },
     ],
     []
   );
@@ -140,8 +140,8 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete, onCopy
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="overflow-x-auto">
-        <div className="min-w-[1450px]">
+      <div className="w-full overflow-x-auto">
+        <div className="w-full min-w-[1360px]">
           <div className="bg-slate-800 text-white">
             <div className="flex items-center px-4 py-3 gap-3">
               {columns.map((col) => (
@@ -155,7 +155,7 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete, onCopy
                   {col.label}
                 </div>
               ))}
-              <div className="w-28 shrink-0 text-xs font-semibold uppercase tracking-wider text-center">
+              <div className="w-36 shrink-0 pr-2 text-xs font-semibold uppercase tracking-wider text-center">
                 Actions
               </div>
             </div>
@@ -231,7 +231,7 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete, onCopy
                       const isTypeField = col.key === "shift_code";
 
                       return (
-                        <div key={col.key} className={cn(col.width)}>
+                        <div key={col.key} className={cn(col.width, "overflow-hidden")}>
                           {isEditing ? (
                             isTypeField ? (
                               <select
@@ -254,7 +254,7 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete, onCopy
                                 value={editData[col.key] || ""}
                                 onChange={(e) => handleChange(col.key, e.target.value)}
                                 onClick={(e) => e.stopPropagation()}
-                                className="h-8 text-sm"
+                                className="h-8 text-sm w-full"
                                 placeholder={col.label}
                               />
                             )
@@ -263,15 +263,13 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete, onCopy
                               let displayValue = value;
                               if (isCarryOverView && col.key === "driver") displayValue = "";
 
-                              return col.key === "location" ? (
+                              return (
                                 <span
                                   className="text-sm text-slate-700 block truncate whitespace-nowrap overflow-hidden"
                                   title={displayValue || ""}
                                 >
                                   {displayValue ? displayValue : "-"}
                                 </span>
-                              ) : (
-                                <span className="text-sm text-slate-700">{displayValue ? displayValue : "-"}</span>
                               );
                             })()
                           )}
@@ -279,25 +277,28 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete, onCopy
                       );
                     })}
 
-                    <div className="w-28 shrink-0 flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="w-36 shrink-0 pr-2 flex items-center justify-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {isEditing ? (
                         <>
-                          <Button size="icon" variant="ghost" onClick={saveEdit} className="h-8 w-8">
+                          <Button size="icon" variant="ghost" onClick={saveEdit} className="h-8 w-8 shrink-0">
                             <Check className="h-4 w-4 text-emerald-600" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-8 w-8">
+                          <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-8 w-8 shrink-0">
                             <X className="h-4 w-4 text-slate-500" />
                           </Button>
                         </>
                       ) : (
                         <>
-                          <Button size="icon" variant="ghost" onClick={() => startEdit(log)} className="h-8 w-8" title="Edit">
+                          <Button size="icon" variant="ghost" onClick={() => startEdit(log)} className="h-8 w-8 shrink-0" title="Edit">
                             <Pencil className="h-4 w-4 text-slate-500" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => onCopy?.(log)} className="h-8 w-8" title="Copy">
+                          <Button size="icon" variant="ghost" onClick={() => onCopy?.(log)} className="h-8 w-8 shrink-0" title="Copy">
                             <Copy className="h-4 w-4 text-sky-600" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => onDelete(log.id)} className="h-8 w-8" title="Delete">
+                          <Button size="icon" variant="ghost" onClick={() => onDelete(log.id)} className="h-8 w-8 shrink-0" title="Delete">
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </>
