@@ -110,15 +110,15 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete, onCopy
 
   const columns = useMemo(
     () => [
-      { key: "drag", label: "", width: "w-10 shrink-0" },
-      { key: "company", label: "Company", width: "w-[16%]" },
-      { key: "dk_trl", label: "Dk/TRL#", width: "w-[10%]" },
-      { key: "location", label: "Location", width: "w-[28%]" },
-      { key: "eta", label: "ETA", width: "w-[8%]" },
-      { key: "days_open", label: "Days old", width: "w-[6%] text-center" },
-      { key: "shift_code", label: "Type", width: "w-[6%] text-center" },
-      { key: "driver", label: "Driver", width: "w-[10%]" },
-      { key: "notes", label: "Notes", width: "w-[16%]" },
+      { key: "drag", label: "", width: "w-12 shrink-0" },
+      { key: "company", label: "Company", width: "w-[18%] min-w-[220px]" },
+      { key: "dk_trl", label: "Dk/TRL#", width: "w-[12%] min-w-[140px]" },
+      { key: "location", label: "Location", width: "w-[26%] min-w-[260px]" },
+      { key: "eta", label: "ETA", width: "w-[10%] min-w-[120px]" },
+      { key: "days_open", label: "Days old", width: "w-24 shrink-0 text-center" },
+      { key: "shift_code", label: "Type", width: "w-24 shrink-0 text-center" },
+      { key: "driver", label: "Driver", width: "w-[12%] min-w-[150px]" },
+      { key: "notes", label: "Notes", width: "w-[16%] min-w-[180px]" },
     ],
     []
   );
@@ -141,8 +141,8 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete, onCopy
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="w-full">
-        <div className="w-full">
+      <div className="w-full overflow-x-auto">
+        <div className="w-full min-w-[1360px]">
           <div className="bg-slate-800 text-white">
             <div className="flex items-center px-4 py-3 gap-3">
               {columns.map((col) => (
