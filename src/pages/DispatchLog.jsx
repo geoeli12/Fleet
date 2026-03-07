@@ -165,7 +165,7 @@ function toDbPayload(ui) {
     trailer_number: ui.trailer_number || "",
     notes: ui.notes || "",
     dock_hours: ui.dock_hours || "",
-    eta: ui.eta || "", 
+    eta: String(ui?.eta ?? "").trim(), 
     // IMPORTANT:
     // If the DB value was a pending-token, the UI shows it as blank.
     // On edit (like changing Trailer #), we must NOT overwrite the token with "";
