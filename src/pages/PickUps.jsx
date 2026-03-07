@@ -161,23 +161,6 @@ function moveIdWithinArray(ids, activeId, overId) {
   return next;
 }
 
-function ensureManualIdsForVisible(sortedLogs, manualIds) {
-  const next = manualIds.slice();
-  const existing = new Set(next.map(String));
-
-  sortedLogs
-    .filter((log) => !isDispatchedForView(log, log.date_picked_up))
-    .forEach((log) => {
-      const id = String(log.id);
-      if (!existing.has(id)) {
-        next.push(id);
-        existing.add(id);
-      }
-    });
-
-  return next;
-}
-
 export default function PickUps() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -449,7 +432,7 @@ export default function PickUps() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="w-full px-6 xl:px-8 py-4">
+        <div className="w-full px-4 md:px-6 xl:px-8 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="bg-slate-800 p-2.5 rounded-xl">
@@ -476,7 +459,7 @@ export default function PickUps() {
         </div>
       </header>
 
-      <main className="w-full px-6 xl:px-8 py-8 space-y-6">
+      <main className="w-full max-w-none px-4 md:px-6 xl:px-8 py-8 space-y-6">
         <StatusSummary logs={statsLogs} variant="pickups" selectedDate={selectedDate} />
 
         <div className="flex flex-col xl:flex-row gap-4 xl:items-center xl:justify-between">
