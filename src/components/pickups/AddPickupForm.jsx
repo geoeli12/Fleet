@@ -44,6 +44,7 @@ const getInitialForm = (calledOutDate, regionValue) => ({
   company: "",
   dk_trl: "",
   location: "",
+  eta: "",
   shift_code: "",
   notes: "",
 
@@ -207,6 +208,7 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
       ...form,
       region: (region || form.region || "").toString().trim().toUpperCase(),
       location: (form.location || "").trim() || (picked?.address || ""),
+      eta: form.eta || picked?.receivingHours || "",
 
       // New pickup form should NOT set these.
       date_picked_up: "",
@@ -417,6 +419,16 @@ export default function AddPickupForm({ onAdd, defaultCalledOutDate, region }) {
                     value={form.location}
                     onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}
                     placeholder="1141 S. 10th St., Watertown, WI 53094"
+                    className="h-11 rounded-xl"
+                  />
+                </div>
+
+                <div className="md:col-span-1">
+                  <label className="text-xs font-semibold text-slate-600">ETA</label>
+                  <Input
+                    value={form.eta}
+                    onChange={(e) => setForm((p) => ({ ...p, eta: e.target.value }))}
+                    placeholder="Dock ETA"
                     className="h-11 rounded-xl"
                   />
                 </div>
