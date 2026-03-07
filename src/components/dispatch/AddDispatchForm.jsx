@@ -574,10 +574,10 @@ export default function AddDispatchForm({ onAdd, defaultDate, region }) {
 
                   {isCompanyFocused && companyMatches.length > 0 ? (
                     <div
-                      className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+                      className="absolute left-0 top-full z-[1000] mt-2 w-full rounded-2xl border border-slate-200 bg-white shadow-xl"
                       role="listbox"
                     >
-                      <div className="max-h-64 overflow-auto p-1">
+                      <div className="max-h-72 overflow-y-auto p-1">
                         {companyMatches.map((row) => (
                           <button
                             key={row._key}
