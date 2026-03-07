@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Trash2, Check, X, Copy, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -52,10 +52,11 @@ function saveTypeOptions(opts) {
   }
 }
 
-export default function PickupTable({ viewDate, logs, onUpdate, onDelete }) {
+export default function PickupTable({ viewDate, logs, onUpdate, onDelete, onCopy, onMoveRow }) {
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
   const [typeOptions, setTypeOptions] = useState(() => loadTypeOptions());
+  const [draggedId, setDraggedId] = useState(null);
 
   const startEdit = (log) => {
     setEditingId(log.id);
@@ -68,9 +69,6 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete }) {
   };
 
   const saveEdit = async () => {
-    // P/U Date is driven by the page date picker (viewDate).
-    // If a driver is entered, stamp date_picked_up to the currently viewed date.
-    // If driver is cleared, also clear date_picked_up so the row becomes "open" again.
     const next = { ...editData };
     const driver = (next.driver ?? "").toString().trim();
     const viewYmd = normalizeYMD(viewDate || "");
@@ -96,11 +94,13 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete }) {
     if (value === "__ADD_NEW__") {
       const next = (window.prompt("Add new Type (example: PU)") || "").trim();
       if (!next) return;
+
       setTypeOptions((prev) => {
         const merged = Array.from(new Set([...(prev || []), next]));
         saveTypeOptions(merged);
         return merged;
       });
+
       handleChange("shift_code", next);
       return;
     }
@@ -110,161 +110,205 @@ export default function PickupTable({ viewDate, logs, onUpdate, onDelete }) {
 
   const columns = useMemo(
     () => [
-      { key: "company", label: "Company", width: "w-44" },
-      { key: "dk_trl", label: "Dk/TRL#", width: "w-32" },
-      // Location stays between DK/TRL# and Days old.
-      // Make it wide enough for a full address on one row, with truncation + tooltip.
-      { key: "location", label: "Location", width: "w-[420px] min-w-[320px]" },
-      { key: "days_open", label: "Days old", width: "w-24 text-center" },
-      // Type right after Days old
-      { key: "shift_code", label: "Type", width: "w-24 text-center" },
-      { key: "driver", label: "Driver", width: "w-28" },
-      { key: "notes", label: "Notes", width: "flex-1 min-w-[220px]" },
+      { key: "drag", label: "", width: "w-12 shrink-0" },
+      { key: "company", label: "Company", width: "w-56 min-w-[220px]" },
+      { key: "dk_trl", label: "Dk/TRL#", width: "w-40 min-w-[140px]" },
+      { key: "location", label: "Location", width: "min-w-[360px] flex-[1.4]" },
+      { key: "days_open", label: "Days old", width: "w-28 shrink-0 text-center" },
+      { key: "shift_code", label: "Type", width: "w-24 shrink-0 text-center" },
+      { key: "driver", label: "Driver", width: "w-40 min-w-[140px]" },
+      { key: "notes", label: "Notes", width: "min-w-[260px] flex-1" },
     ],
     []
   );
-
 
   const getRowStyle = (log, viewDateYmd) => {
     const pickedYmd = normalizeYMD(log.date_picked_up);
     const endForDays = pickedYmd && viewDateYmd && viewDateYmd >= pickedYmd ? pickedYmd : viewDateYmd;
     const days = Number(daysBetween(log.date_called_out, endForDays));
 
-
-    // If picked up date exists -> completed (soft green)
-    // Only show "picked up" styling ON the actual pickup day (for earlier carry-over days, keep it looking open)
     if (pickedYmd && viewDateYmd && viewDateYmd >= pickedYmd) {
       return "bg-gradient-to-r from-emerald-50 to-emerald-100 border-l-4 border-l-emerald-500";
     }
 
-    // If days open is high -> attention (soft red)
-    if (Number.isFinite(days) && days >= 10) return "bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-l-red-500";
+    if (Number.isFinite(days) && days >= 10) {
+      return "bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-l-red-500";
+    }
 
-    // Otherwise normal
     return "bg-white border-l-4 border-l-slate-200";
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      {/* Header */}
-      <div className="bg-slate-800 text-white">
-        <div className="flex items-center px-4 py-3 gap-2">
-          {columns.map((col) => (
-            <div key={col.key} className={cn("text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis truncate", col.width)}>
-              {col.label}
+      <div className="overflow-x-auto">
+        <div className="min-w-[1450px]">
+          <div className="bg-slate-800 text-white">
+            <div className="flex items-center px-4 py-3 gap-3">
+              {columns.map((col) => (
+                <div
+                  key={col.key}
+                  className={cn(
+                    "text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis truncate",
+                    col.width
+                  )}
+                >
+                  {col.label}
+                </div>
+              ))}
+              <div className="w-28 shrink-0 text-xs font-semibold uppercase tracking-wider text-center">
+                Actions
+              </div>
             </div>
-          ))}
-          <div className="w-20 text-xs font-semibold uppercase tracking-wider text-center">Actions</div>
-        </div>
-      </div>
+          </div>
 
-      {/* Body */}
-      <div className="divide-y divide-slate-100">
-        {logs.length === 0 ? (
-          <div className="px-4 py-12 text-center text-slate-400">No pick ups yet. Add your first entry above.</div>
-        ) : (
-          logs.map((log) => {
-            const isEditing = editingId === log.id;
-            const viewDateYmd = normalizeYMD(viewDate || "");
-            const pickedYmd = normalizeYMD(log.date_picked_up);
-            const endForDays = pickedYmd && viewDateYmd && viewDateYmd >= pickedYmd ? pickedYmd : viewDateYmd;
-            const days = daysBetween(log.date_called_out, endForDays);
+          <div className="divide-y divide-slate-100">
+            {logs.length === 0 ? (
+              <div className="px-4 py-12 text-center text-slate-400">No pick ups yet. Add your first entry above.</div>
+            ) : (
+              logs.map((log) => {
+                const isEditing = editingId === log.id;
+                const viewDateYmd = normalizeYMD(viewDate || "");
+                const pickedYmd = normalizeYMD(log.date_picked_up);
+                const endForDays = pickedYmd && viewDateYmd && viewDateYmd >= pickedYmd ? pickedYmd : viewDateYmd;
+                const days = daysBetween(log.date_called_out, endForDays);
 
-            return (
-              <div
-                key={log.id}
-                onClick={() => !isEditing && startEdit(log)}
-                className={cn(
-                  "flex items-center px-4 py-3 gap-2 transition-all duration-200 hover:shadow-md cursor-pointer",
-                  getRowStyle(log, viewDateYmd),
-                  isEditing && "cursor-default"
-                )}
-              >
-                {columns.map((col) => {
-                  if (col.key === "days_open") {
-                    return (
-                      <div key={col.key} className={cn(col.width)}>
-                        <span className="text-sm font-semibold text-slate-700">{days === "" ? "-" : days}</span>
-                      </div>
-                    );
-                  }
-
-                  const value = log[col.key] ?? "";
-                  const isCarryOverView = Boolean(pickedYmd && viewDateYmd && viewDateYmd < pickedYmd);
-
-                  const isTypeField = col.key === "shift_code";
-
-                  return (
-                    <div key={col.key} className={cn(col.width)}>
-                      {isEditing ? (
-                        isTypeField ? (
-                          <select
-                            value={(editData.shift_code || "").toString()}
-                            onChange={(e) => handleTypeChange(e.target.value)}
-                            className="h-8 text-sm w-full rounded-md border border-slate-200 bg-white px-2"
-                          >
-                            <option value="">(blank)</option>
-                            {typeOptions.map((t) => (
-                              <option key={t} value={t}>
-                                {t}
-                              </option>
-                            ))}
-                            <option value="__ADD_NEW__">Add new…</option>
-                          </select>
-                        ) : (
-                          <Input
-                            type="text"
-                            value={editData[col.key] || ""}
-                            onChange={(e) => handleChange(col.key, e.target.value)}
-                            className="h-8 text-sm"
-                            placeholder={col.label}
-                          />
-                        )
-                      ) : (
-                        (() => {
-                          let displayValue = value;
-                          if (isCarryOverView && col.key === "driver") displayValue = "";
-                          return col.key === "location" ? (
-                          <span
-                            className="text-sm text-slate-700 block truncate whitespace-nowrap overflow-hidden"
-                            title={displayValue || ""}
-                          >
-                            {displayValue ? displayValue : "-"}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-slate-700">{displayValue ? displayValue : "-"}</span>
+                return (
+                  <div
+                    key={log.id}
+                    draggable={!isEditing}
+                    onDragStart={(e) => {
+                      if (isEditing) return;
+                      setDraggedId(log.id);
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("text/plain", String(log.id));
+                    }}
+                    onDragOver={(e) => {
+                      if (!draggedId || String(draggedId) === String(log.id)) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const activeId = e.dataTransfer.getData("text/plain") || draggedId;
+                      if (activeId && onMoveRow) onMoveRow(activeId, log.id);
+                      setDraggedId(null);
+                    }}
+                    onDragEnd={() => setDraggedId(null)}
+                    onClick={() => !isEditing && startEdit(log)}
+                    className={cn(
+                      "flex items-center px-4 py-3 gap-3 transition-all duration-200 hover:shadow-md cursor-pointer",
+                      getRowStyle(log, viewDateYmd),
+                      draggedId && String(draggedId) === String(log.id) && "opacity-60",
+                      isEditing && "cursor-default"
+                    )}
+                  >
+                    {columns.map((col) => {
+                      if (col.key === "drag") {
+                        return (
+                          <div key={col.key} className={cn(col.width, "flex items-center justify-center")}>
+                            <button
+                              type="button"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Drag to reorder"
+                            >
+                              <GripVertical className="h-4 w-4" />
+                            </button>
+                          </div>
                         );
-                        })()
+                      }
+
+                      if (col.key === "days_open") {
+                        return (
+                          <div key={col.key} className={cn(col.width, "text-center")}>
+                            <span className="text-sm font-semibold text-slate-700">{days === "" ? "-" : days}</span>
+                          </div>
+                        );
+                      }
+
+                      const value = log[col.key] ?? "";
+                      const isCarryOverView = Boolean(pickedYmd && viewDateYmd && viewDateYmd < pickedYmd);
+                      const isTypeField = col.key === "shift_code";
+
+                      return (
+                        <div key={col.key} className={cn(col.width)}>
+                          {isEditing ? (
+                            isTypeField ? (
+                              <select
+                                value={(editData.shift_code || "").toString()}
+                                onChange={(e) => handleTypeChange(e.target.value)}
+                                className="h-8 text-sm w-full rounded-md border border-slate-200 bg-white px-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <option value="">(blank)</option>
+                                {typeOptions.map((t) => (
+                                  <option key={t} value={t}>
+                                    {t}
+                                  </option>
+                                ))}
+                                <option value="__ADD_NEW__">Add new…</option>
+                              </select>
+                            ) : (
+                              <Input
+                                type="text"
+                                value={editData[col.key] || ""}
+                                onChange={(e) => handleChange(col.key, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-8 text-sm"
+                                placeholder={col.label}
+                              />
+                            )
+                          ) : (
+                            (() => {
+                              let displayValue = value;
+                              if (isCarryOverView && col.key === "driver") displayValue = "";
+
+                              return col.key === "location" ? (
+                                <span
+                                  className="text-sm text-slate-700 block truncate whitespace-nowrap overflow-hidden"
+                                  title={displayValue || ""}
+                                >
+                                  {displayValue ? displayValue : "-"}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-slate-700">{displayValue ? displayValue : "-"}</span>
+                              );
+                            })()
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    <div className="w-28 shrink-0 flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      {isEditing ? (
+                        <>
+                          <Button size="icon" variant="ghost" onClick={saveEdit} className="h-8 w-8">
+                            <Check className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-8 w-8">
+                            <X className="h-4 w-4 text-slate-500" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button size="icon" variant="ghost" onClick={() => startEdit(log)} className="h-8 w-8" title="Edit">
+                            <Pencil className="h-4 w-4 text-slate-500" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => onCopy?.(log)} className="h-8 w-8" title="Copy">
+                            <Copy className="h-4 w-4 text-sky-600" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => onDelete(log.id)} className="h-8 w-8" title="Delete">
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </>
                       )}
                     </div>
-                  );
-                })}
-
-                <div className="w-20 flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                  {isEditing ? (
-                    <>
-                      <Button size="icon" variant="ghost" onClick={saveEdit} className="h-8 w-8">
-                        <Check className="h-4 w-4 text-emerald-600" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-8 w-8">
-                        <X className="h-4 w-4 text-slate-500" />
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button size="icon" variant="ghost" onClick={() => startEdit(log)} className="h-8 w-8">
-                        <Pencil className="h-4 w-4 text-slate-500" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => onDelete(log.id)} className="h-8 w-8">
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
