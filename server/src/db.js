@@ -79,6 +79,7 @@ const COLLECTIONS = {
       "item",
       "notes",
       "dock_hours",
+      "eta",
       "trailer_number",
       "driver_name",
       "source_file_name",
