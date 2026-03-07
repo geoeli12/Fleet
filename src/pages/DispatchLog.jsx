@@ -137,7 +137,7 @@ function toUiLog(order) {
     trailer_number: order.trailer_number ?? "",
     notes: order.notes ?? "",
     dock_hours: order.dock_hours ?? "",
-    eta: order.eta ?? order.ETA ?? "", 
+    eta: order.eta ?? order.ETA ?? order.eta_time ?? order.eta_minutes ?? "", 
     // Keep the raw DB value so edits don't accidentally overwrite our
     // generated pending-token (used to keep rows with blank BOL unique).
     bol_token: String(order.bol_number ?? order.bol ?? ""),
@@ -369,7 +369,7 @@ export default function DispatchLog() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="w-full px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-slate-800 p-2.5 rounded-xl">
@@ -395,7 +395,7 @@ export default function DispatchLog() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+      <main className="w-full px-6 py-8 space-y-6">
         <StatusSummary logs={logsForSummary} />
 
         <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
