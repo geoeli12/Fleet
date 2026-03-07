@@ -118,6 +118,7 @@ const COLLECTIONS = {
       "date_picked_up",
       "region",
       "company",
+      "eta",
       "dk_trl",
       "location",
       "driver",
